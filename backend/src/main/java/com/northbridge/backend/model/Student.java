@@ -21,6 +21,9 @@ public class Student {
     @Column(name = "email", nullable = false, unique = true, length = 100)
     private String email;
 
+    @Column(name = "password", nullable = false, length = 255)
+    private String password;
+
     @Column(name = "phone", length = 15)
     private String phone;
 
@@ -45,13 +48,29 @@ public class Student {
     @Column(name = "status", length = 20)
     private String status = "ACTIVE";
 
+    @Column(name = "is_active")
+    private boolean isActive = true;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // Constructors
     public Student() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public Student(String studentId, String name, String email, String password, String course) {
+        this.studentId = studentId;
+        this.name = name;
+        this.email = email;
+        this.password = password;
+        this.course = course;
+        this.status = "ACTIVE";
+        this.isActive = true;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -68,6 +87,9 @@ public class Student {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
@@ -92,6 +114,9 @@ public class Student {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public boolean isActive() { return isActive; }
+    public void setActive(boolean active) { isActive = active; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

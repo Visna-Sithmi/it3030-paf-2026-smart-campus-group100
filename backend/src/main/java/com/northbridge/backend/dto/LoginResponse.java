@@ -5,14 +5,27 @@ public class LoginResponse {
     private String message;
     private String role;
     private String name;
+    private Long id;
+    private String email;
 
     public LoginResponse() {}
 
+    // Constructor with 4 parameters (for basic login response)
     public LoginResponse(boolean success, String message, String role, String name) {
         this.success = success;
         this.message = message;
         this.role = role;
         this.name = name;
+    }
+
+    // Constructor with 6 parameters (for detailed login response with id and email)
+    public LoginResponse(boolean success, String message, String role, String name, Long id, String email) {
+        this.success = success;
+        this.message = message;
+        this.role = role;
+        this.name = name;
+        this.id = id;
+        this.email = email;
     }
 
     // Getters and Setters
@@ -46,5 +59,21 @@ public class LoginResponse {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 }

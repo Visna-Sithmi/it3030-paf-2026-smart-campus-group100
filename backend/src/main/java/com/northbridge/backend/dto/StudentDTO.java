@@ -1,6 +1,5 @@
 package com.northbridge.backend.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDate;
 
 public class StudentDTO {
@@ -8,19 +7,36 @@ public class StudentDTO {
     private String studentId;
     private String name;
     private String email;
+    private String password;  // Added password field
     private String phone;
     private String address;
     private String course;
     private Integer year;
     private Integer semester;
-
-    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dateOfBirth;
-
     private String gender;
     private String status;
 
+    // Constructors
     public StudentDTO() {}
+
+    public StudentDTO(Long id, String studentId, String name, String email, String password,
+                      String phone, String address, String course, Integer year,
+                      Integer semester, LocalDate dateOfBirth, String gender, String status) {
+        this.id = id;
+        this.studentId = studentId;
+        this.name = name;
+        this.email = email;
+        this.password = password;
+        this.phone = phone;
+        this.address = address;
+        this.course = course;
+        this.year = year;
+        this.semester = semester;
+        this.dateOfBirth = dateOfBirth;
+        this.gender = gender;
+        this.status = status;
+    }
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -34,6 +50,9 @@ public class StudentDTO {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }

@@ -27,10 +27,16 @@ public class StudentService {
             throw new RuntimeException("Email already exists: " + studentDTO.getEmail());
         }
 
+        // Validate password
+        if (studentDTO.getPassword() == null || studentDTO.getPassword().trim().isEmpty()) {
+            throw new RuntimeException("Password is required");
+        }
+
         Student student = new Student();
         student.setStudentId(studentDTO.getStudentId());
         student.setName(studentDTO.getName());
         student.setEmail(studentDTO.getEmail());
+        student.setPassword(studentDTO.getPassword()); // In production, encode this password!
         student.setPhone(studentDTO.getPhone());
         student.setAddress(studentDTO.getAddress());
         student.setCourse(studentDTO.getCourse());
@@ -131,6 +137,11 @@ public class StudentService {
             student.setStatus(studentDTO.getStatus());
         }
 
+        // Update password if provided
+        if (studentDTO.getPassword() != null && !studentDTO.getPassword().trim().isEmpty()) {
+            student.setPassword(studentDTO.getPassword()); // In production, encode this password!
+        }
+
         // Check if email is being updated
         if (studentDTO.getEmail() != null && !student.getEmail().equals(studentDTO.getEmail())) {
             if (studentRepository.existsByEmail(studentDTO.getEmail())) {
@@ -192,6 +203,7 @@ public class StudentService {
         dto.setStudentId(student.getStudentId());
         dto.setName(student.getName());
         dto.setEmail(student.getEmail());
+        dto.setPassword(student.getPassword()); // Include password in DTO (be careful with this in production)
         dto.setPhone(student.getPhone());
         dto.setAddress(student.getAddress());
         dto.setCourse(student.getCourse());

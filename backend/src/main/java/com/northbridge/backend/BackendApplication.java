@@ -6,11 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class BackendApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(BackendApplication.class, args);
-	}
-<<<<<<< HEAD
-
-=======
->>>>>>> 0952a75 (feat: Add role-based authentication for managers)
+    public static void main(String[] args) {
+        SpringApplication.run(BackendApplication.class, args);
+    }
 }

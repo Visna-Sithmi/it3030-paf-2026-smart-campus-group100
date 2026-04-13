@@ -1,74 +1,33 @@
-package com.northbridge.backend.model;
+package com.northbridge.backend.dto;
 
-import jakarta.persistence.*;
-import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "resources")
-public class Resource {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class ResourceDTO {
     private Long id;
-
-    @Column(name = "resource_code", nullable = false, unique = true, length = 50)
     private String resourceCode;
-
-    @Column(name = "name", nullable = false, length = 100)
     private String name;
-
-    @Column(name = "type", nullable = false, length = 50)
     private String type;
-
-    @Column(name = "capacity")
     private Integer capacity;
-
-    @Column(name = "location", length = 255)
     private String location;
-
-    @Column(name = "description", length = 500)
     private String description;
-
-    @Column(name = "availability_windows", columnDefinition = "TEXT")
     private String availabilityWindows;
-
-    @Column(name = "status", nullable = false, length = 20)
-    private String status = "ACTIVE";
-
-    @Column(name = "is_available")
-    private boolean isAvailable = true;
-
-    @Column(name = "image_url", length = 500)
+    private String status;
+    private boolean isAvailable;
     private String imageUrl;
-
-    @Column(name = "daily_rate")
     private Double dailyRate;
-
-    @Column(name = "created_by", length = 100)
     private String createdBy;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
     // Constructors
-    public Resource() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
+    public ResourceDTO() {}
 
-    public Resource(String resourceCode, String name, String type, Integer capacity, String location) {
+    public ResourceDTO(Long id, String resourceCode, String name, String type,
+                       Integer capacity, String location, String status, boolean isAvailable) {
+        this.id = id;
         this.resourceCode = resourceCode;
         this.name = name;
         this.type = type;
         this.capacity = capacity;
         this.location = location;
-        this.status = "ACTIVE";
-        this.isAvailable = true;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        this.status = status;
+        this.isAvailable = isAvailable;
     }
 
     // Getters and Setters
@@ -110,15 +69,4 @@ public class Resource {
 
     public String getCreatedBy() { return createdBy; }
     public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 }

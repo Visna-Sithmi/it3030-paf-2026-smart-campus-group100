@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class AuthController {
 
     @Autowired
@@ -25,6 +25,9 @@ public class AuthController {
     @Autowired
     private UserRepository userRepository;
 
+    // ==================== LOGIN ENDPOINTS ====================
+    
+    // General login for all users (Admin, Managers)
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
         LoginResponse response = userService.login(loginRequest);
@@ -36,7 +39,51 @@ public class AuthController {
         }
     }
 
-    // Test endpoint to check database connection
+    // Booking Manager specific login
+    @PostMapping("/booking-manager/login")
+    public ResponseEntity<LoginResponse> bookingManagerLogin(@RequestBody LoginRequest loginRequest) {
+        LoginResponse response = userService.bookingManagerLogin(loginRequest);
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(401).body(response);
+        }
+    }
+
+    // Resource Manager specific login
+    @PostMapping("/resource-manager/login")
+    public ResponseEntity<LoginResponse> resourceManagerLogin(@RequestBody LoginRequest loginRequest) {
+        LoginResponse response = userService.resourceManagerLogin(loginRequest);
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(401).body(response);
+        }
+    }
+
+    // Issue Manager specific login
+    @PostMapping("/issue-manager/login")
+    public ResponseEntity<LoginResponse> issueManagerLogin(@RequestBody LoginRequest loginRequest) {
+        LoginResponse response = userService.issueManagerLogin(loginRequest);
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(401).body(response);
+        }
+    }
+
+    // REMOVE THIS - Student login is handled by StudentAuthController
+    // @PostMapping("/student/login")
+    // public ResponseEntity<StudentLoginResponse> studentLogin(@RequestBody StudentLoginRequest loginRequest) {
+    //     StudentLoginResponse response = userService.studentLogin(loginRequest);
+    //     ...
+    // }
+
+    // ==================== TEST ENDPOINTS ====================
+
     @GetMapping("/test/db")
     public ResponseEntity<Map<String, Object>> testDatabase() {
         Map<String, Object> response = new HashMap<>();
@@ -64,7 +111,6 @@ public class AuthController {
         }
     }
 
-    // Test endpoint to check if controller is working
     @GetMapping("/test/ping")
     public ResponseEntity<Map<String, String>> ping() {
         Map<String, String> response = new HashMap<>();
@@ -73,7 +119,6 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    // Endpoint to create a test user (for debugging)
     @PostMapping("/test/create-user")
     public ResponseEntity<Map<String, Object>> createTestUser() {
         Map<String, Object> response = new HashMap<>();

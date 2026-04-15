@@ -24,7 +24,7 @@ public class User implements Serializable {
     @Column(name = "role", nullable = false, length = 50)
     private String role;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active")  // CHANGE THIS LINE - Add this annotation
     private boolean isActive = true;
 
     @Column(name = "created_at")

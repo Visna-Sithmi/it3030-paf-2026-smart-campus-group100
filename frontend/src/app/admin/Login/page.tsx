@@ -42,7 +42,9 @@ const LoginPage = () => {
           localStorage.setItem("email", data.email || "");
 
           setSuccessMessage(data.message || "Login successful");
-          navigate("/admin/dashboard");
+          
+          // Redirect directly to manager page
+          navigate("/admin/manager");
         } else {
           setError("Access denied. Admin only.");
         }
@@ -132,13 +134,17 @@ const LoginPage = () => {
               </div>
 
               {error && (
-                <p className="text-sm font-medium text-red-700">{error}</p>
+                <div className="rounded-md bg-red-50 p-3">
+                  <p className="text-sm font-medium text-red-700">{error}</p>
+                </div>
               )}
 
               {successMessage && (
-                <p className="text-sm font-medium text-green-700">
-                  {successMessage}
-                </p>
+                <div className="rounded-md bg-green-50 p-3">
+                  <p className="text-sm font-medium text-green-700">
+                    {successMessage}
+                  </p>
+                </div>
               )}
 
               <button

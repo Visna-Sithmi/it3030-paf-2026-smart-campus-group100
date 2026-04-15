@@ -1,35 +1,41 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./app/admin/Login/page";
+import ManagerPage from "./app/admin/manager/page";
 
-const Dashboard = () => {
-  const name = localStorage.getItem("name");
-
-  return (
-    <div className="min-h-screen bg-slate-100 p-8">
-      <div className="mx-auto max-w-5xl rounded-xl bg-white p-8 shadow-lg">
-        <h1 className="text-3xl font-bold text-[#002147]">
-          Admin Dashboard
-        </h1>
-        <p className="mt-3 text-slate-600">
-          Welcome, {name || "Admin"} 👋
-        </p>
-      </div>
-    </div>
-  );
+// Protected Route Component - ensures only authenticated admins can access
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const user = localStorage.getItem("user");
+  const role = localStorage.getItem("role");
+  
+  if (!user || role !== "ADMIN") {
+    return <Navigate to="/admin/login" replace />;
+  }
+  
+  return <>{children}</>;
 };
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Default route */}
-        <Route path="/" element={<Navigate to="/admin/login" />} />
+        {/* Default route - redirect to login */}
+        <Route path="/" element={<Navigate to="/admin/login" replace />} />
 
-        {/* Admin login route */}
+        {/* Admin login route - public access */}
         <Route path="/admin/login" element={<LoginPage />} />
 
-        {/* Dashboard route */}
-        <Route path="/admin/dashboard" element={<Dashboard />} />
+        {/* Manager page - protected (only accessible after login) */}
+        <Route 
+          path="/admin/manager" 
+          element={
+            <ProtectedRoute>
+              <ManagerPage />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* Redirect any other routes to login */}
+        <Route path="*" element={<Navigate to="/admin/login" replace />} />
       </Routes>
     </BrowserRouter>
   );

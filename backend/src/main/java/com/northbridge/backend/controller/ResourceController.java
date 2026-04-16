@@ -4,10 +4,12 @@ import com.northbridge.backend.dto.ApiResponse;
 import com.northbridge.backend.dto.ResourceDTO;
 import com.northbridge.backend.model.Resource;
 import com.northbridge.backend.service.ResourceService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
@@ -18,15 +20,42 @@ public class ResourceController {
     @Autowired
     private ResourceService resourceService;
 
-    // 1. ADD RESOURCE - POST
-    @PostMapping("/add")
-    public ResponseEntity<ApiResponse> addResource(@RequestBody ResourceDTO resourceDTO) {
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // 1. ADD RESOURCE - POST (FIXED VERSION)
+    @PostMapping(value = "/add", consumes = {"multipart/form-data"})
+    public ResponseEntity<ApiResponse> addResource(
+            @RequestParam("resource") String resourceJson,
+            @RequestParam(value = "image", required = false) MultipartFile imageFile) {
         try {
+            System.out.println("=== DEBUGGING ADD RESOURCE ===");
+            System.out.println("Received JSON: " + resourceJson);
+
+            // Parse JSON string to ResourceDTO
+            ResourceDTO resourceDTO = objectMapper.readValue(resourceJson, ResourceDTO.class);
+
+            System.out.println("Resource Code: " + resourceDTO.getResourceCode());
+            System.out.println("Resource Name: " + resourceDTO.getName());
+            System.out.println("Resource Type: " + resourceDTO.getType());
+
+            if (imageFile != null && !imageFile.isEmpty()) {
+                System.out.println("Image file: " + imageFile.getOriginalFilename());
+                System.out.println("Image size: " + imageFile.getSize() + " bytes");
+                resourceDTO.setImageFile(imageFile);
+            } else {
+                System.out.println("No image file provided");
+            }
+
             Resource newResource = resourceService.addResource(resourceDTO);
+            System.out.println("Resource saved with ID: " + newResource.getId());
+
             ApiResponse response = new ApiResponse(true, "Resource added successfully", newResource);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (RuntimeException e) {
-            ApiResponse response = new ApiResponse(false, e.getMessage());
+
+        } catch (Exception e) {
+            System.err.println("Error adding resource: " + e.getMessage());
+            e.printStackTrace();
+            ApiResponse response = new ApiResponse(false, "Error adding resource: " + e.getMessage());
             return ResponseEntity.badRequest().body(response);
         }
     }
@@ -141,15 +170,33 @@ public class ResourceController {
         }
     }
 
-    // 10. UPDATE RESOURCE - PUT
-    @PutMapping("/update/{id}")
-    public ResponseEntity<ApiResponse> updateResource(@PathVariable Long id, @RequestBody ResourceDTO resourceDTO) {
+    // 10. UPDATE RESOURCE - PUT (UPDATED with image upload support)
+    @PutMapping(value = "/update/{id}", consumes = {"multipart/form-data"})
+    public ResponseEntity<ApiResponse> updateResource(
+            @PathVariable Long id,
+            @RequestParam("resource") String resourceJson,
+            @RequestParam(value = "image", required = false) MultipartFile imageFile) {
         try {
+            System.out.println("=== DEBUGGING UPDATE RESOURCE ===");
+            System.out.println("Updating resource ID: " + id);
+            System.out.println("Received JSON: " + resourceJson);
+
+            // Parse JSON string to ResourceDTO
+            ResourceDTO resourceDTO = objectMapper.readValue(resourceJson, ResourceDTO.class);
+
+            if (imageFile != null && !imageFile.isEmpty()) {
+                System.out.println("New image file: " + imageFile.getOriginalFilename());
+                resourceDTO.setImageFile(imageFile);
+            }
+
             ResourceDTO updatedResource = resourceService.updateResource(id, resourceDTO);
             ApiResponse response = new ApiResponse(true, "Resource updated successfully", updatedResource);
             return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            ApiResponse response = new ApiResponse(false, e.getMessage());
+
+        } catch (Exception e) {
+            System.err.println("Error updating resource: " + e.getMessage());
+            e.printStackTrace();
+            ApiResponse response = new ApiResponse(false, "Error updating resource: " + e.getMessage());
             return ResponseEntity.badRequest().body(response);
         }
     }

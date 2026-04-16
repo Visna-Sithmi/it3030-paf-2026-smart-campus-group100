@@ -674,13 +674,15 @@ const normalizeResource = (resource: ResourceApi): Resource => {
 <header className="flex justify-between items-center w-full px-12 h-24 bg-white/80 backdrop-blur-sm shadow-sm border-b border-slate-200 z-30 relative">
   <div className="flex items-center gap-6">
     <div className="flex items-center gap-4">
-      <div className="w-14 h-14 rounded-xl overflow-hidden bg-white shadow-lg border border-slate-200 flex items-center justify-center">
-        <img
-          src={logo}
-          alt="Northbridge University Logo"
-          className="w-full h-full object-cover"
-        />
-      </div>
+<div className="flex h-14 w-14 items-center justify-center rounded-full bg-white p-1 shadow-[0_8px_20px_rgba(0,33,71,0.16)] ring-4 ring-white/80">
+  <div className="h-full w-full overflow-hidden rounded-full border border-slate-200">
+    <img
+      src={logo}
+      alt="Northbridge University Logo"
+      className="h-full w-full object-cover"
+    />
+  </div>
+</div>
       <div>
         <h1 className="font-['Newsreader'] text-2xl font-bold tracking-tight text-[#002147] leading-none">
           Northbridge

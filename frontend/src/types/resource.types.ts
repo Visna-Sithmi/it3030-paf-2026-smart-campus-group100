@@ -1,4 +1,5 @@
 // src/types/resource.types.ts
+
 export interface Resource {
   id: number;
   resourceCode: string;
@@ -13,6 +14,10 @@ export interface Resource {
   imageUrl: string;
   dailyRate: number;
   createdBy: string;
+
+  // IMPORTANT
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ResourceDTO extends Partial<Resource> {

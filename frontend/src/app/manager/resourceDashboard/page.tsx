@@ -15,6 +15,7 @@ import {
   MapPin,
   Users,
 } from 'lucide-react';
+import logo from '../../../assets/logo.jpeg';
 
 interface ResourceApi {
   id: number;
@@ -670,44 +671,64 @@ const normalizeResource = (resource: ResourceApi): Resource => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
       )}
 
-      <header className="flex justify-between items-center w-full px-12 h-24 bg-white/80 backdrop-blur-sm shadow-sm border-b border-slate-200 z-30 relative">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-[#002147] rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white text-2xl font-bold">NU</span>
-            </div>
-            <div>
-              <h1 className="font-['Newsreader'] text-2xl font-bold tracking-tight text-[#002147] leading-none">
-                Northbridge
-              </h1>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium">
-                Institutional Excellence
-              </p>
-            </div>
-          </div>
-          <nav className="hidden lg:flex items-center gap-8 ml-10">
-            <a className="text-[#002147] font-semibold border-b-2 border-[#002147] pb-1" href="#">
-              Resources
-            </a>
-            <a className="text-slate-500 hover:text-[#002147] transition-colors" href="#">
-              Analytics
-            </a>
-          </nav>
-        </div>
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-6">
-            <div className="text-right hidden sm:block">
-              <p className="font-semibold text-sm text-[#002147]">Dr. Alistair Thorne</p>
-              <p className="text-[11px] text-slate-500 uppercase tracking-wider">
-                Chancellor Administrator
-              </p>
-            </div>
-            <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 font-semibold rounded-lg text-xs hover:bg-slate-50 transition-colors uppercase tracking-widest">
-              <LogOut size={16} /> Logout
-            </button>
-          </div>
-        </div>
-      </header>
+<header className="flex justify-between items-center w-full px-12 h-24 bg-white/80 backdrop-blur-sm shadow-sm border-b border-slate-200 z-30 relative">
+  <div className="flex items-center gap-6">
+    <div className="flex items-center gap-4">
+      <div className="w-14 h-14 rounded-xl overflow-hidden bg-white shadow-lg border border-slate-200 flex items-center justify-center">
+        <img
+          src={logo}
+          alt="Northbridge University Logo"
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div>
+        <h1 className="font-['Newsreader'] text-2xl font-bold tracking-tight text-[#002147] leading-none">
+          Northbridge
+        </h1>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium">
+          Institutional Excellence
+        </p>
+      </div>
+    </div>
+
+    <nav className="hidden lg:flex items-center gap-8 ml-10">
+      <a className="text-[#002147] font-semibold border-b-2 border-[#002147] pb-1" href="#">
+        Resources
+      </a>
+      <a className="text-slate-500 hover:text-[#002147] transition-colors" href="#">
+        Analytics
+      </a>
+    </nav>
+  </div>
+
+  <div className="flex items-center gap-8">
+    <div className="flex items-center gap-6">
+      <div className="text-right hidden sm:block">
+        <p className="font-semibold text-sm text-[#002147]">
+          {localStorage.getItem('name') || 'Resource Manager'}
+        </p>
+        <p className="text-[11px] text-slate-500">
+          {localStorage.getItem('email') || 'resource.m@campus.com'}
+        </p>
+      </div>
+
+      <button
+        className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 font-semibold rounded-lg text-xs hover:bg-slate-50 transition-colors uppercase tracking-widest"
+        onClick={() => {
+          localStorage.removeItem('user');
+          localStorage.removeItem('role');
+          localStorage.removeItem('name');
+          localStorage.removeItem('email');
+          localStorage.removeItem('id');
+          localStorage.removeItem('managerType');
+          window.location.href = '/manager/login';
+        }}
+      >
+        <LogOut size={16} /> Logout
+      </button>
+    </div>
+  </div>
+</header>
 
       <main className="flex-1 px-12 py-10 max-w-[1600px] mx-auto w-full relative z-10">
         <div className="flex justify-between items-end mb-12 border-b border-slate-200/50 pb-8 flex-wrap gap-4">
@@ -1457,7 +1478,7 @@ const normalizeResource = (resource: ResourceApi): Resource => {
       <footer className="flex flex-col md:flex-row justify-between items-center py-8 px-12 border-t border-slate-200/50 bg-white/80 backdrop-blur-sm">
         <div className="mb-4 md:mb-0">
           <p className="text-xs uppercase tracking-widest text-slate-500">
-            © 2024 Northbridge University. All Rights Reserved.
+            © 2026 Northbridge University. All Rights Reserved.
           </p>
         </div>
         <div className="flex gap-8">

@@ -1,8 +1,8 @@
+// src/app/client/resource-catalogue/page.tsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Search,
-  LogOut,
   X,
   Info,
   Calendar,
@@ -11,7 +11,8 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import logo from '../../../assets/logo.jpeg';
+import Header from '../../../components/layout/Header';
+import Footer from '../../../components/layout/Footer';
 import type { Resource } from '../../../types/resource.types';
 
 interface ResourceApi {
@@ -233,16 +234,6 @@ const ResourceCataloguePage: React.FC = () => {
     });
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('role');
-    localStorage.removeItem('name');
-    localStorage.removeItem('email');
-    localStorage.removeItem('id');
-    localStorage.removeItem('managerType');
-    window.location.href = '/client/login';
-  };
-
   const filteredResources = resources.filter((resource) => {
     const code = resource.resourceCode || '';
     const name = resource.name || '';
@@ -326,63 +317,11 @@ const ResourceCataloguePage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100">
-      {showDetailsModal && <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />}
+      {/* Header Component */}
+      <Header />
 
-      <header className="flex justify-between items-center w-full px-12 h-24 bg-white/80 backdrop-blur-sm shadow-sm border-b border-slate-200 z-30 relative">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white p-1 shadow-[0_8px_20px_rgba(0,33,71,0.16)] ring-4 ring-white/80">
-              <div className="h-full w-full overflow-hidden rounded-full border border-slate-200">
-                <img
-                  src={logo}
-                  alt="Northbridge University Logo"
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            </div>
-
-            <div>
-              <h1 className="font-['Newsreader'] text-2xl font-bold tracking-tight text-[#002147] leading-none">
-                Northbridge
-              </h1>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium">
-                Institutional Excellence
-              </p>
-            </div>
-          </div>
-
-          <nav className="hidden lg:flex items-center gap-8 ml-10">
-            <a className="text-[#002147] font-semibold border-b-2 border-[#002147] pb-1" href="#">
-              Resources
-            </a>
-            <a className="text-slate-500 hover:text-[#002147] transition-colors" href="#">
-              My Bookings
-            </a>
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-6">
-            <div className="text-right hidden sm:block">
-              <p className="font-semibold text-sm text-[#002147]">
-                {localStorage.getItem('name') || 'Client User'}
-              </p>
-              <p className="text-[11px] text-slate-500">
-                {localStorage.getItem('email') || 'client@northbridge.edu'}
-              </p>
-            </div>
-
-            <button
-              className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 font-semibold rounded-lg text-xs hover:bg-slate-50 transition-colors uppercase tracking-widest"
-              onClick={handleLogout}
-            >
-              <LogOut size={16} /> Logout
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 px-12 py-10 max-w-[1600px] mx-auto w-full relative z-10">
+      {/* Main Content */}
+      <main className="flex-1 px-12 py-10 max-w-[1600px] mx-auto w-full relative z-10 mt-20">
         <div className="flex justify-between items-end mb-12 border-b border-slate-200/50 pb-8 flex-wrap gap-4">
           <div>
             <h2 className="text-5xl font-['Newsreader'] font-bold text-[#002147] tracking-tight">
@@ -525,6 +464,7 @@ const ResourceCataloguePage: React.FC = () => {
         )}
       </main>
 
+      {/* Details Modal */}
       {showDetailsModal && selectedResource && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -655,33 +595,8 @@ const ResourceCataloguePage: React.FC = () => {
         </div>
       )}
 
-      <footer className="flex flex-col md:flex-row justify-between items-center py-8 px-12 border-t border-slate-200/50 bg-white/80 backdrop-blur-sm">
-        <div className="mb-4 md:mb-0">
-          <p className="text-xs uppercase tracking-widest text-slate-500">
-            © 2026 Northbridge University. All Rights Reserved.
-          </p>
-        </div>
-        <div className="flex gap-8">
-          <a
-            href="#"
-            className="text-xs uppercase tracking-widest text-slate-500 hover:text-[#002147] underline transition-opacity"
-          >
-            Institutional Guidelines
-          </a>
-          <a
-            href="#"
-            className="text-xs uppercase tracking-widest text-slate-500 hover:text-[#002147] underline transition-opacity"
-          >
-            Privacy Policy
-          </a>
-          <a
-            href="#"
-            className="text-xs uppercase tracking-widest text-slate-500 hover:text-[#002147] underline transition-opacity"
-          >
-            Technical Support
-          </a>
-        </div>
-      </footer>
+      {/* Footer Component */}
+      <Footer />
     </div>
   );
 };

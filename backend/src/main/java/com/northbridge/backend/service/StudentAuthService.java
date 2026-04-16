@@ -22,16 +22,39 @@ public class StudentAuthService {
     public StudentLoginResponse login(StudentLoginRequest request) {
         logger.info("=== STUDENT LOGIN ATTEMPT ===");
         logger.info("Student ID received: '{}'", request.getStudentId());
+        logger.info("Password received: '{}'", request.getPassword());
 
-        Optional<Student> student = studentRepository.findByStudentId(request.getStudentId());
+        // Trim the input to remove any spaces
+        String trimmedStudentId = request.getStudentId().trim();
+        String trimmedPassword = request.getPassword().trim();
+
+        logger.info("Trimmed Student ID: '{}'", trimmedStudentId);
+        logger.info("Trimmed Password: '{}'", trimmedPassword);
+
+        // Try to find by studentId (case-sensitive)
+        Optional<Student> student = studentRepository.findByStudentId(trimmedStudentId);
 
         if (student.isEmpty()) {
-            logger.error("Student NOT found with Student ID: '{}'", request.getStudentId());
-            return new StudentLoginResponse(false, "Invalid Student ID or password", null, null, null, null, null, null, null, null);
+            // Try to find with uppercase (in case database has uppercase)
+            Optional<Student> studentUpper = studentRepository.findByStudentId(trimmedStudentId.toUpperCase());
+            if (studentUpper.isPresent()) {
+                student = studentUpper;
+                logger.info("Found student with uppercase ID: {}", trimmedStudentId.toUpperCase());
+            } else {
+                // List all student IDs from database for debugging
+                logger.error("Student NOT found with Student ID: '{}'", trimmedStudentId);
+                logger.info("All student IDs in database:");
+                studentRepository.findAll().forEach(s ->
+                        logger.info("  - '{}'", s.getStudentId())
+                );
+                return new StudentLoginResponse(false, "Invalid Student ID or password", null, null, null, null, null, null, null, null);
+            }
         }
 
         Student studentObj = student.get();
-        logger.info("Student found: {} - {}", studentObj.getStudentId(), studentObj.getName());
+        logger.info("Student found: '{}' - '{}'", studentObj.getStudentId(), studentObj.getName());
+        logger.info("Stored password: '{}'", studentObj.getPassword());
+        logger.info("Comparing '{}' with '{}'", studentObj.getPassword(), trimmedPassword);
 
         // Check if account is active
         if (!studentObj.isActive()) {
@@ -46,7 +69,7 @@ public class StudentAuthService {
         }
 
         // Verify password
-        if (!studentObj.getPassword().equals(request.getPassword())) {
+        if (!studentObj.getPassword().equals(trimmedPassword)) {
             logger.error("Password mismatch for student: {}", studentObj.getStudentId());
             return new StudentLoginResponse(false, "Invalid Student ID or password", null, null, null, null, null, null, null, null);
         }

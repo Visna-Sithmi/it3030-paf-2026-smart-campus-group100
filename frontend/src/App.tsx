@@ -1,12 +1,13 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./app/admin/Login/page";
 import ManagerPage from "./app/admin/manager/page";
+import StudentPage from "./app/admin/student/page";
 import ManagerLoginPage from "./app/manager/login/page";
 import BookingDashboard from "./app/manager/bookingDashboard/page";
 import ResourceDashboard from "./app/manager/resourceDashboard/page";
 import IssueDashboard from "./app/manager/issueDashboard/page";
 import ResourceCataloguePage from "./app/client/resources/page";
-
+import ClientLoginPage from "./app/client/login/page";
 
 // Protected Route Component - ensures only authenticated admins can access
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -60,13 +61,12 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Default route - redirect to admin login */}
+        {/* Default route */}
         <Route path="/" element={<Navigate to="/admin/login" replace />} />
 
-        {/* Admin routes - public access */}
+        {/* Admin routes */}
         <Route path="/admin/login" element={<LoginPage />} />
 
-        {/* Admin Manager page - protected */}
         <Route
           path="/admin/manager"
           element={
@@ -76,10 +76,18 @@ function App() {
           }
         />
 
-        {/* Manager Login - public access */}
+        <Route
+          path="/admin/student"
+          element={
+            <ProtectedRoute>
+              <StudentPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Manager routes */}
         <Route path="/manager/login" element={<ManagerLoginPage />} />
 
-        {/* Manager Dashboards - protected by role */}
         <Route
           path="/manager/booking/dashboard"
           element={
@@ -107,11 +115,11 @@ function App() {
           }
         />
 
-        {/* Client pages */}
+        {/* Client / Common portal routes */}
         <Route path="/client/resources" element={<ResourceCataloguePage />} />
-        
+        <Route path="/client/login" element={<ClientLoginPage />} />
 
-        {/* Redirect any other routes to login */}
+        {/* Redirect unknown routes */}
         <Route path="*" element={<Navigate to="/admin/login" replace />} />
       </Routes>
     </BrowserRouter>

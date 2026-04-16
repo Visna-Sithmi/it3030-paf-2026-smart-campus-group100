@@ -1,20 +1,28 @@
+import { useNavigate } from "react-router-dom";
+
 type SidebarProps = {
   activeItem?: string;
-  onNavigate?: (path: string) => void;
 };
 
 const navItems = [
   { label: "Dashboard", path: "/admin/dashboard", icon: "▣" },
   { label: "Manager Administration", path: "/admin/manager", icon: "▤" },
-  { label: "Student Management", path: "/admin/students", icon: "🎓" },
+  { label: "Student Administration", path: "/admin/student", icon: "🎓" },
   { label: "Lecturer Management", path: "/admin/lecturers", icon: "👨‍🏫" },
   { label: "Helper Staff Management", path: "/admin/helpers", icon: "🛠" },
 ];
 
 export default function Sidebar({
   activeItem = "Manager Administration",
-  onNavigate,
 }: SidebarProps) {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("role");
+    navigate("/admin/login");
+  };
+
   return (
     <aside className="fixed left-0 top-0 z-50 flex h-screen w-72 flex-col border-r border-slate-200 bg-slate-50 px-6 py-6">
       <div className="mb-10 flex items-center gap-3 px-2">
@@ -39,7 +47,7 @@ export default function Sidebar({
             <button
               key={item.label}
               type="button"
-              onClick={() => onNavigate?.(item.path)}
+              onClick={() => navigate(item.path)}
               className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition ${
                 isActive
                   ? "border-l-4 border-slate-900 bg-slate-200 text-slate-900 shadow-sm"
@@ -53,11 +61,10 @@ export default function Sidebar({
         })}
       </nav>
 
-      <div className="mt-auto border-t border-slate-200 pt-6 space-y-2">
-
-
+      <div className="mt-auto space-y-2 border-t border-slate-200 pt-6">
         <button
           type="button"
+          onClick={handleLogout}
           className="mt-4 w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
           Logout

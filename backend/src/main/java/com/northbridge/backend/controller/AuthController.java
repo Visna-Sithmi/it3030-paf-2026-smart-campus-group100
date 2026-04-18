@@ -2,9 +2,12 @@ package com.northbridge.backend.controller;
 
 import com.northbridge.backend.dto.LoginRequest;
 import com.northbridge.backend.dto.LoginResponse;
+import com.northbridge.backend.dto.ManagerProfileResponseDTO;
+import com.northbridge.backend.dto.ManagerProfileUpdateRequestDTO;
 import com.northbridge.backend.model.User;
 import com.northbridge.backend.repository.UserRepository;
 import com.northbridge.backend.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -72,6 +75,43 @@ public class AuthController {
             return ResponseEntity.ok(response);
         } else {
             return ResponseEntity.status(401).body(response);
+        }
+    }
+
+    @GetMapping("/booking-manager/profile/{id}")
+    public ResponseEntity<?> getBookingManagerProfile(@PathVariable Long id) {
+        try {
+            ManagerProfileResponseDTO profile = userService.getBookingManagerProfile(id);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Booking manager profile fetched successfully",
+                    "data", profile
+            ));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", ex.getMessage()
+            ));
+        }
+    }
+
+    @PutMapping("/booking-manager/profile/{id}")
+    public ResponseEntity<?> updateBookingManagerProfile(
+            @PathVariable Long id,
+            @Valid @RequestBody ManagerProfileUpdateRequestDTO request
+    ) {
+        try {
+            ManagerProfileResponseDTO profile = userService.updateBookingManagerProfile(id, request);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Booking manager profile updated successfully",
+                    "data", profile
+            ));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", ex.getMessage()
+            ));
         }
     }
 

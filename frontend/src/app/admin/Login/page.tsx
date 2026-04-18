@@ -40,6 +40,7 @@ const LoginPage = () => {
           localStorage.setItem("role", data.role || "");
           localStorage.setItem("name", data.name || "");
           localStorage.setItem("email", data.email || "");
+          localStorage.setItem("id", data.id?.toString() || "");
 
           setSuccessMessage(data.message || "Login successful");
           

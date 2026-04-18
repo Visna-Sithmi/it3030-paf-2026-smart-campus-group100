@@ -16,6 +16,7 @@ public class StudentDTO {
     private LocalDate dateOfBirth;
     private String gender;
     private String status;
+    private String profileImageUrl;
 
     // Constructors
     public StudentDTO() {}
@@ -77,4 +78,7 @@ public class StudentDTO {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getProfileImageUrl() { return profileImageUrl; }
+    public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
 }

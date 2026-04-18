@@ -2,6 +2,8 @@ package com.northbridge.backend.service;
 
 import com.northbridge.backend.dto.LoginRequest;
 import com.northbridge.backend.dto.LoginResponse;
+import com.northbridge.backend.dto.ManagerProfileResponseDTO;
+import com.northbridge.backend.dto.ManagerProfileUpdateRequestDTO;
 import com.northbridge.backend.dto.StudentLoginRequest;
 import com.northbridge.backend.dto.StudentLoginResponse;
 import com.northbridge.backend.model.Student;
@@ -45,7 +47,15 @@ public class UserService {
         }
 
         logger.info("Login SUCCESSFUL for user: {} with role: {}", user.getEmail(), user.getRole());
-        return new LoginResponse(true, "Login successful", user.getRole(), user.getName(), user.getId(), user.getEmail());
+        return new LoginResponse(
+            true,
+            "Login successful",
+            user.getRole(),
+            user.getName(),
+            user.getId(),
+            user.getEmail(),
+            user.getProfileImageUrl()
+        );
     }
 
     // STUDENT LOGIN - Using Student ID and Password
@@ -57,38 +67,38 @@ public class UserService {
 
         if (optionalStudent.isEmpty()) {
             logger.error("Student NOT found with Student ID: '{}'", loginRequest.getStudentId());
-            return new StudentLoginResponse(false, "Invalid Student ID or password", null, null, null, null, null, null, null, null);
+            return new StudentLoginResponse(false, "Invalid Student ID or password", null, null, null, null, null, null, null, null, null);
         }
 
         Student student = optionalStudent.get();
 
         if (!"ACTIVE".equals(student.getStatus())) {
             logger.error("Student account is inactive: {}", student.getStudentId());
-            return new StudentLoginResponse(false, "Account is deactivated. Please contact admin.", null, null, null, null, null, null, null, null);
+            return new StudentLoginResponse(false, "Account is deactivated. Please contact admin.", null, null, null, null, null, null, null, null, null);
         }
 
         Optional<User> optionalUser = userRepository.findByEmail(student.getEmail());
 
         if (optionalUser.isEmpty()) {
             logger.error("User account not found for student: {}", student.getEmail());
-            return new StudentLoginResponse(false, "Invalid credentials", null, null, null, null, null, null, null, null);
+            return new StudentLoginResponse(false, "Invalid credentials", null, null, null, null, null, null, null, null, null);
         }
 
         User user = optionalUser.get();
 
         if (!user.getPassword().equals(loginRequest.getPassword())) {
             logger.error("Password mismatch for student: {}", student.getStudentId());
-            return new StudentLoginResponse(false, "Invalid Student ID or password", null, null, null, null, null, null, null, null);
+            return new StudentLoginResponse(false, "Invalid Student ID or password", null, null, null, null, null, null, null, null, null);
         }
 
         if (!"STUDENT".equals(user.getRole())) {
             logger.error("User is not a student. Role: {}", user.getRole());
-            return new StudentLoginResponse(false, "Access denied. Student only.", null, null, null, null, null, null, null, null);
+            return new StudentLoginResponse(false, "Access denied. Student only.", null, null, null, null, null, null, null, null, null);
         }
 
         if (!user.isActive()) {
             logger.error("User account is inactive for student: {}", student.getStudentId());
-            return new StudentLoginResponse(false, "Account is deactivated. Please contact admin.", null, null, null, null, null, null, null, null);
+            return new StudentLoginResponse(false, "Account is deactivated. Please contact admin.", null, null, null, null, null, null, null, null, null);
         }
 
         logger.info("Student login SUCCESSFUL: {} - {}", student.getStudentId(), student.getName());
@@ -103,7 +113,8 @@ public class UserService {
                 student.getEmail(),
                 student.getCourse(),
                 student.getYear(),
-                student.getStatus()
+                student.getStatus(),
+                student.getProfileImageUrl()
         );
     }
 
@@ -129,7 +140,15 @@ public class UserService {
         }
 
         logger.info("Booking Manager login successful: {}", user.getEmail());
-        return new LoginResponse(true, "Booking Manager login successful", user.getRole(), user.getName(), user.getId(), user.getEmail());
+        return new LoginResponse(
+            true,
+            "Booking Manager login successful",
+            user.getRole(),
+            user.getName(),
+            user.getId(),
+            user.getEmail(),
+            user.getProfileImageUrl()
+        );
     }
 
     // Resource Manager specific login
@@ -154,7 +173,15 @@ public class UserService {
         }
 
         logger.info("Resource Manager login successful: {}", user.getEmail());
-        return new LoginResponse(true, "Resource Manager login successful", user.getRole(), user.getName(), user.getId(), user.getEmail());
+        return new LoginResponse(
+            true,
+            "Resource Manager login successful",
+            user.getRole(),
+            user.getName(),
+            user.getId(),
+            user.getEmail(),
+            user.getProfileImageUrl()
+        );
     }
 
     // Issue Manager specific login
@@ -179,6 +206,53 @@ public class UserService {
         }
 
         logger.info("Issue Manager login successful: {}", user.getEmail());
-        return new LoginResponse(true, "Issue Manager login successful", user.getRole(), user.getName(), user.getId(), user.getEmail());
+        return new LoginResponse(
+                true,
+                "Issue Manager login successful",
+                user.getRole(),
+                user.getName(),
+                user.getId(),
+                user.getEmail(),
+                user.getProfileImageUrl()
+        );
+    }
+
+    public ManagerProfileResponseDTO getBookingManagerProfile(Long managerId) {
+        User manager = userRepository.findById(managerId)
+                .orElseThrow(() -> new RuntimeException("Booking manager not found"));
+
+        if (!"BOOKING_MANAGER".equals(manager.getRole())) {
+            throw new RuntimeException("Access denied. Booking manager only.");
+        }
+
+        return new ManagerProfileResponseDTO(
+                manager.getId(),
+                manager.getName(),
+                manager.getEmail(),
+                manager.getRole(),
+                manager.getProfileImageUrl()
+        );
+    }
+
+    public ManagerProfileResponseDTO updateBookingManagerProfile(Long managerId, ManagerProfileUpdateRequestDTO request) {
+        User manager = userRepository.findById(managerId)
+                .orElseThrow(() -> new RuntimeException("Booking manager not found"));
+
+        if (!"BOOKING_MANAGER".equals(manager.getRole())) {
+            throw new RuntimeException("Access denied. Booking manager only.");
+        }
+
+        manager.setName(request.getName().trim());
+        manager.setProfileImageUrl(request.getProfileImageUrl());
+
+        User updated = userRepository.save(manager);
+
+        return new ManagerProfileResponseDTO(
+                updated.getId(),
+                updated.getName(),
+                updated.getEmail(),
+                updated.getRole(),
+                updated.getProfileImageUrl()
+        );
     }
 }

@@ -2,6 +2,8 @@ package com.northbridge.backend.service;
 
 import com.northbridge.backend.dto.StudentLoginRequest;
 import com.northbridge.backend.dto.StudentLoginResponse;
+import com.northbridge.backend.dto.StudentProfileResponseDTO;
+import com.northbridge.backend.dto.StudentProfileUpdateRequestDTO;
 import com.northbridge.backend.model.Student;
 import com.northbridge.backend.repository.StudentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +49,7 @@ public class StudentAuthService {
                 studentRepository.findAll().forEach(s ->
                         logger.info("  - '{}'", s.getStudentId())
                 );
-                return new StudentLoginResponse(false, "Invalid Student ID or password", null, null, null, null, null, null, null, null);
+                return new StudentLoginResponse(false, "Invalid Student ID or password", null, null, null, null, null, null, null, null, null);
             }
         }
 
@@ -59,19 +61,19 @@ public class StudentAuthService {
         // Check if account is active
         if (!studentObj.isActive()) {
             logger.error("Student account is inactive: {}", studentObj.getStudentId());
-            return new StudentLoginResponse(false, "Account is deactivated. Please contact admin.", null, null, null, null, null, null, null, null);
+            return new StudentLoginResponse(false, "Account is deactivated. Please contact admin.", null, null, null, null, null, null, null, null, null);
         }
 
         // Check if status is ACTIVE
         if (!"ACTIVE".equals(studentObj.getStatus())) {
             logger.error("Student status is not ACTIVE: {}", studentObj.getStatus());
-            return new StudentLoginResponse(false, "Account is not active. Please contact admin.", null, null, null, null, null, null, null, null);
+            return new StudentLoginResponse(false, "Account is not active. Please contact admin.", null, null, null, null, null, null, null, null, null);
         }
 
         // Verify password
         if (!studentObj.getPassword().equals(trimmedPassword)) {
             logger.error("Password mismatch for student: {}", studentObj.getStudentId());
-            return new StudentLoginResponse(false, "Invalid Student ID or password", null, null, null, null, null, null, null, null);
+            return new StudentLoginResponse(false, "Invalid Student ID or password", null, null, null, null, null, null, null, null, null);
         }
 
         logger.info("Student login SUCCESSFUL: {} - {}", studentObj.getStudentId(), studentObj.getName());
@@ -86,8 +88,60 @@ public class StudentAuthService {
                 studentObj.getEmail(),
                 studentObj.getCourse(),
                 studentObj.getYear(),
-                studentObj.getStatus()
+                studentObj.getStatus(),
+                studentObj.getProfileImageUrl()
         );
+    }
+
+    public StudentProfileResponseDTO getStudentProfile(Long id) {
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Student not found with ID: " + id));
+
+        return mapToProfileResponse(student);
+    }
+
+    public StudentProfileResponseDTO updateStudentProfile(Long id, StudentProfileUpdateRequestDTO request) {
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Student not found with ID: " + id));
+
+        if (request.getName() != null && !request.getName().isBlank()) {
+            student.setName(request.getName().trim());
+        }
+
+        if (request.getPhone() != null) {
+            student.setPhone(request.getPhone().trim());
+        }
+
+        if (request.getAddress() != null) {
+            student.setAddress(request.getAddress().trim());
+        }
+
+        if (request.getCourse() != null) {
+            student.setCourse(request.getCourse().trim());
+        }
+
+        if (request.getYear() != null) {
+            student.setYear(request.getYear());
+        }
+
+        if (request.getSemester() != null) {
+            student.setSemester(request.getSemester());
+        }
+
+        if (request.getDateOfBirth() != null) {
+            student.setDateOfBirth(request.getDateOfBirth());
+        }
+
+        if (request.getGender() != null) {
+            student.setGender(request.getGender().trim());
+        }
+
+        if (request.getProfileImageUrl() != null) {
+            student.setProfileImageUrl(request.getProfileImageUrl());
+        }
+
+        Student updated = studentRepository.save(student);
+        return mapToProfileResponse(updated);
     }
 
     // Get student by ID
@@ -124,6 +178,26 @@ public class StudentAuthService {
         return true;
     }
 
+    public void updatePasswordById(Long id, String oldPassword, String newPassword) {
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Student not found with ID: " + id));
+
+        if (oldPassword == null || newPassword == null) {
+            throw new RuntimeException("Old password and new password are required");
+        }
+
+        if (!student.getPassword().equals(oldPassword.trim())) {
+            throw new RuntimeException("Old password is incorrect");
+        }
+
+        if (newPassword.trim().length() < 6) {
+            throw new RuntimeException("New password must be at least 6 characters");
+        }
+
+        student.setPassword(newPassword.trim());
+        studentRepository.save(student);
+    }
+
     // Check if student account is active
     public boolean isAccountActive(String studentId) {
         Optional<Student> student = studentRepository.findByStudentId(studentId);
@@ -134,5 +208,23 @@ public class StudentAuthService {
     public String getStudentStatus(String studentId) {
         Optional<Student> student = studentRepository.findByStudentId(studentId);
         return student.map(Student::getStatus).orElse("NOT_FOUND");
+    }
+
+    private StudentProfileResponseDTO mapToProfileResponse(Student student) {
+        StudentProfileResponseDTO dto = new StudentProfileResponseDTO();
+        dto.setId(student.getId());
+        dto.setStudentId(student.getStudentId());
+        dto.setName(student.getName());
+        dto.setEmail(student.getEmail());
+        dto.setPhone(student.getPhone());
+        dto.setAddress(student.getAddress());
+        dto.setCourse(student.getCourse());
+        dto.setYear(student.getYear());
+        dto.setSemester(student.getSemester());
+        dto.setDateOfBirth(student.getDateOfBirth());
+        dto.setGender(student.getGender());
+        dto.setStatus(student.getStatus());
+        dto.setProfileImageUrl(student.getProfileImageUrl());
+        return dto;
     }
 }

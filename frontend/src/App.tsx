@@ -8,6 +8,10 @@ import ResourceDashboard from "./app/manager/resourceDashboard/page";
 import IssueDashboard from "./app/manager/issueDashboard/page";
 import ResourceCataloguePage from "./app/client/resources/page";
 import ClientLoginPage from "./app/client/login/page";
+import ResourceBookingPage from "./app/client/resourceBooking/page";
+import MyBookingsPage from "./app/client/myBookings/page";
+import StudentDashboardPage from "./app/client/dashboard/page";
+import StudentProfilePage from "./app/client/profile/page";
 
 // Protected Route Component - ensures only authenticated admins can access
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -52,6 +56,17 @@ const IssueManagerRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!user || role !== "ISSUE_MANAGER") {
     return <Navigate to="/manager/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const ClientUserRoute = ({ children }: { children: React.ReactNode }) => {
+  const role = localStorage.getItem("role");
+  const userId = localStorage.getItem("id");
+
+  if (!role || !userId || !["STUDENT", "LECTURER"].includes(role)) {
+    return <Navigate to="/client/login" replace />;
   }
 
   return <>{children}</>;
@@ -118,6 +133,38 @@ function App() {
         {/* Client / Common portal routes */}
         <Route path="/client/resources" element={<ResourceCataloguePage />} />
         <Route path="/client/login" element={<ClientLoginPage />} />
+        <Route
+          path="/client/dashboard"
+          element={
+            <ClientUserRoute>
+              <StudentDashboardPage />
+            </ClientUserRoute>
+          }
+        />
+        <Route
+          path="/client/profile"
+          element={
+            <ClientUserRoute>
+              <StudentProfilePage />
+            </ClientUserRoute>
+          }
+        />
+        <Route
+          path="/client/resourceBooking"
+          element={
+            <ClientUserRoute>
+              <ResourceBookingPage />
+            </ClientUserRoute>
+          }
+        />
+        <Route
+          path="/my-bookings"
+          element={
+            <ClientUserRoute>
+              <MyBookingsPage />
+            </ClientUserRoute>
+          }
+        />
 
         {/* Redirect unknown routes */}
         <Route path="*" element={<Navigate to="/admin/login" replace />} />

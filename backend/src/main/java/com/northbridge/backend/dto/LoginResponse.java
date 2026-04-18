@@ -7,6 +7,7 @@ public class LoginResponse {
     private String name;
     private Long id;
     private String email;
+    private String profileImageUrl;
 
     public LoginResponse() {}
 
@@ -26,6 +27,16 @@ public class LoginResponse {
         this.name = name;
         this.id = id;
         this.email = email;
+    }
+
+    public LoginResponse(boolean success, String message, String role, String name, Long id, String email, String profileImageUrl) {
+        this.success = success;
+        this.message = message;
+        this.role = role;
+        this.name = name;
+        this.id = id;
+        this.email = email;
+        this.profileImageUrl = profileImageUrl;
     }
 
     // Getters and Setters
@@ -75,5 +86,13 @@ public class LoginResponse {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getProfileImageUrl() {
+        return profileImageUrl;
+    }
+
+    public void setProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
     }
 }

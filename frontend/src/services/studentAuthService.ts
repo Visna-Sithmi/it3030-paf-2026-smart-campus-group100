@@ -30,9 +30,22 @@ export const studentAuthService = {
       throw new Error(errorData.message || "Student login failed");
     }
 
-    const result: StudentLoginResponse = await response.json();
-    console.log("Login response:", result);
-    
-    return result;
+    const raw = await response.json();
+    const normalized: StudentLoginResponse = {
+      success: raw.success,
+      message: raw.message,
+      role: raw.role,
+      name: raw.name,
+      id: raw.id,
+      studentId: raw.studentId ?? raw.student_id ?? null,
+      email: raw.email ?? null,
+      course: raw.course ?? null,
+      year: raw.year ?? null,
+      status: raw.status ?? null,
+      profileImageUrl: raw.profileImageUrl ?? raw.profile_image_url ?? null,
+    };
+
+    console.log("Login response:", normalized);
+    return normalized;
   },
 };

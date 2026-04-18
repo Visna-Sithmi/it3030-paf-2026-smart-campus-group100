@@ -2,6 +2,15 @@ import type { LoginRequest, LoginResponse } from "../types/auth";
 
 const API_BASE_URL = "http://localhost:8081/api/auth";
 
+type RawLoginResponse = LoginResponse & {
+  profile_image_url?: string | null;
+};
+
+const normalizeLoginResponse = (raw: RawLoginResponse): LoginResponse => ({
+  ...raw,
+  profileImageUrl: raw.profileImageUrl ?? raw.profile_image_url ?? null,
+});
+
 // ==================== ADMIN LOGIN ====================
 export const loginAdmin = async (
   loginData: LoginRequest
@@ -15,8 +24,8 @@ export const loginAdmin = async (
       body: JSON.stringify(loginData),
     });
 
-    const data: LoginResponse = await response.json();
-    return data;
+    const data: RawLoginResponse = await response.json();
+    return normalizeLoginResponse(data);
   } catch (error) {
     console.error("Admin login error:", error);
     return {
@@ -41,8 +50,8 @@ export const loginBookingManager = async (
       body: JSON.stringify(loginData),
     });
 
-    const data: LoginResponse = await response.json();
-    return data;
+    const data: RawLoginResponse = await response.json();
+    return normalizeLoginResponse(data);
   } catch (error) {
     console.error("Booking Manager login error:", error);
     return {
@@ -67,8 +76,8 @@ export const loginResourceManager = async (
       body: JSON.stringify(loginData),
     });
 
-    const data: LoginResponse = await response.json();
-    return data;
+    const data: RawLoginResponse = await response.json();
+    return normalizeLoginResponse(data);
   } catch (error) {
     console.error("Resource Manager login error:", error);
     return {
@@ -93,8 +102,8 @@ export const loginIssueManager = async (
       body: JSON.stringify(loginData),
     });
 
-    const data: LoginResponse = await response.json();
-    return data;
+    const data: RawLoginResponse = await response.json();
+    return normalizeLoginResponse(data);
   } catch (error) {
     console.error("Issue Manager login error:", error);
     return {
@@ -119,8 +128,8 @@ export const login = async (
       body: JSON.stringify(loginData),
     });
 
-    const data: LoginResponse = await response.json();
-    return data;
+    const data: RawLoginResponse = await response.json();
+    return normalizeLoginResponse(data);
   } catch (error) {
     console.error("Login error:", error);
     return {

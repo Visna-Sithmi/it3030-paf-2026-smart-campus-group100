@@ -44,6 +44,7 @@ public class StudentService {
         student.setSemester(studentDTO.getSemester());
         student.setDateOfBirth(studentDTO.getDateOfBirth());
         student.setGender(studentDTO.getGender());
+        student.setProfileImageUrl(studentDTO.getProfileImageUrl());
         student.setStatus("ACTIVE");
 
         return studentRepository.save(student);
@@ -137,6 +138,10 @@ public class StudentService {
             student.setStatus(studentDTO.getStatus());
         }
 
+        if (studentDTO.getProfileImageUrl() != null) {
+            student.setProfileImageUrl(studentDTO.getProfileImageUrl());
+        }
+
         // Update password if provided
         if (studentDTO.getPassword() != null && !studentDTO.getPassword().trim().isEmpty()) {
             student.setPassword(studentDTO.getPassword()); // In production, encode this password!
@@ -212,6 +217,7 @@ public class StudentService {
         dto.setDateOfBirth(student.getDateOfBirth());
         dto.setGender(student.getGender());
         dto.setStatus(student.getStatus());
+        dto.setProfileImageUrl(student.getProfileImageUrl());
         return dto;
     }
 

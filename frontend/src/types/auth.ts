@@ -10,4 +10,5 @@ export interface LoginResponse {
   name: string | null;
   id?: number;
   email?: string;
+  profileImageUrl?: string | null;
 }

@@ -1,21 +1,21 @@
 type HeaderProps = {
   adminName?: string;
   adminRole?: string;
+  title?: string;
+  subtitle?: string;
 };
 
 export default function Header({
   adminName = "Admin User",
   adminRole = "System Administrator",
+  title = "Manager Administration",
+  subtitle = "Manage all university managers from one place",
 }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 flex w-full items-center justify-between border-b border-slate-200 bg-white px-8 py-4 shadow-sm">
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">
-          Manager Administration
-        </h2>
-        <p className="text-sm text-slate-500">
-          Manage all university managers from one place
-        </p>
+        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+        <p className="text-sm text-slate-500">{subtitle}</p>
       </div>
 
       <div className="flex items-center gap-3">

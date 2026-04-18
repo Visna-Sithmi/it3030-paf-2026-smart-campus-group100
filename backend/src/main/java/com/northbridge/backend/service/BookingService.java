@@ -1,0 +1,23 @@
+package com.northbridge.backend.service;
+
+import com.northbridge.backend.dto.BookingRequestDTO;
+import com.northbridge.backend.dto.BookingResponseDTO;
+
+import java.util.List;
+
+public interface BookingService {
+
+    BookingResponseDTO createBooking(BookingRequestDTO requestDTO, Long requesterId, String requesterRole);
+
+    List<BookingResponseDTO> getMyBookings(Long requesterId);
+
+    List<BookingResponseDTO> getAllBookings(String requesterRole);
+
+    BookingResponseDTO getBookingById(Long bookingId, Long requesterId, String requesterRole);
+
+    BookingResponseDTO approveBooking(Long bookingId, Long adminId, String adminRole);
+
+    BookingResponseDTO rejectBooking(Long bookingId, String reason, Long adminId, String adminRole);
+
+    BookingResponseDTO cancelBooking(Long bookingId, Long requesterId, String requesterRole);
+}

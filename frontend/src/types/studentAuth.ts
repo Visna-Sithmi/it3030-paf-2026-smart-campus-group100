@@ -14,4 +14,5 @@ export interface StudentLoginResponse {
   course: string | null;
   year: number | null;
   status: string | null;
+  profileImageUrl?: string | null;
 }

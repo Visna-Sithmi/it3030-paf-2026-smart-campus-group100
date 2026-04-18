@@ -2,6 +2,9 @@ package com.northbridge.backend.service;
 
 import com.northbridge.backend.dto.BookingRequestDTO;
 import com.northbridge.backend.dto.BookingResponseDTO;
+import com.northbridge.backend.dto.BookingSlotDTO;
+
+import java.time.LocalDate;
 
 import java.util.List;
 
@@ -20,4 +23,6 @@ public interface BookingService {
     BookingResponseDTO rejectBooking(Long bookingId, String reason, Long adminId, String adminRole);
 
     BookingResponseDTO cancelBooking(Long bookingId, Long requesterId, String requesterRole);
+
+    List<BookingSlotDTO> getBookedSlotsForResourceDate(Long resourceId, LocalDate bookingDate, Long requesterId, String requesterRole);
 }

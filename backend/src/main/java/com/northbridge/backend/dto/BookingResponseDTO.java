@@ -12,6 +12,7 @@ public class BookingResponseDTO {
     private Long resourceId;
     private String resourceName;
     private String resourceCode;
+    private String resourceType;
 
     private Long requestedById;
     private String requestedByName;
@@ -62,6 +63,14 @@ public class BookingResponseDTO {
 
     public void setResourceCode(String resourceCode) {
         this.resourceCode = resourceCode;
+    }
+
+    public String getResourceType() {
+        return resourceType;
+    }
+
+    public void setResourceType(String resourceType) {
+        this.resourceType = resourceType;
     }
 
     public Long getRequestedById() {

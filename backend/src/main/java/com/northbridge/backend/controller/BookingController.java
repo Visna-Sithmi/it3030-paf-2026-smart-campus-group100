@@ -3,14 +3,17 @@ package com.northbridge.backend.controller;
 import com.northbridge.backend.dto.ApiResponse;
 import com.northbridge.backend.dto.BookingRequestDTO;
 import com.northbridge.backend.dto.BookingResponseDTO;
+import com.northbridge.backend.dto.BookingSlotDTO;
 import com.northbridge.backend.service.BookingService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -60,6 +63,17 @@ public class BookingController {
     ) {
         BookingResponseDTO booking = bookingService.getBookingById(id, userId, userRole);
         return ResponseEntity.ok(new ApiResponse(true, "Booking fetched successfully", booking));
+    }
+
+    @GetMapping("/resource/{resourceId}/slots")
+    public ResponseEntity<ApiResponse> getBookedSlotsForResourceDate(
+            @PathVariable Long resourceId,
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate bookingDate,
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-User-Role") String userRole
+    ) {
+        List<BookingSlotDTO> slots = bookingService.getBookedSlotsForResourceDate(resourceId, bookingDate, userId, userRole);
+        return ResponseEntity.ok(new ApiResponse(true, "Booked slots fetched successfully", slots));
     }
 
     @PutMapping("/{id}/approve")

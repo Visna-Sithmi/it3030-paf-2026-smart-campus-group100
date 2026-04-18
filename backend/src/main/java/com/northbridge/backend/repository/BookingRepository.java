@@ -2,6 +2,7 @@ package com.northbridge.backend.repository;
 
 import com.northbridge.backend.model.Booking;
 import com.northbridge.backend.model.BookingStatus;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,9 +18,21 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findByRequestedByIdOrderByCreatedAtDesc(Long requestedById);
 
+        boolean existsByRequestedById(Long requestedById);
+
+        @Modifying
+        @Query("UPDATE Booking b SET b.approvedOrRejectedBy = NULL, b.decisionAt = NULL WHERE b.approvedOrRejectedBy.id = :userId")
+        int clearApproverReferences(@Param("userId") Long userId);
+
     List<Booking> findAllByOrderByCreatedAtDesc();
 
     List<Booking> findByStatusOrderByCreatedAtDesc(BookingStatus status);
+
+    List<Booking> findByResourceIdAndBookingDateAndStatusInOrderByStartTimeAsc(
+            Long resourceId,
+            LocalDate bookingDate,
+            Collection<BookingStatus> statuses
+    );
 
     @Query("""
             SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END

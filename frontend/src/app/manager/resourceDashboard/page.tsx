@@ -16,6 +16,8 @@ import {
   Users,
 } from 'lucide-react';
 import logo from '../../../assets/logo.jpeg';
+import { bookingService } from '../../../services/bookingService';
+import type { BookingResponseDTO } from '../../../types/booking';
 
 interface ResourceApi {
   id: number;
@@ -190,6 +192,7 @@ const ResourceDashboard: React.FC = () => {
   const [availabilityViewDate, setAvailabilityViewDate] = useState<string>(getTodayDateString());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [bookings, setBookings] = useState<BookingResponseDTO[]>([]);
 
   const [formData, setFormData] = useState({
     id: null as number | null,
@@ -261,6 +264,15 @@ const normalizeResource = (resource: ResourceApi): Resource => {
 
   useEffect(() => {
     fetchResources();
+    fetchBookings();
+
+    const intervalId = window.setInterval(() => {
+      fetchBookings();
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   useEffect(() => {
@@ -284,6 +296,16 @@ const normalizeResource = (resource: ResourceApi): Resource => {
       console.error('Error fetching resources:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBookings = async () => {
+    try {
+      const data = await bookingService.getAllBookings();
+      setBookings(data || []);
+    } catch {
+      // Resource dashboard can still operate even if booking data fetch fails.
+      setBookings([]);
     }
   };
 
@@ -528,6 +550,26 @@ const normalizeResource = (resource: ResourceApi): Resource => {
 
   const availabilitySlotsForForm = generateTimeSlots(availabilityConfig);
 
+  const getSlotState = (resourceId: number, date: string, slotStart: string, slotEnd: string): 'AVAILABLE' | 'PENDING' | 'BOOKED' => {
+    const slotStartMin = timeStringToMinutes(slotStart);
+    const slotEndMin = timeStringToMinutes(slotEnd);
+
+    const overlaps = bookings.filter((booking) => {
+      if (booking.resourceId !== resourceId) return false;
+      if (booking.bookingDate !== date) return false;
+      if (booking.status !== 'PENDING' && booking.status !== 'APPROVED') return false;
+
+      const bookingStart = timeStringToMinutes(String(booking.startTime).slice(0, 5));
+      const bookingEnd = timeStringToMinutes(String(booking.endTime).slice(0, 5));
+
+      return slotStartMin < bookingEnd && slotEndMin > bookingStart;
+    });
+
+    if (overlaps.some((b) => b.status === 'APPROVED')) return 'BOOKED';
+    if (overlaps.some((b) => b.status === 'PENDING')) return 'PENDING';
+    return 'AVAILABLE';
+  };
+
   const AvailabilityEditor = () => (
     <div className="col-span-2">
       <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -614,12 +656,23 @@ const normalizeResource = (resource: ResourceApi): Resource => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {availabilitySlotsForForm.map((slot, index) => (
+              (() => {
+                const state = getSlotState(formData.id || -1, availabilityFormDate, slot.start, slot.end);
+                return (
               <div
                 key={`${slot.start}-${slot.end}-${index}`}
-                className="px-4 py-3 rounded-xl border border-green-200 bg-green-50 text-green-800 text-sm font-medium"
+                className={`px-4 py-3 rounded-xl border text-sm font-medium ${
+                  state === 'BOOKED'
+                    ? 'border-red-200 bg-red-50 text-red-800'
+                    : state === 'PENDING'
+                    ? 'border-amber-200 bg-amber-50 text-amber-800'
+                    : 'border-green-200 bg-green-50 text-green-800'
+                }`}
               >
-                {slot.label}
+                {slot.label} {state === 'BOOKED' ? '(Booked)' : state === 'PENDING' ? '(Pending)' : '(Available)'}
               </div>
+                );
+              })()
             ))}
           </div>
         </div>
@@ -653,12 +706,23 @@ const normalizeResource = (resource: ResourceApi): Resource => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {slots.map((slot, index) => (
+            (() => {
+              const state = getSlotState(resource.id, availabilityViewDate, slot.start, slot.end);
+              return (
             <div
               key={`${slot.start}-${slot.end}-${index}`}
-              className="px-4 py-3 rounded-xl border border-green-200 bg-green-50 text-green-800 text-sm font-medium"
+              className={`px-4 py-3 rounded-xl border text-sm font-medium ${
+                state === 'BOOKED'
+                  ? 'border-red-200 bg-red-50 text-red-800'
+                  : state === 'PENDING'
+                  ? 'border-amber-200 bg-amber-50 text-amber-800'
+                  : 'border-green-200 bg-green-50 text-green-800'
+              }`}
             >
-              {slot.label}
+              {slot.label} {state === 'BOOKED' ? '(Booked)' : state === 'PENDING' ? '(Pending)' : '(Available)'}
             </div>
+              );
+            })()
           ))}
         </div>
       </div>

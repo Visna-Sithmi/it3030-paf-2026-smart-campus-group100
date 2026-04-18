@@ -2,6 +2,7 @@ package com.northbridge.backend.service;
 
 import com.northbridge.backend.dto.BookingRequestDTO;
 import com.northbridge.backend.dto.BookingResponseDTO;
+import com.northbridge.backend.dto.BookingSlotDTO;
 import com.northbridge.backend.exception.BookingConflictException;
 import com.northbridge.backend.model.Booking;
 import com.northbridge.backend.model.BookingStatus;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -25,7 +27,8 @@ import java.util.stream.Collectors;
 public class BookingServiceImpl implements BookingService {
 
     private static final Set<String> BOOKING_CREATOR_ROLES = Set.of("STUDENT", "LECTURER");
-    private static final Set<String> BOOKING_VIEWER_ROLES = Set.of("BOOKING_MANAGER");
+    private static final Set<String> BOOKING_VIEWER_ROLES = Set.of("BOOKING_MANAGER", "RESOURCE_MANAGER");
+    private static final Set<String> SLOT_VIEW_ROLES = Set.of("STUDENT", "LECTURER", "BOOKING_MANAGER", "RESOURCE_MANAGER", "ADMIN");
 
     private final BookingRepository bookingRepository;
     private final ResourceRepository resourceRepository;
@@ -69,7 +72,7 @@ public class BookingServiceImpl implements BookingService {
                 requestDTO.getBookingDate(),
                 requestDTO.getStartTime(),
                 requestDTO.getEndTime(),
-                List.of(BookingStatus.PENDING, BookingStatus.APPROVED)
+            List.of(BookingStatus.APPROVED)
         );
 
         // Overlap rule: newStart < existingEnd AND newEnd > existingStart
@@ -111,7 +114,7 @@ public class BookingServiceImpl implements BookingService {
     @Transactional(readOnly = true)
     public List<BookingResponseDTO> getAllBookings(String requesterRole) {
         if (!BOOKING_VIEWER_ROLES.contains(normalizeRole(requesterRole))) {
-            throw new SecurityException("Only BOOKING_MANAGER can view all bookings");
+            throw new SecurityException("Only BOOKING_MANAGER and RESOURCE_MANAGER can view all bookings");
         }
 
         return bookingRepository.findAllByOrderByCreatedAtDesc()
@@ -215,6 +218,36 @@ public class BookingServiceImpl implements BookingService {
         return toResponse(bookingRepository.save(booking));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingSlotDTO> getBookedSlotsForResourceDate(Long resourceId, LocalDate bookingDate, Long requesterId, String requesterRole) {
+        validateRequester(requesterId, requesterRole);
+
+        if (resourceId == null) {
+            throw new IllegalArgumentException("resourceId is required");
+        }
+        if (bookingDate == null) {
+            throw new IllegalArgumentException("bookingDate is required");
+        }
+
+        String normalizedRole = normalizeRole(requesterRole);
+        if (!SLOT_VIEW_ROLES.contains(normalizedRole)) {
+            throw new SecurityException("You are not allowed to view booking slots");
+        }
+
+        resourceRepository.findById(resourceId)
+                .orElseThrow(() -> new NoSuchElementException("Resource not found with ID: " + resourceId));
+
+        return bookingRepository.findByResourceIdAndBookingDateAndStatusInOrderByStartTimeAsc(
+                        resourceId,
+                        bookingDate,
+                        List.of(BookingStatus.PENDING, BookingStatus.APPROVED)
+                )
+                .stream()
+                .map(booking -> new BookingSlotDTO(booking.getStartTime(), booking.getEndTime(), booking.getStatus()))
+                .collect(Collectors.toList());
+    }
+
     private Booking findBookingOrThrow(Long bookingId) {
         Long safeBookingId = Objects.requireNonNull(bookingId, "Booking ID is required");
         return bookingRepository.findById(safeBookingId)
@@ -265,6 +298,7 @@ public class BookingServiceImpl implements BookingService {
             dto.setResourceId(booking.getResource().getId());
             dto.setResourceName(booking.getResource().getName());
             dto.setResourceCode(booking.getResource().getResourceCode());
+            dto.setResourceType(booking.getResource().getType());
         }
 
         if (booking.getRequestedBy() != null) {

@@ -3,6 +3,7 @@ import type {
   BookingApiResponse,
   BookingRequestDTO,
   BookingResponseDTO,
+  BookingSlotDTO,
 } from "../types/booking";
 
 const API_BASE_URL = "http://localhost:8081/api/bookings";
@@ -44,6 +45,8 @@ interface BookingResponseApiModel {
   resource_name?: string;
   resourceCode?: string;
   resource_code?: string;
+  resourceType?: string | null;
+  resource_type?: string | null;
   requestedById?: number;
   requested_by_id?: number;
   requestedByName?: string;
@@ -74,11 +77,20 @@ interface BookingResponseApiModel {
   updated_at?: string;
 }
 
+interface BookingSlotApiModel {
+  startTime?: string;
+  start_time?: string;
+  endTime?: string;
+  end_time?: string;
+  status?: BookingSlotDTO["status"];
+}
+
 const normalizeBooking = (raw: BookingResponseApiModel): BookingResponseDTO => ({
   bookingId: raw.bookingId ?? raw.booking_id ?? 0,
   resourceId: raw.resourceId ?? raw.resource_id ?? 0,
   resourceName: raw.resourceName ?? raw.resource_name ?? "",
   resourceCode: raw.resourceCode ?? raw.resource_code ?? "",
+  resourceType: raw.resourceType ?? raw.resource_type ?? null,
   requestedById: raw.requestedById ?? raw.requested_by_id ?? 0,
   requestedByName: raw.requestedByName ?? raw.requested_by_name ?? "",
   requestedByRole: raw.requestedByRole ?? raw.requested_by_role ?? "",
@@ -103,6 +115,17 @@ const toCreateBookingApiPayload = (payload: BookingRequestDTO) => ({
   end_time: payload.endTime,
   purpose: payload.purpose,
   expected_attendees: payload.expectedAttendees,
+});
+
+const normalizeTime = (timeValue?: string): string => {
+  if (!timeValue) return "00:00";
+  return String(timeValue).slice(0, 5);
+};
+
+const normalizeBookingSlot = (raw: BookingSlotApiModel): BookingSlotDTO => ({
+  startTime: normalizeTime(raw.startTime ?? raw.start_time),
+  endTime: normalizeTime(raw.endTime ?? raw.end_time),
+  status: (raw.status ?? "PENDING") as BookingSlotDTO["status"],
 });
 
 const buildAuthHeaders = () => {
@@ -179,5 +202,17 @@ export const bookingService = {
     );
 
     return normalizeBooking(response.data.data || {});
+  },
+
+  async getBookedSlots(resourceId: number, date: string): Promise<BookingSlotDTO[]> {
+    const response = await api.get<BookingApiResponse<BookingSlotApiModel[]>>(
+      `/resource/${resourceId}/slots`,
+      {
+        params: { date },
+        headers: buildAuthHeaders(),
+      }
+    );
+
+    return (response.data.data || []).map(normalizeBookingSlot);
   },
 };

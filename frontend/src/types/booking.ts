@@ -14,6 +14,7 @@ export interface BookingResponseDTO {
   resourceId: number;
   resourceName: string;
   resourceCode: string;
+  resourceType?: string | null;
   requestedById: number;
   requestedByName: string;
   requestedByRole: string;
@@ -36,4 +37,10 @@ export interface BookingApiResponse<T> {
   message: string;
   data: T;
   timestamp?: string;
+}
+
+export interface BookingSlotDTO {
+  startTime: string;
+  endTime: string;
+  status: "PENDING" | "APPROVED";
 }

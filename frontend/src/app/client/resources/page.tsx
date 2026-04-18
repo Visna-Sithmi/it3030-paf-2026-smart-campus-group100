@@ -14,6 +14,8 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../../../components/layout/Header';
 import Footer from '../../../components/layout/Footer';
 import type { Resource } from '../../../types/resource.types';
+import { bookingService } from '../../../services/bookingService';
+import type { BookingSlotDTO } from '../../../types/booking';
 
 interface ResourceApi {
   id: number;
@@ -58,6 +60,16 @@ const DEFAULT_AVAILABILITY_CONFIG: AvailabilityConfig = {
 };
 
 const formatTypeLabel = (type: string) => type.replace(/_/g, ' ');
+
+const toMinutes = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const toHHmm = (value?: string) => {
+  if (!value) return '00:00';
+  return String(value).slice(0, 5);
+};
 
 const getTodayDateString = () => {
   const today = new Date();
@@ -153,6 +165,7 @@ const ResourceCataloguePage: React.FC = () => {
   const [showAvailabilityId, setShowAvailabilityId] = useState<number | null>(null);
   const [availabilityViewDate, setAvailabilityViewDate] = useState<string>(getTodayDateString());
   const [loading, setLoading] = useState(true);
+  const [bookedSlotMap, setBookedSlotMap] = useState<Record<number, BookingSlotDTO[]>>({});
 
   const normalizeResource = (resource: ResourceApi): Resource => {
     return {
@@ -195,6 +208,43 @@ const ResourceCataloguePage: React.FC = () => {
   useEffect(() => {
     fetchResources();
   }, []);
+
+  useEffect(() => {
+    const loadBookedSlotsForDate = async () => {
+      if (!resources.length || !availabilityViewDate) {
+        setBookedSlotMap({});
+        return;
+      }
+
+      const role = localStorage.getItem('role');
+      const userId = localStorage.getItem('id') || localStorage.getItem('studentId');
+
+      if (!role || !userId || !['STUDENT', 'LECTURER'].includes(role)) {
+        setBookedSlotMap({});
+        return;
+      }
+
+      try {
+        const entries = await Promise.all(
+          resources.map(async (resource) => {
+            const slots = await bookingService.getBookedSlots(resource.id, availabilityViewDate);
+            return [resource.id, slots] as const;
+          })
+        );
+
+        const map: Record<number, BookingSlotDTO[]> = {};
+        entries.forEach(([resourceId, slots]) => {
+          map[resourceId] = slots;
+        });
+
+        setBookedSlotMap(map);
+      } catch {
+        setBookedSlotMap({});
+      }
+    };
+
+    loadBookedSlotsForDate();
+  }, [resources, availabilityViewDate]);
 
   const fetchResources = async () => {
     setLoading(true);
@@ -275,9 +325,32 @@ const ResourceCataloguePage: React.FC = () => {
     }
   };
 
+  const getResourceSlotState = (resourceId: number): 'AVAILABLE' | 'PENDING' | 'BOOKED' => {
+    const slots = bookedSlotMap[resourceId] || [];
+    if (slots.some((slot) => slot.status === 'APPROVED')) return 'BOOKED';
+    if (slots.some((slot) => slot.status === 'PENDING')) return 'PENDING';
+    return 'AVAILABLE';
+  };
+
   const AvailabilityViewer = ({ resource }: { resource: Resource }) => {
     const config = parseAvailabilityConfig(resource.availabilityWindows);
     const slots = generateTimeSlots(config);
+    const bookedSlots = bookedSlotMap[resource.id] || [];
+
+    const getSlotState = (slotStart: string, slotEnd: string): 'AVAILABLE' | 'PENDING' | 'BOOKED' => {
+      const start = toMinutes(slotStart);
+      const end = toMinutes(slotEnd);
+
+      const overlaps = bookedSlots.filter((booking) => {
+        const bookingStart = toMinutes(toHHmm(booking.startTime));
+        const bookingEnd = toMinutes(toHHmm(booking.endTime));
+        return start < bookingEnd && end > bookingStart;
+      });
+
+      if (overlaps.some((b) => b.status === 'APPROVED')) return 'BOOKED';
+      if (overlaps.some((b) => b.status === 'PENDING')) return 'PENDING';
+      return 'AVAILABLE';
+    };
 
     return (
       <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -302,14 +375,23 @@ const ResourceCataloguePage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {slots.map((slot, index) => (
-            <div
-              key={`${slot.start}-${slot.end}-${index}`}
-              className="px-4 py-3 rounded-xl border border-green-200 bg-green-50 text-green-800 text-sm font-medium"
-            >
-              {slot.label}
-            </div>
-          ))}
+          {slots.map((slot, index) => {
+            const state = getSlotState(slot.start, slot.end);
+            return (
+              <div
+                key={`${slot.start}-${slot.end}-${index}`}
+                className={`px-4 py-3 rounded-xl border text-sm font-medium ${
+                  state === 'BOOKED'
+                    ? 'border-red-200 bg-red-50 text-red-800'
+                    : state === 'PENDING'
+                    ? 'border-amber-200 bg-amber-50 text-amber-800'
+                    : 'border-green-200 bg-green-50 text-green-800'
+                }`}
+              >
+                {slot.label} {state === 'BOOKED' ? '(Booked)' : state === 'PENDING' ? '(Pending)' : '(Available)'}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -358,6 +440,8 @@ const ResourceCataloguePage: React.FC = () => {
           <div className="grid grid-cols-1 items-start md:grid-cols-2 xl:grid-cols-3 gap-8 mb-16">
             {filteredResources.map((resource) => {
               const fullImageUrl = getImageUrl(resource);
+              const bookingState = getResourceSlotState(resource.id);
+              const showAsAvailable = resource.available && bookingState === 'AVAILABLE';
 
               return (
                 <div
@@ -381,11 +465,19 @@ const ResourceCataloguePage: React.FC = () => {
                     <div className="absolute top-4 left-4">
                       <span
                         className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-md flex items-center gap-1.5 ${
-                          resource.available ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                          showAsAvailable
+                            ? 'bg-green-500 text-white'
+                            : bookingState === 'PENDING'
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-red-500 text-white'
                         }`}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
-                        {resource.available ? 'Available' : 'Unavailable'}
+                        {showAsAvailable
+                          ? 'Available'
+                          : bookingState === 'PENDING'
+                          ? 'Pending'
+                          : 'Booked'}
                       </span>
                     </div>
 

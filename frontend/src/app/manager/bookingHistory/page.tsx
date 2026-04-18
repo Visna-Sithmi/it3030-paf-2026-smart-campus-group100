@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../../assets/logo.jpeg";
 import { bookingService } from "../../../services/bookingService";
+import { resourceService } from "../../../services/resource.service";
 import type { BookingResponseDTO } from "../../../types/booking";
 
 export default function BookingHistoryPage() {
@@ -13,6 +14,7 @@ export default function BookingHistoryPage() {
   const [historyDateFilter, setHistoryDateFilter] = useState("");
   const [historyStatusFilter, setHistoryStatusFilter] = useState<"ALL" | "APPROVED" | "REJECTED" | "CANCELLED">("ALL");
   const [historyResourceTypeFilter, setHistoryResourceTypeFilter] = useState("ALL");
+  const [resourceTypeOptions, setResourceTypeOptions] = useState<string[]>([]);
 
   const userName = localStorage.getItem("name") || "Booking Manager";
 
@@ -29,6 +31,24 @@ export default function BookingHistoryPage() {
     }
   };
 
+  const fetchResourceTypes = async () => {
+    try {
+      const resources = await resourceService.getAllResources();
+      const allTypes = Array.from(
+        new Set(
+          (resources || [])
+            .map((resource) => (resource.type || "").trim())
+            .filter((type) => type.length > 0)
+        )
+      ).sort((a, b) => a.localeCompare(b));
+
+      setResourceTypeOptions(allTypes);
+    } catch {
+      // Keep dropdown usable by falling back to booking-derived values.
+      setResourceTypeOptions([]);
+    }
+  };
+
   useEffect(() => {
     const role = localStorage.getItem("role");
     if (role !== "BOOKING_MANAGER") {
@@ -37,9 +57,10 @@ export default function BookingHistoryPage() {
     }
 
     fetchBookings();
+    fetchResourceTypes();
   }, [navigate]);
 
-  const historyResourceTypeOptions = useMemo(() => {
+  const bookingDerivedTypes = useMemo(() => {
     const types = Array.from(
       new Set(
         bookings
@@ -50,6 +71,13 @@ export default function BookingHistoryPage() {
 
     return types.sort((a, b) => a.localeCompare(b));
   }, [bookings]);
+
+  const historyResourceTypeOptions = useMemo(() => {
+    if (resourceTypeOptions.length > 0) {
+      return resourceTypeOptions;
+    }
+    return bookingDerivedTypes;
+  }, [resourceTypeOptions, bookingDerivedTypes]);
 
   const filteredHistoryBookings = useMemo(() => {
     const search = historySearch.trim().toLowerCase();

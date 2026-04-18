@@ -8,6 +8,7 @@ const managerRoles = [
   "RESOURCE_MANAGER",
   "BOOKING_MANAGER",
   "ISSUE_MANAGER",
+  "LECTURER",
 ];
 
 const emptyForm: Manager = {
@@ -66,6 +67,7 @@ export default function ManagerPage() {
     (m) => m.role === "BOOKING_MANAGER"
   ).length;
   const issueCount = managers.filter((m) => m.role === "ISSUE_MANAGER").length;
+  const lecturerCount = managers.filter((m) => m.role === "LECTURER").length;
 
   const openAddModal = () => {
     setEditingManager(null);
@@ -189,7 +191,7 @@ export default function ManagerPage() {
             </div>
           )}
 
-          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
                 Total Managers
@@ -223,6 +225,15 @@ export default function ManagerPage() {
               </p>
               <h3 className="mt-2 text-3xl font-bold text-slate-900">
                 {issueCount}
+              </h3>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                Lecturers
+              </p>
+              <h3 className="mt-2 text-3xl font-bold text-slate-900">
+                {lecturerCount}
               </h3>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./app/admin/Login/page";
 import ManagerPage from "./app/admin/manager/page";
+import LecturerPage from "./app/admin/lecturers/page";
 import StudentPage from "./app/admin/student/page";
 import ManagerLoginPage from "./app/manager/login/page";
 import BookingDashboard from "./app/manager/bookingDashboard/page";
@@ -81,6 +82,15 @@ function App() {
           element={
             <ProtectedRoute>
               <StudentPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/lecturers"
+          element={
+            <ProtectedRoute>
+              <LecturerPage />
             </ProtectedRoute>
           }
         />

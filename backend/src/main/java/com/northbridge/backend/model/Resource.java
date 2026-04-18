@@ -20,6 +20,9 @@ public class Resource {
     @Column(name = "type", nullable = false, length = 50)
     private String type;
 
+    @Column(name = "target_audience", length = 20)
+    private String targetAudience = "BOTH";
+
     @Column(name = "capacity")
     private Integer capacity;
 
@@ -83,6 +86,9 @@ public class Resource {
 
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
+
+    public String getTargetAudience() { return targetAudience; }
+    public void setTargetAudience(String targetAudience) { this.targetAudience = targetAudience; }
 
     public Integer getCapacity() { return capacity; }
     public void setCapacity(Integer capacity) { this.capacity = capacity; }

@@ -75,6 +75,16 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/lecturer/login")
+    public ResponseEntity<LoginResponse> lecturerLogin(@RequestBody LoginRequest loginRequest) {
+        LoginResponse response = userService.lecturerLogin(loginRequest);
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(401).body(response);
+        }
+    }
     // REMOVE THIS - Student login is handled by StudentAuthController
     // @PostMapping("/student/login")
     // public ResponseEntity<StudentLoginResponse> studentLogin(@RequestBody StudentLoginRequest loginRequest) {

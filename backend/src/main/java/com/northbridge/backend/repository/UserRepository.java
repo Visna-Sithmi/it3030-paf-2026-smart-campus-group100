@@ -20,7 +20,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
 
     // Manager specific methods
-    @Query("SELECT u FROM User u WHERE u.role IN ('RESOURCE_MANAGER', 'BOOKING_MANAGER', 'ISSUE_MANAGER')")
+    @Query("SELECT u FROM User u WHERE u.role IN ('RESOURCE_MANAGER', 'BOOKING_MANAGER', 'ISSUE_MANAGER', 'LECTURER')")
     List<User> findAllManagers();
 
     List<User> findByRole(String role);

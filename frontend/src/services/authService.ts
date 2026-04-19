@@ -106,6 +106,32 @@ export const loginIssueManager = async (
   }
 };
 
+// ==================== LECTURER LOGIN ====================
+export const loginLecturer = async (
+  loginData: LoginRequest
+): Promise<LoginResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/lecturer/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(loginData),
+    });
+
+    const data: RawLoginResponse = await response.json();
+    return normalizeLoginResponse(data);
+  } catch (error) {
+    console.error("Lecturer login error:", error);
+    return {
+      success: false,
+      message: "Cannot connect to server. Please make sure the backend is running.",
+      role: null,
+      name: null,
+    };
+  }
+};
+
 // ==================== GENERAL LOGIN (Auto-detects role) ====================
 export const login = async (
   loginData: LoginRequest

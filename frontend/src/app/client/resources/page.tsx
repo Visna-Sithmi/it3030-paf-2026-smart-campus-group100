@@ -160,6 +160,7 @@ const ResourceCataloguePage: React.FC = () => {
       resourceCode: resource.resourceCode || resource.resource_code || '',
       name: resource.name || '',
       type: resource.type || 'LECTURE_HALL',
+      targetAudience: (resource as any).targetAudience || (resource as any).target_audience || 'BOTH',
       capacity: resource.capacity ?? 0,
       location: resource.location || '',
       description: resource.description || '',
@@ -199,7 +200,9 @@ const ResourceCataloguePage: React.FC = () => {
   const fetchResources = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/resources/all`);
+      const role = (localStorage.getItem('role') || '').toUpperCase();
+      const audience = role === 'LECTURER' ? 'LECTURER' : 'STUDENT';
+      const response = await axios.get(`${API_BASE_URL}/resources/client/${audience}`);
       if (response.data.success) {
         const normalizedResources = (response.data.data || []).map((item: ResourceApi) =>
           normalizeResource(item)

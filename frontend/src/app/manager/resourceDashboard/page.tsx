@@ -23,6 +23,8 @@ interface ResourceApi {
   resource_code?: string;
   name: string;
   type: string;
+  targetAudience?: 'STUDENT' | 'LECTURER' | 'BOTH' | string;
+  target_audience?: 'STUDENT' | 'LECTURER' | 'BOTH' | string;
   capacity: number;
   location: string;
   description: string;
@@ -48,6 +50,7 @@ interface Resource {
   resourceCode: string;
   name: string;
   type: string;
+  targetAudience: 'STUDENT' | 'LECTURER' | 'BOTH' | string;
   capacity: number;
   location: string;
   description: string;
@@ -81,6 +84,8 @@ const DEFAULT_RESOURCE_TYPES = [
   'AUDITORIUM',
   'OTHER',
 ];
+
+const RESOURCE_AUDIENCE_OPTIONS = ['STUDENT', 'LECTURER', 'BOTH'];
 
 const DEFAULT_AVAILABILITY_CONFIG: AvailabilityConfig = {
   mode: 'FIXED_DAILY',
@@ -196,6 +201,7 @@ const ResourceDashboard: React.FC = () => {
     resourceCode: '',
     name: '',
     type: 'LECTURE_HALL',
+    targetAudience: 'BOTH' as 'STUDENT' | 'LECTURER' | 'BOTH',
     capacity: 0,
     location: '',
     description: '',
@@ -220,6 +226,7 @@ const normalizeResource = (resource: ResourceApi): Resource => {
     resourceCode: resource.resourceCode || resource.resource_code || '',
     name: resource.name || '',
     type: resource.type || 'LECTURE_HALL',
+    targetAudience: resource.targetAudience || resource.target_audience || 'BOTH',
     capacity: resource.capacity ?? 0,
     location: resource.location || '',
     description: resource.description || '',
@@ -294,6 +301,7 @@ const normalizeResource = (resource: ResourceApi): Resource => {
       resourceCode: '',
       name: '',
       type: 'LECTURE_HALL',
+      targetAudience: 'BOTH',
       capacity: 0,
       location: '',
       description: '',
@@ -320,6 +328,7 @@ const normalizeResource = (resource: ResourceApi): Resource => {
         resource_code: formData.resourceCode,
         name: formData.name,
         type: formData.type,
+        targetAudience: formData.targetAudience,
         capacity: formData.capacity,
         location: formData.location,
         description: formData.description,
@@ -364,6 +373,7 @@ const normalizeResource = (resource: ResourceApi): Resource => {
         resource_code: formData.resourceCode,
         name: formData.name,
         type: formData.type,
+        targetAudience: formData.targetAudience,
         capacity: formData.capacity,
         location: formData.location,
         description: formData.description,
@@ -437,6 +447,7 @@ const normalizeResource = (resource: ResourceApi): Resource => {
       resourceCode: resource.resourceCode || '',
       name: resource.name || '',
       type: resource.type || 'LECTURE_HALL',
+      targetAudience: (resource.targetAudience || 'BOTH') as 'STUDENT' | 'LECTURER' | 'BOTH',
       capacity: resource.capacity || 0,
       location: resource.location || '',
       description: resource.description || '',
@@ -827,6 +838,9 @@ const normalizeResource = (resource: ResourceApi): Resource => {
                       <p className="text-xs font-bold uppercase tracking-wider text-[#002147]/60 mb-1">
                         {resource.resourceCode} • {formatTypeLabel(resource.type)}
                       </p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                        For: {(resource.targetAudience || 'BOTH').replaceAll('_', ' ')}
+                      </p>
                       <h3 className="text-2xl font-['Newsreader'] font-bold text-[#002147]">
                         {resource.name}
                       </h3>
@@ -1030,6 +1044,25 @@ const normalizeResource = (resource: ResourceApi): Resource => {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Visible To *
+                  </label>
+                  <select
+                    name="targetAudience"
+                    value={formData.targetAudience}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#002147]"
+                  >
+                    {RESOURCE_AUDIENCE_OPTIONS.map((audience) => (
+                      <option key={audience} value={audience}>
+                        {audience.replaceAll('_', ' ')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Location *
@@ -1226,6 +1259,25 @@ const normalizeResource = (resource: ResourceApi): Resource => {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Visible To *
+                  </label>
+                  <select
+                    name="targetAudience"
+                    value={formData.targetAudience}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#002147]"
+                  >
+                    {RESOURCE_AUDIENCE_OPTIONS.map((audience) => (
+                      <option key={audience} value={audience}>
+                        {audience.replaceAll('_', ' ')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="col-span-2">
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Location *
@@ -1402,6 +1454,15 @@ const normalizeResource = (resource: ResourceApi): Resource => {
             </label>
             <p className="mt-2 text-base font-semibold text-slate-800">
               {formatTypeLabel(selectedResource.type)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <label className="text-[11px] uppercase font-bold tracking-wider text-slate-400">
+              Visible To
+            </label>
+            <p className="mt-2 text-base font-semibold text-slate-800">
+              {(selectedResource.targetAudience || 'BOTH').replaceAll('_', ' ')}
             </p>
           </div>
 

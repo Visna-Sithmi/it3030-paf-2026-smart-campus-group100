@@ -39,6 +39,12 @@ export const resourceService = {
     return response.data.data || [];
   },
 
+  // Get resources visible to a client audience (STUDENT or LECTURER)
+  getResourcesForAudience: async (audience: 'STUDENT' | 'LECTURER'): Promise<Resource[]> => {
+    const response = await api.get<ApiResponse<Resource[]>>(`/resources/client/${audience}`);
+    return response.data.data || [];
+  },
+
   // Search resources
   searchResources: async (name: string): Promise<Resource[]> => {
     const response = await api.get<ApiResponse<Resource[]>>(`/resources/search?name=${name}`);

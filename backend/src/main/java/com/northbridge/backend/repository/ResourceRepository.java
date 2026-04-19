@@ -20,6 +20,9 @@ public interface ResourceRepository extends JpaRepository<Resource, Long> {
     // Find by status
     List<Resource> findByStatus(String status);
 
+    @Query("SELECT r FROM Resource r WHERE UPPER(COALESCE(r.targetAudience, 'BOTH')) IN :audiences")
+    List<Resource> findByTargetAudienceIn(@Param("audiences") List<String> audiences);
+
     // Find available resources
     List<Resource> findByIsAvailableTrue();
 

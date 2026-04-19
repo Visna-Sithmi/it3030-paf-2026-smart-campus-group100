@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { studentAuthService } from "../../../services/studentAuthService";
 import { loginLecturer } from "../../../services/authService";
 import type { StudentLoginRequest } from "../../../types/studentAuth";
@@ -17,6 +18,7 @@ const emptyLecturerForm = {
 };
 
 export default function ClientLoginPage() {
+  const navigate = useNavigate();
   const [activePortal, setActivePortal] = useState<PortalType>("STUDENT");
   const [formData, setFormData] = useState<StudentLoginRequest>(emptyStudentForm);
   const [lecturerFormData, setLecturerFormData] = useState(emptyLecturerForm);
@@ -65,13 +67,19 @@ export default function ClientLoginPage() {
         password: trimmedPassword,
       });
 
-      localStorage.setItem("user", response.name || "");
+      const normalizedStudentId = response.studentId || "";
+      const normalizedName = response.name || "Student";
+
+      localStorage.setItem("user", normalizedName);
       localStorage.setItem("role", response.role || "STUDENT");
-      localStorage.setItem("studentId", response.studentId || "");
-      localStorage.setItem("studentName", response.name || "");
+      localStorage.setItem("studentId", normalizedStudentId);
+      localStorage.setItem("studentName", normalizedName);
+      localStorage.setItem("id", response.id ? String(response.id) : "");
+      localStorage.setItem("email", response.email || "");
+      localStorage.setItem("profileImageUrl", response.profileImageUrl || "");
 
       setSuccessMessage("Student login successful");
-      alert("Student login successful");
+      navigate("/client/dashboard");
     } catch (err: any) {
       setError(err.message || "Student login failed");
     } finally {

@@ -45,6 +45,9 @@ public class Student {
     @Column(name = "gender", length = 10)
     private String gender;
 
+    @Column(name = "profile_image_url", columnDefinition = "TEXT")
+    private String profileImageUrl;
+
     @Column(name = "status", length = 20)
     private String status = "ACTIVE";
 
@@ -111,6 +114,9 @@ public class Student {
 
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
+
+    public String getProfileImageUrl() { return profileImageUrl; }
+    public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

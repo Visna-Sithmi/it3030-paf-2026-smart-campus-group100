@@ -6,25 +6,30 @@ import { resourceService } from "../../../services/resource.service";
 import type { Resource } from "../../../types/resource.types";
 import type { BookingResponseDTO, BookingStatus } from "../../../types/booking";
 
-const statusBadge: Record<BookingStatus, string> = {
+type DisplayBookingStatus = BookingStatus | "COMPLETED";
+
+const statusBadge: Record<DisplayBookingStatus, string> = {
   PENDING: "bg-amber-100 text-amber-800",
   APPROVED: "bg-emerald-100 text-emerald-800",
   REJECTED: "bg-red-100 text-red-800",
   CANCELLED: "bg-slate-200 text-slate-700",
+  COMPLETED: "bg-indigo-100 text-indigo-800",
 };
 
-const statusLabel: Record<BookingStatus, string> = {
+const statusLabel: Record<DisplayBookingStatus, string> = {
   PENDING: "Pending review",
   APPROVED: "Approved",
   REJECTED: "Rejected",
   CANCELLED: "Cancelled",
+  COMPLETED: "Completed",
 };
 
-const statusAccent: Record<BookingStatus, string> = {
+const statusAccent: Record<DisplayBookingStatus, string> = {
   PENDING: "from-amber-500 to-orange-500",
   APPROVED: "from-emerald-500 to-teal-500",
   REJECTED: "from-rose-500 to-red-500",
   CANCELLED: "from-slate-400 to-slate-500",
+  COMPLETED: "from-indigo-500 to-blue-500",
 };
 
 const toReadable = (status: string) => status.charAt(0) + status.slice(1).toLowerCase();
@@ -48,6 +53,22 @@ const formatBookingTime = (startTime: string, endTime: string) => {
   return `${startTime.slice(0, 5)} - ${endTime.slice(0, 5)}`;
 };
 
+const toDateTime = (dateValue: string, timeValue: string) => {
+  if (!dateValue || !timeValue) return null;
+
+  const date = new Date(`${dateValue}T${timeValue}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const isBookingOverdue = (booking: BookingResponseDTO) => {
+  if (booking.status !== "APPROVED" && booking.status !== "PENDING") return false;
+
+  const bookingEnd = toDateTime(booking.bookingDate, booking.endTime);
+  if (!bookingEnd) return false;
+
+  return bookingEnd.getTime() < Date.now();
+};
+
 const getFallbackImageLabel = (booking: BookingResponseDTO) => {
   const label = booking.resourceName || booking.resourceCode || "Resource";
   return label.slice(0, 2).toUpperCase();
@@ -67,7 +88,7 @@ export default function MyBookingsPage() {
   const [loading, setLoading] = useState(true);
   const [resourcesLoading, setResourcesLoading] = useState(false);
   const [error, setError] = useState("");
-  const [activeStatus, setActiveStatus] = useState<"ALL" | BookingStatus>("ALL");
+  const [activeStatus, setActiveStatus] = useState<"ALL" | DisplayBookingStatus>("ALL");
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
   const fetchBookings = async () => {
@@ -128,22 +149,43 @@ export default function MyBookingsPage() {
     loadResourceDetails();
   }, [bookings]);
 
-  const filteredBookings = useMemo(() => {
-    if (activeStatus === "ALL") return bookings;
-    return bookings.filter((booking) => booking.status === activeStatus);
-  }, [bookings, activeStatus]);
+  const displayBookings = useMemo(() => {
+    return bookings.map((booking) => {
+      const overdue = isBookingOverdue(booking);
+      const displayStatus: DisplayBookingStatus = overdue ? "COMPLETED" : booking.status;
 
-  const counts = useMemo(() => {
-    const base = { ALL: bookings.length, PENDING: 0, APPROVED: 0, REJECTED: 0, CANCELLED: 0 };
-    bookings.forEach((b) => {
-      base[b.status] += 1;
+      return {
+        booking,
+        overdue,
+        displayStatus,
+      };
     });
-    return base;
   }, [bookings]);
 
+  const filteredBookings = useMemo(() => {
+    const base = activeStatus === "ALL"
+      ? displayBookings
+      : displayBookings.filter(({ displayStatus }) => displayStatus === activeStatus);
+
+    return [...base].sort((a, b) => {
+      if (a.displayStatus === "COMPLETED" && b.displayStatus !== "COMPLETED") return 1;
+      if (a.displayStatus !== "COMPLETED" && b.displayStatus === "COMPLETED") return -1;
+      return 0;
+    });
+  }, [displayBookings, activeStatus]);
+
+  const counts = useMemo(() => {
+    const base = { ALL: displayBookings.length, PENDING: 0, APPROVED: 0, REJECTED: 0, CANCELLED: 0, COMPLETED: 0 };
+    displayBookings.forEach(({ displayStatus }) => {
+      base[displayStatus] += 1;
+    });
+    return base;
+  }, [displayBookings]);
+
   const visibleBookings = useMemo(() => {
-    return filteredBookings.map((booking) => ({
+    return filteredBookings.map(({ booking, displayStatus }) => ({
       booking,
+      displayStatus,
       resource: resourceMap[booking.resourceId],
     }));
   }, [filteredBookings, resourceMap]);
@@ -183,7 +225,7 @@ export default function MyBookingsPage() {
                 ["All", counts.ALL],
                 ["Pending", counts.PENDING],
                 ["Approved", counts.APPROVED],
-                ["Finalized", counts.REJECTED + counts.CANCELLED],
+                ["Finalized", counts.REJECTED + counts.CANCELLED + counts.COMPLETED],
               ] as const).map(([label, count]) => (
                 <div key={label} className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
                   <p className="text-xs uppercase tracking-[0.3em] text-sky-100/90">{label}</p>
@@ -204,13 +246,14 @@ export default function MyBookingsPage() {
           </div>
         )}
 
-        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-6">
           {([
             ["ALL", counts.ALL],
             ["PENDING", counts.PENDING],
             ["APPROVED", counts.APPROVED],
             ["REJECTED", counts.REJECTED],
             ["CANCELLED", counts.CANCELLED],
+            ["COMPLETED", counts.COMPLETED],
           ] as const).map(([status, count]) => {
             const isActive = activeStatus === status;
             return (
@@ -249,7 +292,7 @@ export default function MyBookingsPage() {
             <div className="p-6 text-sm text-slate-500">No bookings found for selected status.</div>
           ) : (
             <div className="grid gap-5 p-4 sm:p-6">
-              {visibleBookings.map(({ booking, resource }) => {
+              {visibleBookings.map(({ booking, displayStatus, resource }) => {
                 const imageUrl = getResourceImageUrl(resource);
 
                 return (
@@ -277,7 +320,7 @@ export default function MyBookingsPage() {
                           </div>
                         )}
 
-                        <div className={`absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t ${statusAccent[booking.status]} opacity-90`} />
+                        <div className={`absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t ${statusAccent[displayStatus]} opacity-90`} />
                         <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-4 text-white">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/80">Resource</p>
@@ -285,7 +328,7 @@ export default function MyBookingsPage() {
                             <p className="mt-1 text-sm text-white/85">{booking.resourceCode}</p>
                           </div>
                           <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide backdrop-blur">
-                            {statusLabel[booking.status]}
+                            {statusLabel[displayStatus]}
                           </span>
                         </div>
                       </div>
@@ -298,8 +341,8 @@ export default function MyBookingsPage() {
                               Requested by <span className="font-semibold text-slate-800">{booking.requestedByName}</span> · {booking.requestedByRole}
                             </p>
                           </div>
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusBadge[booking.status]}`}>
-                            {toReadable(booking.status)}
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusBadge[displayStatus]}`}>
+                            {toReadable(displayStatus)}
                           </span>
                         </div>
 
@@ -340,7 +383,7 @@ export default function MyBookingsPage() {
                             {resource?.location ? <span> · {resource.location}</span> : null}
                           </div>
 
-                          {(booking.status === "PENDING" || booking.status === "APPROVED") ? (
+                          {(displayStatus === "PENDING" || displayStatus === "APPROVED") ? (
                             <button
                               onClick={() => cancelBooking(booking.bookingId)}
                               disabled={actionLoadingId === booking.bookingId}

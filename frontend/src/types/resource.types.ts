@@ -5,6 +5,7 @@ export interface Resource {
   resourceCode: string;
   name: string;
   type: string;
+  targetAudience: 'STUDENT' | 'LECTURER' | 'BOTH' | string;
   capacity: number;
   location: string;
   description: string;

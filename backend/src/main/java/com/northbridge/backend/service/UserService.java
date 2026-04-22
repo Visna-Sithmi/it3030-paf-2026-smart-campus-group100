@@ -181,4 +181,32 @@ public class UserService {
         logger.info("Issue Manager login successful: {}", user.getEmail());
         return new LoginResponse(true, "Issue Manager login successful", user.getRole(), user.getName(), user.getId(), user.getEmail());
     }
+
+    // Lecturer specific login
+    public LoginResponse lecturerLogin(LoginRequest loginRequest) {
+        logger.info("Lecturer login attempt for email: {}", loginRequest.getEmail());
+
+        Optional<User> optionalUser = userRepository.findByEmail(loginRequest.getEmail());
+
+        if (optionalUser.isEmpty()) {
+            return new LoginResponse(false, "Invalid email or password", null, null);
+        }
+
+        User user = optionalUser.get();
+
+        if (!"LECTURER".equals(user.getRole())) {
+            logger.warn("User {} is not a Lecturer. Role: {}", user.getEmail(), user.getRole());
+            return new LoginResponse(false, "Access denied. Lecturer only.", null, null);
+        }
+
+        if (!user.getPassword().equals(loginRequest.getPassword())) {
+            return new LoginResponse(false, "Invalid email or password", null, null);
+        }
+
+        if (!user.isActive()) {
+            return new LoginResponse(false, "Account is inactive.", null, null);
+        }
+
+        return new LoginResponse(true, "Lecturer login successful", user.getRole(), user.getName(), user.getId(), user.getEmail());
+    }
 }

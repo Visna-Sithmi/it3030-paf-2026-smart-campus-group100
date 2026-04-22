@@ -41,6 +41,12 @@ public class ResourceService {
             "OTHER"
     );
 
+            private static final List<String> VALID_TARGET_AUDIENCES = Arrays.asList(
+                "STUDENT",
+                "LECTURER",
+                "BOTH"
+            );
+
     public Resource addResource(ResourceDTO resourceDTO) {
         if (resourceRepository.existsByResourceCode(resourceDTO.getResourceCode())) {
             throw new RuntimeException("Resource code already exists: " + resourceDTO.getResourceCode());
@@ -65,6 +71,7 @@ public class ResourceService {
         resource.setResourceCode(resourceDTO.getResourceCode());
         resource.setName(resourceDTO.getName());
         resource.setType(resourceDTO.getType());
+        resource.setTargetAudience(normalizeTargetAudience(resourceDTO.getTargetAudience()));
         resource.setCapacity(resourceDTO.getCapacity());
         resource.setLocation(resourceDTO.getLocation());
         resource.setDescription(resourceDTO.getDescription());
@@ -110,6 +117,15 @@ public class ResourceService {
 
     public List<ResourceDTO> getAvailableResources() {
         List<Resource> resources = resourceRepository.findByIsAvailableTrue();
+        return resources.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<ResourceDTO> getResourcesForAudience(String audience) {
+        String normalizedAudience = normalizeClientAudience(audience);
+        List<Resource> resources = resourceRepository.findByTargetAudienceIn(Arrays.asList(normalizedAudience, "BOTH"));
+
         return resources.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -185,6 +201,10 @@ public class ResourceService {
                 throw new RuntimeException("Invalid resource type: " + resourceDTO.getType());
             }
             resource.setType(resourceDTO.getType());
+        }
+
+        if (resourceDTO.getTargetAudience() != null) {
+            resource.setTargetAudience(normalizeTargetAudience(resourceDTO.getTargetAudience()));
         }
 
         if (resourceDTO.getCapacity() != null) {
@@ -298,12 +318,33 @@ public class ResourceService {
         return VALID_RESOURCE_TYPES.contains(type);
     }
 
+    private String normalizeTargetAudience(String targetAudience) {
+        String normalized = targetAudience == null ? "BOTH" : targetAudience.trim().toUpperCase();
+        if (!VALID_TARGET_AUDIENCES.contains(normalized)) {
+            throw new RuntimeException("Invalid target audience: " + targetAudience + ". Valid values: STUDENT, LECTURER, BOTH");
+        }
+        return normalized;
+    }
+
+    private String normalizeClientAudience(String audience) {
+        if (audience == null || audience.trim().isEmpty()) {
+            throw new RuntimeException("Audience is required");
+        }
+
+        String normalized = audience.trim().toUpperCase();
+        if (!normalized.equals("STUDENT") && !normalized.equals("LECTURER")) {
+            throw new RuntimeException("Invalid audience. Must be STUDENT or LECTURER");
+        }
+        return normalized;
+    }
+
     private ResourceDTO convertToDTO(Resource resource) {
         ResourceDTO dto = new ResourceDTO();
         dto.setId(resource.getId());
         dto.setResourceCode(resource.getResourceCode());
         dto.setName(resource.getName());
         dto.setType(resource.getType());
+        dto.setTargetAudience(resource.getTargetAudience() == null ? "BOTH" : resource.getTargetAudience());
         dto.setCapacity(resource.getCapacity());
         dto.setLocation(resource.getLocation());
         dto.setDescription(resource.getDescription());

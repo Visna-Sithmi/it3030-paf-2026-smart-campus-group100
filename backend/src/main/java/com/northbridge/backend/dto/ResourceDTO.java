@@ -12,6 +12,7 @@ public class ResourceDTO {
 
     private String name;
     private String type;
+    private String targetAudience;
     private Integer capacity;
     private String location;
     private String description;
@@ -72,6 +73,14 @@ public class ResourceDTO {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public String getTargetAudience() {
+        return targetAudience;
+    }
+
+    public void setTargetAudience(String targetAudience) {
+        this.targetAudience = targetAudience;
     }
 
     public Integer getCapacity() {

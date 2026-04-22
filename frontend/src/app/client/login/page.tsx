@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { studentAuthService } from "../../../services/studentAuthService";
+import { loginLecturer } from "../../../services/authService";
 import type { StudentLoginRequest } from "../../../types/studentAuth";
 import logo from "../../../assets/logo.jpeg";
 
@@ -10,9 +11,15 @@ const emptyStudentForm: StudentLoginRequest = {
   password: "",
 };
 
+const emptyLecturerForm = {
+  email: "",
+  password: "",
+};
+
 export default function ClientLoginPage() {
   const [activePortal, setActivePortal] = useState<PortalType>("STUDENT");
   const [formData, setFormData] = useState<StudentLoginRequest>(emptyStudentForm);
+  const [lecturerFormData, setLecturerFormData] = useState(emptyLecturerForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -20,6 +27,14 @@ export default function ClientLoginPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleLecturerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setLecturerFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -64,6 +79,52 @@ export default function ClientLoginPage() {
     }
   };
 
+  const handleLecturerLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setError("");
+      setSuccessMessage("");
+
+      const trimmedEmail = lecturerFormData.email.trim();
+      const trimmedPassword = lecturerFormData.password.trim();
+
+      if (!trimmedEmail) {
+        setError("Email is required.");
+        return;
+      }
+
+      if (!trimmedPassword) {
+        setError("Password is required.");
+        return;
+      }
+
+      const response = await loginLecturer({
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
+
+      if (!response.success || response.role !== "LECTURER") {
+        setError(response.message || "Lecturer login failed");
+        return;
+      }
+
+      localStorage.setItem("user", response.name || "Lecturer");
+      localStorage.setItem("role", "LECTURER");
+      localStorage.setItem("name", response.name || "Lecturer");
+      localStorage.setItem("email", response.email || trimmedEmail);
+      localStorage.setItem("id", response.id ? String(response.id) : "");
+      localStorage.setItem("profileImageUrl", response.profileImageUrl || "");
+
+      setSuccessMessage("Lecturer login successful");
+      navigate("/client/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Lecturer login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center">
       <div className="w-full max-w-4xl px-4 py-6">
@@ -99,6 +160,7 @@ export default function ClientLoginPage() {
               setActivePortal("STUDENT");
               setError("");
               setSuccessMessage("");
+              setFormData(emptyStudentForm);
             }}
             className={`w-1/2 rounded-lg py-2 text-sm font-semibold transition ${
               activePortal === "STUDENT"
@@ -114,6 +176,7 @@ export default function ClientLoginPage() {
               setActivePortal("LECTURER");
               setError("");
               setSuccessMessage("");
+              setLecturerFormData(emptyLecturerForm);
             }}
             className={`w-1/2 rounded-lg py-2 text-sm font-semibold transition ${
               activePortal === "LECTURER"
@@ -187,16 +250,61 @@ export default function ClientLoginPage() {
               </div>
             </form>
           ) : (
-            <div className="py-4 text-center">
-              <h2 className="text-lg font-semibold text-[#002147]">Lecturer Portal</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Lecturer login will be connected next.
-              </p>
-              <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50 px-4 py-4 text-xs text-slate-400">
-                This portal UI is ready. Backend and frontend authentication for
-                lecturers can be plugged in later using the same structure.
+            <form onSubmit={handleLecturerLogin} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.2em] text-[#1f3d63]">
+                  Lecturer Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={lecturerFormData.email}
+                  onChange={handleLecturerChange}
+                  placeholder="Enter your email"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-[#002147] focus:bg-white"
+                />
               </div>
-            </div>
+
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.2em] text-[#1f3d63]">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={lecturerFormData.password}
+                  onChange={handleLecturerChange}
+                  placeholder="Enter your password"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-[#002147] focus:bg-white"
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+                  {error}
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                  {successMessage}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-xl bg-[#002147] py-3 text-sm font-bold uppercase tracking-[0.2em] text-white shadow-md transition hover:bg-[#001733] disabled:opacity-70"
+              >
+                {loading ? "Authorizing..." : "Authorize Entry"}
+              </button>
+
+              <div className="border-t border-slate-100 pt-4 text-center">
+                <p className="text-xs uppercase tracking-[0.15em] text-slate-400">
+                  Authorized Lecturer Access Only
+                </p>
+              </div>
+            </form>
           )}
         </div>
 

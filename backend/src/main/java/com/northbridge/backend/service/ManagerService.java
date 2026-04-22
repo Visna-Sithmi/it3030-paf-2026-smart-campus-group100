@@ -30,7 +30,8 @@ public class ManagerService {
         String role = manager.getRole();
         if (!role.equals("RESOURCE_MANAGER") &&
                 !role.equals("BOOKING_MANAGER") &&
-                !role.equals("ISSUE_MANAGER")) {
+                !role.equals("ISSUE_MANAGER") &&
+                !role.equals("LECTURER")) {
             throw new RuntimeException("User with ID " + id + " is not a manager");
         }
 
@@ -40,8 +41,9 @@ public class ManagerService {
     public List<ManagerDTO> getManagersByRole(String role) {
         if (!role.equals("RESOURCE_MANAGER") &&
                 !role.equals("BOOKING_MANAGER") &&
-                !role.equals("ISSUE_MANAGER")) {
-            throw new RuntimeException("Invalid role. Must be: RESOURCE_MANAGER, BOOKING_MANAGER, or ISSUE_MANAGER");
+                !role.equals("ISSUE_MANAGER") &&
+                !role.equals("LECTURER")) {
+            throw new RuntimeException("Invalid role. Must be: RESOURCE_MANAGER, BOOKING_MANAGER, ISSUE_MANAGER, or LECTURER");
         }
 
         List<User> managers = userRepository.findByRole(role);
@@ -58,8 +60,9 @@ public class ManagerService {
         String role = managerDTO.getRole();
         if (!role.equals("RESOURCE_MANAGER") &&
                 !role.equals("BOOKING_MANAGER") &&
-                !role.equals("ISSUE_MANAGER")) {
-            throw new RuntimeException("Invalid role. Must be: RESOURCE_MANAGER, BOOKING_MANAGER, or ISSUE_MANAGER");
+                !role.equals("ISSUE_MANAGER") &&
+                !role.equals("LECTURER")) {
+            throw new RuntimeException("Invalid role. Must be: RESOURCE_MANAGER, BOOKING_MANAGER, ISSUE_MANAGER, or LECTURER");
         }
 
         User manager = new User();
@@ -85,7 +88,8 @@ public class ManagerService {
         String currentRole = manager.getRole();
         if (!currentRole.equals("RESOURCE_MANAGER") &&
                 !currentRole.equals("BOOKING_MANAGER") &&
-                !currentRole.equals("ISSUE_MANAGER")) {
+                !currentRole.equals("ISSUE_MANAGER") &&
+                !currentRole.equals("LECTURER")) {
             throw new RuntimeException("User with ID " + id + " is not a manager");
         }
 
@@ -109,8 +113,9 @@ public class ManagerService {
             String newRole = managerDTO.getRole();
             if (!newRole.equals("RESOURCE_MANAGER") &&
                     !newRole.equals("BOOKING_MANAGER") &&
-                    !newRole.equals("ISSUE_MANAGER")) {
-                throw new RuntimeException("Invalid role. Must be: RESOURCE_MANAGER, BOOKING_MANAGER, or ISSUE_MANAGER");
+                    !newRole.equals("ISSUE_MANAGER") &&
+                    !newRole.equals("LECTURER")) {
+                throw new RuntimeException("Invalid role. Must be: RESOURCE_MANAGER, BOOKING_MANAGER, ISSUE_MANAGER, or LECTURER");
             }
             manager.setRole(newRole);
         }
@@ -131,7 +136,8 @@ public class ManagerService {
         String role = manager.getRole();
         if (!role.equals("RESOURCE_MANAGER") &&
                 !role.equals("BOOKING_MANAGER") &&
-                !role.equals("ISSUE_MANAGER")) {
+                !role.equals("ISSUE_MANAGER") &&
+                !role.equals("LECTURER")) {
             throw new RuntimeException("User with ID " + id + " is not a manager");
         }
 

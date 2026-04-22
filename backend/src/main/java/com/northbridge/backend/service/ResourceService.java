@@ -1,8 +1,12 @@
 package com.northbridge.backend.service;
 
 import com.northbridge.backend.dto.ResourceDTO;
+import com.northbridge.backend.model.Holiday;
 import com.northbridge.backend.model.Resource;
+import com.northbridge.backend.model.SystemSetting;
+import com.northbridge.backend.repository.HolidayRepository;
 import com.northbridge.backend.repository.ResourceRepository;
+import com.northbridge.backend.repository.SystemSettingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -12,6 +16,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,6 +30,12 @@ public class ResourceService {
 
     @Autowired
     private ResourceRepository resourceRepository;
+
+    @Autowired
+    private HolidayRepository holidayRepository;
+
+    @Autowired
+    private SystemSettingRepository systemSettingRepository;
 
     @Value("${image.upload.directory:uploads/resources}")
     private String uploadDirectory;
@@ -40,6 +51,23 @@ public class ResourceService {
             "AUDITORIUM",
             "OTHER"
     );
+
+    // ==================== HELPER METHODS ====================
+
+    private boolean isGloballyLocked() {
+        try {
+            String lockStatus = systemSettingRepository.getGlobalLockStatus();
+            return "true".equalsIgnoreCase(lockStatus);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isHoliday() {
+        return holidayRepository.isTodayHoliday();
+    }
+
+    // ==================== RESOURCE CRUD METHODS ====================
 
     public Resource addResource(ResourceDTO resourceDTO) {
         if (resourceRepository.existsByResourceCode(resourceDTO.getResourceCode())) {
@@ -78,8 +106,35 @@ public class ResourceService {
         return resourceRepository.save(resource);
     }
 
+    // UPDATED: getAllResources with OUT_OF_SERVICE status for lock/holiday
     public List<ResourceDTO> getAllResources() {
         List<Resource> resources = resourceRepository.findAll();
+
+        // Priority 1: Emergency Global Lock - Set to OUT_OF_SERVICE
+        if (isGloballyLocked()) {
+            return resources.stream()
+                    .map(resource -> {
+                        ResourceDTO dto = convertToDTO(resource);
+                        dto.setAvailable(false);
+                        dto.setStatus("OUT_OF_SERVICE");
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+        }
+
+        // Priority 2: Holiday Closure - Set to OUT_OF_SERVICE
+        if (isHoliday()) {
+            return resources.stream()
+                    .map(resource -> {
+                        ResourceDTO dto = convertToDTO(resource);
+                        dto.setAvailable(false);
+                        dto.setStatus("OUT_OF_SERVICE");
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+        }
+
+        // Priority 3: Normal individual resource status
         return resources.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -88,13 +143,27 @@ public class ResourceService {
     public ResourceDTO getResourceById(Long id) {
         Resource resource = resourceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Resource not found with ID: " + id));
-        return convertToDTO(resource);
+        ResourceDTO dto = convertToDTO(resource);
+
+        // Apply global lock or holiday override - Set to OUT_OF_SERVICE
+        if (isGloballyLocked() || isHoliday()) {
+            dto.setAvailable(false);
+            dto.setStatus("OUT_OF_SERVICE");
+        }
+        return dto;
     }
 
     public ResourceDTO getResourceByCode(String resourceCode) {
         Resource resource = resourceRepository.findByResourceCode(resourceCode)
                 .orElseThrow(() -> new RuntimeException("Resource not found with Code: " + resourceCode));
-        return convertToDTO(resource);
+        ResourceDTO dto = convertToDTO(resource);
+
+        // Apply global lock or holiday override - Set to OUT_OF_SERVICE
+        if (isGloballyLocked() || isHoliday()) {
+            dto.setAvailable(false);
+            dto.setStatus("OUT_OF_SERVICE");
+        }
+        return dto;
     }
 
     public List<ResourceDTO> getResourcesByType(String type) {
@@ -103,12 +172,30 @@ public class ResourceService {
         }
 
         List<Resource> resources = resourceRepository.findByType(type);
+
+        // Apply global lock or holiday override - Set to OUT_OF_SERVICE
+        if (isGloballyLocked() || isHoliday()) {
+            return resources.stream()
+                    .map(resource -> {
+                        ResourceDTO dto = convertToDTO(resource);
+                        dto.setAvailable(false);
+                        dto.setStatus("OUT_OF_SERVICE");
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+        }
+
         return resources.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public List<ResourceDTO> getAvailableResources() {
+        // If globally locked or holiday, no resources are available
+        if (isGloballyLocked() || isHoliday()) {
+            return List.of();
+        }
+
         List<Resource> resources = resourceRepository.findByIsAvailableTrue();
         return resources.stream()
                 .map(this::convertToDTO)
@@ -117,6 +204,19 @@ public class ResourceService {
 
     public List<ResourceDTO> searchResourcesByName(String name) {
         List<Resource> resources = resourceRepository.searchByName(name);
+
+        // Apply global lock or holiday override - Set to OUT_OF_SERVICE
+        if (isGloballyLocked() || isHoliday()) {
+            return resources.stream()
+                    .map(resource -> {
+                        ResourceDTO dto = convertToDTO(resource);
+                        dto.setAvailable(false);
+                        dto.setStatus("OUT_OF_SERVICE");
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+        }
+
         return resources.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -139,6 +239,18 @@ public class ResourceService {
             resources = resourceRepository.findByLocationContainingIgnoreCase(location);
         } else {
             resources = resourceRepository.findAll();
+        }
+
+        // Apply global lock or holiday override - Set to OUT_OF_SERVICE
+        if (isGloballyLocked() || isHoliday()) {
+            return resources.stream()
+                    .map(resource -> {
+                        ResourceDTO dto = convertToDTO(resource);
+                        dto.setAvailable(false);
+                        dto.setStatus("OUT_OF_SERVICE");
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
         }
 
         return resources.stream()
@@ -253,7 +365,13 @@ public class ResourceService {
         stats.setActiveResources(resourceRepository.countByStatus("ACTIVE"));
         stats.setOutOfServiceResources(resourceRepository.countByStatus("OUT_OF_SERVICE"));
         stats.setMaintenanceResources(resourceRepository.countByStatus("MAINTENANCE"));
-        stats.setAvailableResources(resourceRepository.findByIsAvailableTrue().size());
+
+        // If globally locked or holiday, available resources should be 0
+        if (isGloballyLocked() || isHoliday()) {
+            stats.setAvailableResources(0);
+        } else {
+            stats.setAvailableResources(resourceRepository.findByIsAvailableTrue().size());
+        }
 
         List<Object[]> typeCounts = resourceRepository.countByType();
         Map<String, Long> typeCountMap = new HashMap<>();
@@ -264,6 +382,53 @@ public class ResourceService {
 
         return stats;
     }
+
+    // ==================== HOLIDAY MANAGEMENT METHODS ====================
+
+    public Holiday addHoliday(Holiday holiday) {
+        if (holidayRepository.existsByHolidayDate(holiday.getHolidayDate())) {
+            throw new RuntimeException("Holiday already exists for this date: " + holiday.getHolidayDate());
+        }
+        return holidayRepository.save(holiday);
+    }
+
+    public List<Holiday> getAllHolidays() {
+        return holidayRepository.findAll();
+    }
+
+    public void deleteHoliday(Long id) {
+        if (!holidayRepository.existsById(id)) {
+            throw new RuntimeException("Holiday not found with ID: " + id);
+        }
+        holidayRepository.deleteById(id);
+    }
+
+    // ==================== EMERGENCY LOCK METHODS ====================
+
+    public String getGlobalLockStatus() {
+        return systemSettingRepository.getGlobalLockStatus();
+    }
+
+    public void setGlobalLockStatus(boolean locked) {
+        systemSettingRepository.updateGlobalLockStatus(String.valueOf(locked));
+    }
+
+    // ==================== SYSTEM STATUS ====================
+
+    public Map<String, Object> getSystemStatus() {
+        Map<String, Object> status = new HashMap<>();
+        status.put("globalLock", isGloballyLocked());
+        status.put("isHoliday", isHoliday());
+        status.put("today", LocalDate.now().toString());
+
+        // Get upcoming holidays
+        List<Holiday> upcomingHolidays = holidayRepository.findUpcomingHolidays();
+        status.put("upcomingHolidays", upcomingHolidays);
+
+        return status;
+    }
+
+    // ==================== PRIVATE HELPER METHODS ====================
 
     private String saveImage(MultipartFile file) throws IOException {
         Path uploadPath = Paths.get(uploadDirectory);
@@ -317,6 +482,8 @@ public class ResourceService {
         dto.setUpdatedAt(resource.getUpdatedAt());
         return dto;
     }
+
+    // ==================== STATISTICS INNER CLASS ====================
 
     public static class ResourceStatistics {
         private long totalResources;

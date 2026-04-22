@@ -14,7 +14,12 @@ interface BookingLocationState {
   resourceType?: string;
 }
 
-const today = new Date().toISOString().split("T")[0];
+const getLocalDateValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 interface AvailabilityConfig {
   mode: "FIXED_DAILY";
@@ -27,7 +32,7 @@ interface TimeSlot {
   start: string;
   end: string;
   label: string;
-  state: "AVAILABLE" | "PENDING" | "BOOKED";
+  state: "AVAILABLE" | "PENDING" | "BOOKED" | "PAST";
 }
 
 const DEFAULT_AVAILABILITY_CONFIG: AvailabilityConfig = {
@@ -100,6 +105,18 @@ export default function ResourceBookingPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const state = (location.state || {}) as BookingLocationState;
+
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(new Date());
+    }, 60000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const today = useMemo(() => getLocalDateValue(now), [now]);
 
   const [resource, setResource] = useState<Resource | null>(null);
   const [loadingResource, setLoadingResource] = useState(true);
@@ -177,10 +194,21 @@ export default function ResourceBookingPage() {
   const slotOptions = useMemo<TimeSlot[]>(() => {
     const config = parseAvailabilityConfig(resource?.availabilityWindows);
     const generated = generateSlots(config);
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const isTodayBooking = bookingDate === today;
 
     return generated.map((slot) => {
       const slotStart = toMinutes(slot.start);
       const slotEnd = toMinutes(slot.end);
+      const isPast = isTodayBooking && slotStart < nowMinutes;
+
+      if (isPast) {
+        return {
+          ...slot,
+          state: "PAST",
+        };
+      }
+
       const overlapping = bookedSlots.filter((b) => {
         const bStart = toMinutes(toHHmm(b.startTime));
         const bEnd = toMinutes(toHHmm(b.endTime));
@@ -195,10 +223,10 @@ export default function ResourceBookingPage() {
         state: hasApproved ? "BOOKED" : hasPending ? "PENDING" : "AVAILABLE",
       };
     });
-  }, [resource?.availabilityWindows, bookedSlots]);
+  }, [resource?.availabilityWindows, bookedSlots, bookingDate, today, now]);
 
   const selectSlot = (slot: TimeSlot) => {
-    if (slot.state === "BOOKED") return;
+    if (slot.state === "BOOKED" || slot.state === "PAST") return;
 
     setSelectedSlotKey(`${slot.start}-${slot.end}`);
     setStartTime(slot.start);
@@ -224,6 +252,15 @@ export default function ResourceBookingPage() {
     if (!startTime || !endTime) {
       setError("Please select an available time slot.");
       return;
+    }
+
+    if (bookingDate === today) {
+      const selectedStartMinutes = toMinutes(startTime);
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      if (selectedStartMinutes < nowMinutes) {
+        setError("This slot is already in the past. Please choose a current or future slot.");
+        return;
+      }
     }
 
     try {
@@ -363,6 +400,7 @@ export default function ResourceBookingPage() {
                   <span className="rounded-full bg-green-100 px-2 py-1 font-semibold text-green-700">Green: Available</span>
                   <span className="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-700">Yellow: Pending Request</span>
                   <span className="rounded-full bg-red-100 px-2 py-1 font-semibold text-red-700">Red: Approved / Booked</span>
+                  <span className="rounded-full bg-slate-200 px-2 py-1 font-semibold text-slate-700">Gray: Past Time</span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -375,10 +413,12 @@ export default function ResourceBookingPage() {
                         key={key}
                         type="button"
                         onClick={() => selectSlot(slot)}
-                        disabled={slot.state === "BOOKED"}
+                        disabled={slot.state === "BOOKED" || slot.state === "PAST"}
                         className={`rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${
                           slot.state === "BOOKED"
                             ? "cursor-not-allowed border-red-200 bg-red-50 text-red-700"
+                            : slot.state === "PAST"
+                            ? "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500"
                             : slot.state === "PENDING"
                             ? isSelected
                               ? "border-amber-600 bg-amber-500 text-white"
@@ -393,6 +433,8 @@ export default function ResourceBookingPage() {
                           className={`text-xs ${
                             slot.state === "BOOKED"
                               ? "text-red-600"
+                              : slot.state === "PAST"
+                              ? "text-slate-500"
                               : slot.state === "PENDING"
                               ? isSelected
                                 ? "text-amber-100"
@@ -404,6 +446,8 @@ export default function ResourceBookingPage() {
                         >
                           {slot.state === "BOOKED"
                             ? "Booked"
+                            : slot.state === "PAST"
+                            ? "Past Time"
                             : slot.state === "PENDING"
                             ? "Pending Approval"
                             : "Available"}

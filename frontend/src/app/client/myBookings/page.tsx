@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { MailCheck } from "lucide-react";
 import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
 import { bookingService } from "../../../services/bookingService";
 import { resourceService } from "../../../services/resource.service";
+import { WaitlistCard } from "../../../components/ui/card-6";
 import type { Resource } from "../../../types/resource.types";
 import type { BookingResponseDTO, BookingStatus } from "../../../types/booking";
+
+interface MyBookingsLocationState {
+  bookingSuccessMessage?: string;
+}
 
 type DisplayBookingStatus = BookingStatus | "COMPLETED";
 
@@ -83,6 +90,9 @@ const getResourceImageUrl = (resource: Resource | undefined) => {
 };
 
 export default function MyBookingsPage() {
+  const location = useLocation();
+  const locationState = (location.state || {}) as MyBookingsLocationState;
+
   const [bookings, setBookings] = useState<BookingResponseDTO[]>([]);
   const [resourceMap, setResourceMap] = useState<Record<number, Resource>>({});
   const [loading, setLoading] = useState(true);
@@ -90,6 +100,11 @@ export default function MyBookingsPage() {
   const [error, setError] = useState("");
   const [activeStatus, setActiveStatus] = useState<"ALL" | DisplayBookingStatus>("ALL");
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const [showBookingPopup, setShowBookingPopup] = useState(Boolean(locationState.bookingSuccessMessage));
+
+  useEffect(() => {
+    setShowBookingPopup(Boolean(locationState.bookingSuccessMessage));
+  }, [locationState.bookingSuccessMessage]);
 
   const fetchBookings = async () => {
     try {
@@ -210,6 +225,34 @@ export default function MyBookingsPage() {
       <Header />
 
       <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-32 sm:px-6 lg:px-8">
+        {showBookingPopup && locationState.bookingSuccessMessage && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 px-4"
+            onClick={() => setShowBookingPopup(false)}
+          >
+            <div className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <WaitlistCard
+                className="max-w-2xl border-emerald-200 bg-white"
+                icon={<MailCheck className="h-8 w-8" />}
+                title="Booking Submitted - Awaiting Admin Approval"
+                description={locationState.bookingSuccessMessage}
+                footerContent={
+                  <div className="flex flex-col items-center gap-3 text-sm text-slate-600">
+                    <span className="font-medium text-slate-700">Status: Pending</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowBookingPopup(false)}
+                      className="inline-flex items-center justify-center rounded-full bg-[#002147] px-5 py-2.5 font-semibold text-white transition hover:bg-[#001733]"
+                    >
+                      Okay
+                    </button>
+                  </div>
+                }
+              />
+            </div>
+          </div>
+        )}
+
         <section className="mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="grid gap-6 bg-gradient-to-br from-[#002147] via-[#0f3460] to-[#163a63] px-6 py-8 text-white lg:grid-cols-[1.4fr_0.6fr] lg:px-8">
             <div>

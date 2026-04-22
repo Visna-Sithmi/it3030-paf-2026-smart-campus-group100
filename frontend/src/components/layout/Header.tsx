@@ -25,7 +25,7 @@ const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [user, setUser] = useState<{ name: string; studentId: string; email: string; role: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; studentId?: string; email: string; role: string } | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeHover, setActiveHover] = useState<string | null>(null);
   
@@ -33,19 +33,27 @@ const Header: React.FC = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Check if user is logged in as STUDENT
+    // Check if user is logged in as STUDENT or LECTURER
     const storedRole = localStorage.getItem("role");
     const storedStudentId = localStorage.getItem("studentId");
+    const storedId = localStorage.getItem("id");
     const storedName = localStorage.getItem("studentName") || localStorage.getItem("user");
+    const storedLecturerName = localStorage.getItem("name") || storedName;
     const storedEmail = localStorage.getItem("email");
-    
-    // Only set user if role is STUDENT and studentId exists
-    if (storedRole === "STUDENT" && storedStudentId) {
+
+    if (storedRole === "STUDENT" && (storedStudentId || storedId)) {
       setUser({
         name: storedName || "Student",
-        studentId: storedStudentId,
-        email: storedEmail || `${storedStudentId}@northbridge.edu`,
+        studentId: storedStudentId || storedId || "",
+        email: storedEmail || `${storedStudentId || storedId}@northbridge.edu`,
         role: "STUDENT",
+      });
+      setIsLoggedIn(true);
+    } else if (storedRole === "LECTURER" && (storedEmail || storedLecturerName || storedId)) {
+      setUser({
+        name: storedLecturerName || "Lecturer",
+        email: storedEmail || "lecturer@northbridge.edu",
+        role: "LECTURER",
       });
       setIsLoggedIn(true);
     } else {
@@ -209,7 +217,11 @@ const Header: React.FC = () => {
                           <div>
                             <p className="font-semibold text-slate-800">{user.name}</p>
                             <p className="text-xs text-slate-500">{user.email}</p>
-                            <p className="text-[10px] text-slate-400 mt-1">Student ID: {user.studentId}</p>
+                            <p className="text-[10px] text-slate-400 mt-1">
+                              {user.role === "STUDENT"
+                                ? `Student ID: ${user.studentId || "N/A"}`
+                                : "Role: Lecturer"}
+                            </p>
                           </div>
                         </div>
                       </div>

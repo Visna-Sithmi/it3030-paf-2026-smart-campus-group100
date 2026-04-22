@@ -119,8 +119,8 @@ export const loginLecturer = async (
       body: JSON.stringify(loginData),
     });
 
-    const data: RawLoginResponse = await response.json();
-    return normalizeLoginResponse(data);
+    const data: LoginResponse = await response.json();
+    return data;
   } catch (error) {
     console.error("Lecturer login error:", error);
     return {

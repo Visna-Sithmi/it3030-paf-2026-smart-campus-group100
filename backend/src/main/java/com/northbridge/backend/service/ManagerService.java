@@ -2,6 +2,7 @@ package com.northbridge.backend.service;
 
 import com.northbridge.backend.dto.ManagerDTO;
 import com.northbridge.backend.model.User;
+import com.northbridge.backend.repository.BookingRepository;
 import com.northbridge.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,9 @@ public class ManagerService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private BookingRepository bookingRepository;
 
     public List<ManagerDTO> getAllManagers() {
         List<User> managers = userRepository.findAllManagers();
@@ -129,6 +133,7 @@ public class ManagerService {
         return convertToDTO(updatedManager);
     }
 
+    @Transactional
     public void deleteManager(Long id) {
         User manager = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Manager not found with ID: " + id));
@@ -140,6 +145,12 @@ public class ManagerService {
                 !role.equals("LECTURER")) {
             throw new RuntimeException("User with ID " + id + " is not a manager");
         }
+
+        if (bookingRepository.existsByRequestedById(id)) {
+            throw new RuntimeException("Cannot delete manager because they are linked as booking requester in existing bookings. Deactivate the account instead.");
+        }
+
+        bookingRepository.clearApproverReferences(id);
 
         userRepository.delete(manager);
     }

@@ -189,9 +189,8 @@ const Footer: React.FC = () => {
                   <Clock size={16} className="text-slate-200" />
                 </div>
                 <div>
-                  <p>Mon - Fri: 8:00 AM - 6:00 PM</p>
-                  <p className="mt-1 text-slate-400">Sat: 9:00 AM - 1:00 PM</p>
-                  <p className="text-slate-500">Sun: Closed</p>
+                  <p>Mon - sun: 8:30 AM - 8:30 PM</p>
+
                 </div>
               </li>
             </ul>

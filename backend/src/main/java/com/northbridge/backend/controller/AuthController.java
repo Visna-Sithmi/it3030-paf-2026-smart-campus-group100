@@ -29,7 +29,7 @@ public class AuthController {
     private UserRepository userRepository;
 
     // ==================== LOGIN ENDPOINTS ====================
-    
+
     // General login for all users (Admin, Managers)
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
@@ -79,6 +79,7 @@ public class AuthController {
     }
 
     // Lecturer specific login
+
     @PostMapping("/lecturer/login")
     public ResponseEntity<LoginResponse> lecturerLogin(@RequestBody LoginRequest loginRequest) {
         LoginResponse response = userService.lecturerLogin(loginRequest);
@@ -126,6 +127,7 @@ public class AuthController {
             ));
         }
     }
+
 
     // REMOVE THIS - Student login is handled by StudentAuthController
     // @PostMapping("/student/login")

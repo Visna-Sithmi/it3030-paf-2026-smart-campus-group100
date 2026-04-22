@@ -115,6 +115,7 @@ const ManagerLoginPage = () => {
         localStorage.setItem("name", data.name || "");
         localStorage.setItem("email", data.email || "");
         localStorage.setItem("id", data.id?.toString() || "");
+        localStorage.setItem("profileImageUrl", data.profileImageUrl || "");
         localStorage.setItem("managerType", managerType);
 
         setSuccessMessage(data.message || "Login successful");

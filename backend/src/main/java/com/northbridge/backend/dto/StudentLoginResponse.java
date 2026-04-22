@@ -11,12 +11,13 @@ public class StudentLoginResponse {
     private String course;
     private Integer year;
     private String status;
+    private String profileImageUrl;
 
     public StudentLoginResponse() {}
 
     public StudentLoginResponse(boolean success, String message, String role, String name,
                                 Long id, String studentId, String email, String course,
-                                Integer year, String status) {
+                                Integer year, String status, String profileImageUrl) {
         this.success = success;
         this.message = message;
         this.role = role;
@@ -27,6 +28,7 @@ public class StudentLoginResponse {
         this.course = course;
         this.year = year;
         this.status = status;
+        this.profileImageUrl = profileImageUrl;
     }
 
     // Getters and Setters
@@ -50,4 +52,6 @@ public class StudentLoginResponse {
     public void setYear(Integer year) { this.year = year; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getProfileImageUrl() { return profileImageUrl; }
+    public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
 }

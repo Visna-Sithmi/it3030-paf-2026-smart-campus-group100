@@ -59,6 +59,23 @@ const formatTime12 = (time24: string) => {
   return `${displayHour}:${`${minutes}`.padStart(2, "0")} ${period}`;
 };
 
+const formatReadableDate = (dateValue: string) => {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return dateValue;
+
+  return date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const getResourceImageUrl = (resource?: Resource | null) => {
+  if (!resource?.imageUrl) return null;
+  return resource.imageUrl.startsWith("http") ? resource.imageUrl : `http://localhost:8081${resource.imageUrl}`;
+};
+
 const parseAvailabilityConfig = (availabilityWindows?: string): AvailabilityConfig => {
   if (!availabilityWindows || availabilityWindows.trim() === "") {
     return DEFAULT_AVAILABILITY_CONFIG;
@@ -191,6 +208,8 @@ export default function ResourceBookingPage() {
     return resource?.capacity && resource.capacity > 0 ? resource.capacity : 500;
   }, [resource]);
 
+  const resourceImageUrl = useMemo(() => getResourceImageUrl(resource), [resource]);
+
   const slotOptions = useMemo<TimeSlot[]>(() => {
     const config = parseAvailabilityConfig(resource?.availabilityWindows);
     const generated = generateSlots(config);
@@ -289,19 +308,83 @@ export default function ResourceBookingPage() {
       <Header />
 
       <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-32 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold text-[#002147]">Resource Booking Request</h1>
-            <p className="mt-1 text-sm text-slate-600">Submit a booking request for review and admin approval.</p>
-          </div>
+        <section className="mb-8 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
+          <div className="grid lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="relative min-h-[240px] bg-slate-950">
+              {resourceImageUrl ? (
+                <img src={resourceImageUrl} alt={resource?.name || "Booked resource"} className="absolute inset-0 h-full w-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-[#002147] via-[#0f3460] to-[#1f4e79]" />
+              )}
 
-          <Link
-            to="/my-bookings"
-            className="rounded-lg bg-[#002147] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#001733]"
-          >
-            My Bookings
-          </Link>
-        </div>
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/55 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8 text-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-200">Resource booking</p>
+                <h1 className="mt-3 max-w-xl text-3xl font-bold sm:text-4xl">Reserve a space that matches your session.</h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-200 sm:text-base">
+                  Choose a time slot, review the resource image, and submit a request that automatically respects today’s live availability.
+                </p>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link
+                    to="/my-bookings"
+                    className="rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-[#002147] transition hover:bg-slate-100"
+                  >
+                    My Bookings
+                  </Link>
+                  <Link
+                    to="/client/resources"
+                    className="rounded-full border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
+                  >
+                    Back to Catalogue
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 bg-white p-6 sm:p-8">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">Selected resource</p>
+                    <h2 className="mt-2 text-2xl font-bold text-slate-900">{resource?.name || state.resourceName || "Pick a resource"}</h2>
+                    <p className="mt-1 text-sm text-slate-500">{resource?.location || "Location will appear here once a resource is selected."}</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#002147] px-3 py-2 text-right text-white shadow-sm">
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-sky-200">Capacity</p>
+                    <p className="text-xl font-bold leading-none">{maxCapacity}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-200">
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-slate-400">Code</p>
+                    <p className="mt-1 font-semibold text-slate-900">{resource?.resourceCode || state.resourceCode || "N/A"}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-200">
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-slate-400">Type</p>
+                    <p className="mt-1 font-semibold text-slate-900">{resource?.type?.replaceAll("_", " ") || state.resourceType || "Resource"}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-200">
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-slate-400">Availability</p>
+                    <p className="mt-1 font-semibold text-slate-900">{resource?.availabilityWindows ? "Configured" : "Flexible"}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-200">
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-slate-400">Date</p>
+                    <p className="mt-1 font-semibold text-slate-900">{formatReadableDate(bookingDate)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-[#002147] p-5 text-white shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-200">Live guidance</p>
+                <p className="mt-3 text-sm leading-6 text-slate-200">
+                  Past slots are disabled automatically for today. Pick a slot that starts now or later, then describe the purpose of your booking.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {!resourceId && (
           <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-800">
@@ -322,42 +405,64 @@ export default function ResourceBookingPage() {
           <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{success}</div>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-1">
-            <h2 className="text-lg font-bold text-slate-900">Selected Resource</h2>
+        <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="relative min-h-[220px] bg-slate-950">
+              {resourceImageUrl ? (
+                <img src={resourceImageUrl} alt={resource?.name || state.resourceName || "Selected resource"} className="absolute inset-0 h-full w-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-[#002147] via-[#0f3460] to-[#1f4e79]" />
+              )}
 
-            {loadingResource ? (
-              <p className="mt-4 text-sm text-slate-500">Loading resource...</p>
-            ) : resource ? (
-              <div className="mt-4 space-y-3 text-sm text-slate-700">
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-500">Name</p>
-                  <p className="font-semibold">{resource.name}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-500">Code</p>
-                  <p className="font-semibold">{resource.resourceCode || state.resourceCode || "N/A"}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-500">Type</p>
-                  <p className="font-semibold">{resource.type?.replaceAll("_", " ")}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-500">Location</p>
-                  <p className="font-semibold">{resource.location || "N/A"}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-500">Capacity</p>
-                  <p className="font-semibold">{resource.capacity || "N/A"}</p>
-                </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/30 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-200">Selected resource</p>
+                <h2 className="mt-2 text-2xl font-bold">{resource?.name || state.resourceName || "No resource selected"}</h2>
+                <p className="mt-2 text-sm text-slate-200">
+                  {resource?.location || "Choose a resource from the catalogue to see its image and booking details."}
+                </p>
               </div>
-            ) : (
-              <p className="mt-4 text-sm text-slate-500">No resource selected.</p>
-            )}
+            </div>
+
+            <div className="p-6">
+              {loadingResource ? (
+                <p className="text-sm text-slate-500">Loading resource...</p>
+              ) : resource ? (
+                <div className="grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                  <div className="rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+                    <p className="text-xs uppercase tracking-widest text-slate-500">Code</p>
+                    <p className="mt-1 font-semibold">{resource.resourceCode || state.resourceCode || "N/A"}</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+                    <p className="text-xs uppercase tracking-widest text-slate-500">Type</p>
+                    <p className="mt-1 font-semibold">{resource.type?.replaceAll("_", " ")}</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+                    <p className="text-xs uppercase tracking-widest text-slate-500">Location</p>
+                    <p className="mt-1 font-semibold">{resource.location || "N/A"}</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+                    <p className="text-xs uppercase tracking-widest text-slate-500">Capacity</p>
+                    <p className="mt-1 font-semibold">{resource.capacity || "N/A"}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No resource selected.</p>
+              )}
+            </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-            <h2 className="text-lg font-bold text-slate-900">Booking Details</h2>
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">Booking Details</p>
+                <h2 className="mt-2 text-2xl font-bold text-slate-900">Choose a live time slot</h2>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right ring-1 ring-slate-200">
+                <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Today</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{today}</p>
+              </div>
+            </div>
 
             <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -379,12 +484,12 @@ export default function ResourceBookingPage() {
                   <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">
                     Selected Time Slot
                   </label>
-                  <input
-                    type="text"
-                    value={startTime && endTime ? `${formatTime12(startTime)} - ${formatTime12(endTime)}` : "No slot selected"}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600"
-                    disabled
-                  />
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {startTime && endTime ? `${formatTime12(startTime)} - ${formatTime12(endTime)}` : "No slot selected"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">Your selected slot updates instantly when you tap a time card.</p>
+                  </div>
                 </div>
               </div>
 
@@ -414,23 +519,28 @@ export default function ResourceBookingPage() {
                         type="button"
                         onClick={() => selectSlot(slot)}
                         disabled={slot.state === "BOOKED" || slot.state === "PAST"}
-                        className={`rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${
+                        className={`group rounded-2xl border px-3 py-3 text-left text-sm font-medium transition-all duration-200 ${
                           slot.state === "BOOKED"
                             ? "cursor-not-allowed border-red-200 bg-red-50 text-red-700"
                             : slot.state === "PAST"
                             ? "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500"
                             : slot.state === "PENDING"
                             ? isSelected
-                              ? "border-amber-600 bg-amber-500 text-white"
-                              : "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300 hover:bg-amber-100"
+                              ? "border-amber-600 bg-amber-500 text-white shadow-md shadow-amber-200"
+                              : "border-amber-200 bg-amber-50 text-amber-700 hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-100 hover:shadow-sm"
                             : isSelected
-                            ? "border-[#002147] bg-[#002147] text-white"
-                            : "border-green-200 bg-green-50 text-green-700 hover:border-green-300 hover:bg-green-100"
+                            ? "border-[#002147] bg-[#002147] text-white shadow-md shadow-slate-200"
+                            : "border-green-200 bg-green-50 text-green-700 hover:-translate-y-0.5 hover:border-green-300 hover:bg-green-100 hover:shadow-sm"
                         }`}
                       >
-                        <div>{slot.label}</div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>{slot.label}</div>
+                          <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.25em] ${slot.state === "BOOKED" ? "bg-red-100 text-red-700" : slot.state === "PAST" ? "bg-slate-200 text-slate-600" : slot.state === "PENDING" ? "bg-amber-100 text-amber-700" : isSelected ? "bg-white/15 text-white" : "bg-white/70 text-green-700"}`}>
+                            {slot.state === "BOOKED" ? "Booked" : slot.state === "PAST" ? "Past" : slot.state === "PENDING" ? "Pending" : "Open"}
+                          </span>
+                        </div>
                         <div
-                          className={`text-xs ${
+                          className={`mt-2 text-xs ${
                             slot.state === "BOOKED"
                               ? "text-red-600"
                               : slot.state === "PAST"
@@ -467,7 +577,7 @@ export default function ResourceBookingPage() {
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
                   placeholder="Explain why you need this resource"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                  className="w-full rounded-2xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-[#002147] focus:ring-4 focus:ring-[#002147]/10"
                   required
                 />
               </div>
@@ -482,17 +592,17 @@ export default function ResourceBookingPage() {
                   max={maxCapacity}
                   value={expectedAttendees}
                   onChange={(e) => setExpectedAttendees(Number(e.target.value || 1))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                  className="w-full rounded-2xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-[#002147] focus:ring-4 focus:ring-[#002147]/10"
                   required
                 />
                 <p className="mt-1 text-xs text-slate-500">Max capacity: {maxCapacity}</p>
               </div>
 
-              <div className="flex flex-wrap gap-3 pt-2">
+              <div className="flex flex-wrap gap-3 rounded-3xl bg-slate-50 p-4 pt-4 ring-1 ring-slate-200">
                 <button
                   type="submit"
                   disabled={submitting || !resourceId}
-                  className="rounded-lg bg-[#002147] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#001733] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-full bg-[#002147] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#001733] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {submitting ? "Submitting..." : "Submit Booking Request"}
                 </button>
@@ -500,7 +610,7 @@ export default function ResourceBookingPage() {
                 <button
                   type="button"
                   onClick={() => navigate("/client/resources")}
-                  className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="rounded-full border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50"
                 >
                   Back to Catalogue
                 </button>

@@ -14,6 +14,17 @@ export const managerService = {
     return result.data || [];
   },
 
+  async getManagersByRole(role: string): Promise<Manager[]> {
+    const response = await fetch(`${BASE_URL}/role/${encodeURIComponent(role)}`);
+    const result: ApiResponse<Manager[]> = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to fetch managers by role");
+    }
+
+    return result.data || [];
+  },
+
   async getManagerById(id: number): Promise<Manager> {
     const response = await fetch(`${BASE_URL}/${id}`);
     const result: ApiResponse<Manager> = await response.json();

@@ -182,6 +182,7 @@ public class UserService {
         return new LoginResponse(true, "Issue Manager login successful", user.getRole(), user.getName(), user.getId(), user.getEmail());
     }
 
+    // Lecturer specific login
     public LoginResponse lecturerLogin(LoginRequest loginRequest) {
         logger.info("Lecturer login attempt for email: {}", loginRequest.getEmail());
 

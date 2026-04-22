@@ -29,7 +29,7 @@ public class AuthController {
     private UserRepository userRepository;
 
     // ==================== LOGIN ENDPOINTS ====================
-    
+
     // General login for all users (Admin, Managers)
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
@@ -78,7 +78,8 @@ public class AuthController {
         }
     }
 
-<<<<<<< HEAD
+    // Lecturer specific login
+
     @PostMapping("/lecturer/login")
     public ResponseEntity<LoginResponse> lecturerLogin(@RequestBody LoginRequest loginRequest) {
         LoginResponse response = userService.lecturerLogin(loginRequest);
@@ -89,7 +90,7 @@ public class AuthController {
             return ResponseEntity.status(401).body(response);
         }
     }
-=======
+
     @GetMapping("/booking-manager/profile/{id}")
     public ResponseEntity<?> getBookingManagerProfile(@PathVariable Long id) {
         try {
@@ -127,7 +128,7 @@ public class AuthController {
         }
     }
 
->>>>>>> origin/feature/booking_management
+
     // REMOVE THIS - Student login is handled by StudentAuthController
     // @PostMapping("/student/login")
     // public ResponseEntity<StudentLoginResponse> studentLogin(@RequestBody StudentLoginRequest loginRequest) {

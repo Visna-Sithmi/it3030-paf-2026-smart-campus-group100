@@ -256,7 +256,6 @@ const BookingDashboard = () => {
 
   const totalBookings = bookings.length;
   const pendingBookingsCount = bookings.filter((b) => b.status === "PENDING").length;
-  const activeBookings = bookings.filter((b) => b.status === "APPROVED").length;
 
   const pendingRequestBookings = useMemo(
     () => bookings.filter((booking) => booking.status === "PENDING"),
@@ -278,6 +277,8 @@ const BookingDashboard = () => {
         return aTime - bTime;
       });
   }, [bookings]);
+
+  const activeBookings = upcomingApprovedBookings.length;
 
   const upcomingHeroBooking = upcomingApprovedBookings[heroIndex] || null;
 

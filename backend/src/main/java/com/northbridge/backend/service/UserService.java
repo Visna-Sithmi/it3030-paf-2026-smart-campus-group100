@@ -256,6 +256,7 @@ public class UserService {
         );
     }
 
+    // Lecturer specific login
     public LoginResponse lecturerLogin(LoginRequest loginRequest) {
         logger.info("Lecturer login attempt for email: {}", loginRequest.getEmail());
 

@@ -12,8 +12,32 @@ import ResourceCataloguePage from "./app/client/resources/page";
 import ClientLoginPage from "./app/client/login/page";
 import ResourceBookingPage from "./app/client/resourceBooking/page";
 import MyBookingsPage from "./app/client/myBookings/page";
-import StudentDashboardPage from "./app/client/dashboard/page";
-import StudentProfilePage from "./app/client/profile/page";
+
+const HomeRedirect = () => {
+  const role = localStorage.getItem("role");
+
+  if (role === "STUDENT" || role === "LECTURER") {
+    return <Navigate to="/client/resources" replace />;
+  }
+
+  if (role === "BOOKING_MANAGER") {
+    return <Navigate to="/manager/booking/dashboard" replace />;
+  }
+
+  if (role === "RESOURCE_MANAGER") {
+    return <Navigate to="/manager/resource/dashboard" replace />;
+  }
+
+  if (role === "ISSUE_MANAGER") {
+    return <Navigate to="/manager/issue/dashboard" replace />;
+  }
+
+  if (role === "ADMIN") {
+    return <Navigate to="/admin/manager" replace />;
+  }
+
+  return <Navigate to="/admin/login" replace />;
+};
 
 // Protected Route Component - ensures only authenticated admins can access
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -64,8 +88,8 @@ const IssueManagerRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const ClientUserRoute = ({ children }: { children: React.ReactNode }) => {
-  const role = localStorage.getItem("role");
-  const userId = localStorage.getItem("id");
+  const role = (localStorage.getItem("role") || "").toUpperCase();
+  const userId = localStorage.getItem("id") || localStorage.getItem("studentId");
 
   if (!role || !userId || !["STUDENT", "LECTURER"].includes(role)) {
     return <Navigate to="/client/login" replace />;
@@ -79,7 +103,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Default route */}
-        <Route path="/" element={<Navigate to="/admin/login" replace />} />
+        <Route path="/" element={<HomeRedirect />} />
 
         {/* Admin routes */}
         <Route path="/admin/login" element={<LoginPage />} />
@@ -154,22 +178,6 @@ function App() {
         <Route path="/client/resources" element={<ResourceCataloguePage />} />
         <Route path="/client/login" element={<ClientLoginPage />} />
         <Route
-          path="/client/dashboard"
-          element={
-            <ClientUserRoute>
-              <StudentDashboardPage />
-            </ClientUserRoute>
-          }
-        />
-        <Route
-          path="/client/profile"
-          element={
-            <ClientUserRoute>
-              <StudentProfilePage />
-            </ClientUserRoute>
-          }
-        />
-        <Route
           path="/client/resourceBooking"
           element={
             <ClientUserRoute>
@@ -187,7 +195,7 @@ function App() {
         />
 
         {/* Redirect unknown routes */}
-        <Route path="*" element={<Navigate to="/admin/login" replace />} />
+        <Route path="*" element={<HomeRedirect />} />
       </Routes>
     </BrowserRouter>
   );

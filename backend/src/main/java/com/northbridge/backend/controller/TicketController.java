@@ -3,7 +3,7 @@ package com.northbridge.backend.controller;
 import com.northbridge.backend.dto.TicketRequestDTO;
 import com.northbridge.backend.dto.TicketResponseDTO;
 import com.northbridge.backend.service.TicketService;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,10 +14,14 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/tickets")
-@RequiredArgsConstructor
 public class TicketController {
 
     private final TicketService ticketService;
+
+    // 🔹 Constructor (Lombok replace)
+    public TicketController(TicketService ticketService) {
+        this.ticketService = ticketService;
+    }
 
     @GetMapping
     public ResponseEntity<?> getTickets() {
@@ -33,23 +37,12 @@ public class TicketController {
     @GetMapping("/my")
     public ResponseEntity<?> getMyTickets() {
         try {
-            Long fakeStudentId = 1L; // testing/demo
+            Long fakeStudentId = 1L;
             List<TicketResponseDTO> tickets = ticketService.getTicketsByStudent(fakeStudentId);
             return ResponseEntity.ok(tickets);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error fetching tickets: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/all")
-    public ResponseEntity<?> getAllTickets() {
-        try {
-            List<TicketResponseDTO> tickets = ticketService.getAllTickets();
-            return ResponseEntity.ok(tickets);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error fetching all tickets: " + e.getMessage());
         }
     }
 
@@ -66,15 +59,15 @@ public class TicketController {
 
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<?> createTicket(
-            @RequestParam("resourceId") Long resourceId,
-            @RequestParam("category") String category,
-            @RequestParam("description") String description,
-            @RequestParam("priority") String priority,
-            @RequestParam(value = "preferredContact", required = false) String preferredContact,
-            @RequestParam(value = "files", required = false) List<MultipartFile> files) {
+            @RequestParam Long resourceId,
+            @RequestParam String category,
+            @RequestParam String description,
+            @RequestParam String priority,
+            @RequestParam(required = false) String preferredContact,
+            @RequestParam(required = false) List<MultipartFile> files) {
 
         try {
-            Long fakeStudentId = 1L; // testing/demo
+            Long fakeStudentId = 1L;
 
             TicketRequestDTO request = new TicketRequestDTO();
             request.setResourceId(resourceId);
@@ -108,7 +101,6 @@ public class TicketController {
         }
     }
 
-    // screenshot requirement: PUT /api/tickets/{id}/assign
     @PutMapping("/{ticketId}/assign")
     public ResponseEntity<?> assignTechnician(
             @PathVariable Long ticketId,
@@ -130,7 +122,7 @@ public class TicketController {
             @RequestParam String commentText) {
 
         try {
-            Long fakeUserId = 1L; // testing/demo
+            Long fakeUserId = 1L;
             Map<String, Object> response = ticketService.addComment(ticketId, fakeUserId, commentText);
             return ResponseEntity.ok(response);
 
@@ -143,7 +135,7 @@ public class TicketController {
     @PostMapping(value = "/{ticketId}/images", consumes = {"multipart/form-data"})
     public ResponseEntity<?> uploadImages(
             @PathVariable Long ticketId,
-            @RequestParam("files") List<MultipartFile> files) {
+            @RequestParam List<MultipartFile> files) {
 
         try {
             List<String> response = ticketService.uploadTicketImages(ticketId, files);
@@ -156,7 +148,7 @@ public class TicketController {
     }
 
     @PutMapping("/{ticketId}/resolve")
-    public ResponseEntity<?> addResolutionNotes(
+    public ResponseEntity<?> resolveTicket(
             @PathVariable Long ticketId,
             @RequestParam String notes) {
 
@@ -166,7 +158,7 @@ public class TicketController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error adding resolution notes: " + e.getMessage());
+                    .body("Error resolving ticket: " + e.getMessage());
         }
     }
 }

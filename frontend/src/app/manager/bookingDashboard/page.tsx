@@ -10,6 +10,42 @@ import type { ManagerProfile } from "../../../types/managerProfile";
 import { resourceService } from "../../../services/resource.service";
 import type { Resource } from "../../../types/resource.types";
 
+type RejectReasonKey = "RESOURCE_ALREADY_BOOKED" | "TIME_NOT_SUITABLE" | "CAPACITY_LIMIT" | "INCOMPLETE_DETAILS" | "OTHER";
+
+const REJECT_REASON_OPTIONS: Array<{
+  key: RejectReasonKey;
+  label: string;
+  note: string;
+}> = [
+  {
+    key: "RESOURCE_ALREADY_BOOKED",
+    label: "Resource already booked",
+    note: "Your booking request was rejected because the resource is already booked for the selected time.",
+  },
+  {
+    key: "TIME_NOT_SUITABLE",
+    label: "Time not suitable",
+    note: "Your booking request was rejected because the requested time is not suitable for this resource.",
+  },
+  {
+    key: "CAPACITY_LIMIT",
+    label: "Capacity limit exceeded",
+    note: "Your booking request was rejected because the expected attendees exceed the resource capacity.",
+  },
+  {
+    key: "INCOMPLETE_DETAILS",
+    label: "Incomplete details",
+    note: "Your booking request was rejected because the booking details are incomplete or need clarification.",
+  },
+  {
+    key: "OTHER",
+    label: "Other",
+    note: "",
+  },
+];
+
+const APPROVAL_NOTE_TEMPLATE = "Your booking request is confirmed.";
+
 const BookingDashboard = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
@@ -20,7 +56,8 @@ const BookingDashboard = () => {
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
+  const [selectedRejectReason, setSelectedRejectReason] = useState<RejectReasonKey | "">("");
+  const [otherRejectReason, setOtherRejectReason] = useState("");
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profile, setProfile] = useState<ManagerProfile | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -225,28 +262,43 @@ const BookingDashboard = () => {
 
   const openRejectModal = (bookingId: number) => {
     setSelectedBookingId(bookingId);
-    setRejectReason("");
+    setSelectedRejectReason("");
+    setOtherRejectReason("");
     setShowRejectModal(true);
   };
 
   const closeRejectModal = () => {
     setShowRejectModal(false);
     setSelectedBookingId(null);
-    setRejectReason("");
+    setSelectedRejectReason("");
+    setOtherRejectReason("");
   };
 
   const handleReject = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedBookingId) return;
-    if (!rejectReason.trim()) {
-      setError("Reject reason is required.");
+    if (!selectedRejectReason) {
+      setError("Please select a rejection reason.");
+      return;
+    }
+
+    const selectedReason = REJECT_REASON_OPTIONS.find((option) => option.key === selectedRejectReason);
+    const rejectionNote =
+      selectedRejectReason === "OTHER"
+        ? otherRejectReason.trim()
+          ? `Your booking request was rejected because ${otherRejectReason.trim()}.`
+          : ""
+        : selectedReason?.note || "";
+
+    if (!rejectionNote) {
+      setError("Please provide the rejection reason details.");
       return;
     }
 
     try {
       setActionLoadingId(selectedBookingId);
-      await bookingService.rejectBooking(selectedBookingId, rejectReason.trim());
+      await bookingService.rejectBooking(selectedBookingId, rejectionNote);
       closeRejectModal();
       await fetchBookings();
     } catch (err: any) {
@@ -964,17 +1016,64 @@ const BookingDashboard = () => {
             </div>
 
             <form onSubmit={handleReject} className="p-6">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Rejection Reason
-              </label>
-              <textarea
-                rows={4}
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
-                placeholder="Reason for rejection"
-                required
-              />
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  Rejection Reason
+                </p>
+
+                <div className="grid gap-2">
+                  {REJECT_REASON_OPTIONS.map((option) => {
+                    const isSelected = selectedRejectReason === option.key;
+                    return (
+                      <label
+                        key={option.key}
+                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${
+                          isSelected
+                            ? "border-[#002147] bg-[#002147]/5"
+                            : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="rejectReason"
+                          value={option.key}
+                          checked={isSelected}
+                          onChange={() => setSelectedRejectReason(option.key)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-slate-900">{option.label}</p>
+                          {option.note && <p className="mt-1 text-xs leading-5 text-slate-500">{option.note}</p>}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {selectedRejectReason === "OTHER" && (
+                  <textarea
+                    rows={4}
+                    value={otherRejectReason}
+                    onChange={(e) => setOtherRejectReason(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                    placeholder="Write the custom rejection note"
+                    required
+                  />
+                )}
+
+                {selectedRejectReason && (
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-slate-700">
+                    <span className="font-semibold uppercase tracking-widest text-sky-700">Preview note</span>
+                    <p className="mt-2 leading-6">
+                      {selectedRejectReason === "OTHER"
+                        ? otherRejectReason.trim()
+                          ? `Your booking request was rejected because ${otherRejectReason.trim()}.`
+                          : "Your booking request was rejected because ..."
+                        : REJECT_REASON_OPTIONS.find((option) => option.key === selectedRejectReason)?.note}
+                    </p>
+                  </div>
+                )}
+              </div>
 
               <div className="mt-5 flex justify-end gap-3">
                 <button
@@ -986,7 +1085,7 @@ const BookingDashboard = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={!rejectReason.trim()}
+                  disabled={!selectedRejectReason || (selectedRejectReason === "OTHER" && !otherRejectReason.trim())}
                   className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                 >
                   Reject Booking

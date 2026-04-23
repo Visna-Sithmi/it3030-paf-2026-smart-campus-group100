@@ -29,6 +29,7 @@ public class BookingServiceImpl implements BookingService {
     private static final Set<String> BOOKING_CREATOR_ROLES = Set.of("STUDENT", "LECTURER");
     private static final Set<String> BOOKING_VIEWER_ROLES = Set.of("BOOKING_MANAGER", "RESOURCE_MANAGER");
     private static final Set<String> SLOT_VIEW_ROLES = Set.of("STUDENT", "LECTURER", "BOOKING_MANAGER", "RESOURCE_MANAGER", "ADMIN");
+    private static final String APPROVAL_ADMIN_NOTE = "Your booking request is confirmed.";
 
     private final BookingRepository bookingRepository;
     private final ResourceRepository resourceRepository;
@@ -164,7 +165,7 @@ public class BookingServiceImpl implements BookingService {
             .orElseThrow(() -> new NoSuchElementException("Booking manager not found with ID: " + managerId));
 
         booking.setStatus(BookingStatus.APPROVED);
-        booking.setAdminReason(null);
+        booking.setAdminReason(APPROVAL_ADMIN_NOTE);
         booking.setApprovedOrRejectedBy(bookingManager);
         booking.setDecisionAt(LocalDateTime.now());
 

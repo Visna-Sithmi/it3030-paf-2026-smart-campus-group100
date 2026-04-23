@@ -9,10 +9,24 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;  // ADD THIS IMPORT
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
 public class ManagerService {
+
+    private static final List<String> ADMIN_OR_MANAGER_ROLES = List.of(
+        "RESOURCE_MANAGER",
+        "BOOKING_MANAGER",
+        "ISSUE_MANAGER",
+        "LECTURER"
+    );
+
+    private static final List<String> HELPER_STAFF_ROLES = List.of(
+        "TECHNICIAN",
+        "CLEANER",
+        "SECURITY"
+    );
 
     @Autowired
     private UserRepository userRepository;
@@ -28,26 +42,20 @@ public class ManagerService {
     }
 
     public ManagerDTO getManagerById(Long id) {
-        User manager = userRepository.findById(id)
+        User manager = userRepository.findById(Objects.requireNonNull(id, "id"))
                 .orElseThrow(() -> new RuntimeException("Manager not found with ID: " + id));
 
         String role = manager.getRole();
-        if (!role.equals("RESOURCE_MANAGER") &&
-                !role.equals("BOOKING_MANAGER") &&
-                !role.equals("ISSUE_MANAGER") &&
-                !role.equals("LECTURER")) {
-            throw new RuntimeException("User with ID " + id + " is not a manager");
+        if (!ADMIN_OR_MANAGER_ROLES.contains(role) && !HELPER_STAFF_ROLES.contains(role)) {
+            throw new RuntimeException("User with ID " + id + " is not an allowed staff member");
         }
 
         return convertToDTO(manager);
     }
 
     public List<ManagerDTO> getManagersByRole(String role) {
-        if (!role.equals("RESOURCE_MANAGER") &&
-                !role.equals("BOOKING_MANAGER") &&
-                !role.equals("ISSUE_MANAGER") &&
-                !role.equals("LECTURER")) {
-            throw new RuntimeException("Invalid role. Must be: RESOURCE_MANAGER, BOOKING_MANAGER, ISSUE_MANAGER, or LECTURER");
+        if (!ADMIN_OR_MANAGER_ROLES.contains(role) && !HELPER_STAFF_ROLES.contains(role)) {
+            throw new RuntimeException("Invalid role. Must be: RESOURCE_MANAGER, BOOKING_MANAGER, ISSUE_MANAGER, LECTURER, TECHNICIAN, CLEANER, or SECURITY");
         }
 
         List<User> managers = userRepository.findByRole(role);
@@ -62,11 +70,8 @@ public class ManagerService {
         }
 
         String role = managerDTO.getRole();
-        if (!role.equals("RESOURCE_MANAGER") &&
-                !role.equals("BOOKING_MANAGER") &&
-                !role.equals("ISSUE_MANAGER") &&
-                !role.equals("LECTURER")) {
-            throw new RuntimeException("Invalid role. Must be: RESOURCE_MANAGER, BOOKING_MANAGER, ISSUE_MANAGER, or LECTURER");
+        if (!ADMIN_OR_MANAGER_ROLES.contains(role) && !HELPER_STAFF_ROLES.contains(role)) {
+            throw new RuntimeException("Invalid role. Must be: RESOURCE_MANAGER, BOOKING_MANAGER, ISSUE_MANAGER, LECTURER, TECHNICIAN, CLEANER, or SECURITY");
         }
 
         User manager = new User();
@@ -86,15 +91,12 @@ public class ManagerService {
 
     @Transactional  // ADD THIS ANNOTATION
     public ManagerDTO updateManager(Long id, ManagerDTO managerDTO) {
-        User manager = userRepository.findById(id)
+        User manager = userRepository.findById(Objects.requireNonNull(id, "id"))
                 .orElseThrow(() -> new RuntimeException("Manager not found with ID: " + id));
 
         String currentRole = manager.getRole();
-        if (!currentRole.equals("RESOURCE_MANAGER") &&
-                !currentRole.equals("BOOKING_MANAGER") &&
-                !currentRole.equals("ISSUE_MANAGER") &&
-                !currentRole.equals("LECTURER")) {
-            throw new RuntimeException("User with ID " + id + " is not a manager");
+        if (!ADMIN_OR_MANAGER_ROLES.contains(currentRole) && !HELPER_STAFF_ROLES.contains(currentRole)) {
+            throw new RuntimeException("User with ID " + id + " is not an allowed staff member");
         }
 
         if (managerDTO.getName() != null && !managerDTO.getName().isEmpty()) {
@@ -115,11 +117,8 @@ public class ManagerService {
 
         if (managerDTO.getRole() != null && !managerDTO.getRole().isEmpty()) {
             String newRole = managerDTO.getRole();
-            if (!newRole.equals("RESOURCE_MANAGER") &&
-                    !newRole.equals("BOOKING_MANAGER") &&
-                    !newRole.equals("ISSUE_MANAGER") &&
-                    !newRole.equals("LECTURER")) {
-                throw new RuntimeException("Invalid role. Must be: RESOURCE_MANAGER, BOOKING_MANAGER, ISSUE_MANAGER, or LECTURER");
+            if (!ADMIN_OR_MANAGER_ROLES.contains(newRole) && !HELPER_STAFF_ROLES.contains(newRole)) {
+                throw new RuntimeException("Invalid role. Must be: RESOURCE_MANAGER, BOOKING_MANAGER, ISSUE_MANAGER, LECTURER, TECHNICIAN, CLEANER, or SECURITY");
             }
             manager.setRole(newRole);
         }
@@ -135,15 +134,12 @@ public class ManagerService {
 
     @Transactional
     public void deleteManager(Long id) {
-        User manager = userRepository.findById(id)
+        User manager = userRepository.findById(Objects.requireNonNull(id, "id"))
                 .orElseThrow(() -> new RuntimeException("Manager not found with ID: " + id));
 
         String role = manager.getRole();
-        if (!role.equals("RESOURCE_MANAGER") &&
-                !role.equals("BOOKING_MANAGER") &&
-                !role.equals("ISSUE_MANAGER") &&
-                !role.equals("LECTURER")) {
-            throw new RuntimeException("User with ID " + id + " is not a manager");
+        if (!ADMIN_OR_MANAGER_ROLES.contains(role) && !HELPER_STAFF_ROLES.contains(role)) {
+            throw new RuntimeException("User with ID " + id + " is not an allowed staff member");
         }
 
         if (bookingRepository.existsByRequestedById(id)) {

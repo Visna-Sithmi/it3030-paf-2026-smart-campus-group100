@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./app/admin/Login/page";
 import ManagerPage from "./app/admin/manager/page";
 import LecturerPage from "./app/admin/lecturers/page";
+import HelperStaffPage from "./app/admin/helpers/page";
 import StudentPage from "./app/admin/student/page";
 import ManagerLoginPage from "./app/manager/login/page";
 import BookingDashboard from "./app/manager/bookingDashboard/page";
@@ -17,7 +18,7 @@ import StudentProfilePage from "./app/client/profile/page";
 const HomeRedirect = () => {
   const role = localStorage.getItem("role");
 
-  if (role === "STUDENT" || role === "LECTURER") {
+  if (role === "STUDENT" || role === "LECTURER" || role === "TECHNICIAN" || role === "CLEANER" || role === "SECURITY") {
     return <Navigate to="/client/resources" replace />;
   }
 
@@ -92,7 +93,7 @@ const ClientUserRoute = ({ children }: { children: React.ReactNode }) => {
   const role = (localStorage.getItem("role") || "").toUpperCase();
   const userId = localStorage.getItem("id") || localStorage.getItem("studentId");
 
-  if (!role || !userId || !["STUDENT", "LECTURER"].includes(role)) {
+  if (!role || !userId || !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY"].includes(role)) {
     return <Navigate to="/client/login" replace />;
   }
 
@@ -132,6 +133,15 @@ function App() {
           element={
             <ProtectedRoute>
               <LecturerPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/helpers"
+          element={
+            <ProtectedRoute>
+              <HelperStaffPage />
             </ProtectedRoute>
           }
         />

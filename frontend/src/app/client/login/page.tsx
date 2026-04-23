@@ -2,16 +2,17 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { studentAuthService } from "../../../services/studentAuthService";
-import { loginLecturer } from "../../../services/authService";
+import { loginCleaner, loginLecturer, loginSecurity, loginTechnician } from "../../../services/authService";
 import type { StudentLoginRequest } from "../../../types/studentAuth";
 import logo from "../../../assets/logo.jpeg";
 import { AnimatedCharactersLoginPage } from "@/components/ui/animated-characters-login-page";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 
-type PortalType = "STUDENT" | "LECTURER";
+type PortalType = "STUDENT" | "LECTURER" | "HELPER";
+type HelperRole = "TECHNICIAN" | "CLEANER" | "SECURITY";
 
 const emptyStudentForm: StudentLoginRequest = {
   studentId: "",
@@ -23,11 +24,18 @@ const emptyLecturerForm = {
   password: "",
 };
 
+const emptyHelperForm = {
+  email: "",
+  password: "",
+};
+
 export default function ClientLoginPage() {
   const navigate = useNavigate();
   const [activePortal, setActivePortal] = useState<PortalType>("STUDENT");
   const [formData, setFormData] = useState<StudentLoginRequest>(emptyStudentForm);
   const [lecturerFormData, setLecturerFormData] = useState(emptyLecturerForm);
+  const [helperFormData, setHelperFormData] = useState(emptyHelperForm);
+  const [helperRole, setHelperRole] = useState<HelperRole>("TECHNICIAN");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -45,6 +53,14 @@ export default function ClientLoginPage() {
   const handleLecturerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setLecturerFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleHelperChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setHelperFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -143,18 +159,72 @@ export default function ClientLoginPage() {
     }
   };
 
+  const handleHelperLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setError("");
+      setSuccessMessage("");
+
+      const trimmedEmail = helperFormData.email.trim();
+      const trimmedPassword = helperFormData.password.trim();
+
+      if (!trimmedEmail) {
+        setError("Email is required.");
+        return;
+      }
+
+      if (!trimmedPassword) {
+        setError("Password is required.");
+        return;
+      }
+
+      const loginFn =
+        helperRole === "TECHNICIAN"
+          ? loginTechnician
+          : helperRole === "CLEANER"
+            ? loginCleaner
+            : loginSecurity;
+
+      const response = await loginFn({
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
+
+      if (!response.success || response.role !== helperRole) {
+        setError(response.message || `${helperRole} login failed`);
+        return;
+      }
+
+      localStorage.setItem("user", response.name || "Helper Staff");
+      localStorage.setItem("role", helperRole);
+      localStorage.setItem("name", response.name || "Helper Staff");
+      localStorage.setItem("email", response.email || trimmedEmail);
+      localStorage.setItem("id", response.id ? String(response.id) : "");
+
+      setSuccessMessage(`${helperRole.replace("_", " ")} login successful`);
+      navigate("/client/resources");
+    } catch (err: any) {
+      setError(err.message || `${helperRole} login failed`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AnimatedCharactersLoginPage
       brandName="Northbridge University"
       heading="University Access Portal"
-      subheading="Secure entry for students and academic staff"
+      subheading="Secure entry for students, lecturers, and helper staff"
       topBadge="Common Access Authentication Gateway"
       isTyping={isTyping}
       isPasswordVisible={showPassword}
       hasPasswordValue={
         activePortal === "STUDENT"
           ? formData.password.length > 0
-          : lecturerFormData.password.length > 0
+          : activePortal === "LECTURER"
+            ? lecturerFormData.password.length > 0
+            : helperFormData.password.length > 0
       }
       logo={
         <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center">
@@ -200,6 +270,23 @@ export default function ClientLoginPage() {
           }`}
         >
           Lecturer
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActivePortal("HELPER");
+            setError("");
+            setSuccessMessage("");
+            setHelperFormData(emptyHelperForm);
+            setShowPassword(false);
+          }}
+          className={`w-1/2 rounded-lg py-2 text-sm font-semibold transition ${
+            activePortal === "HELPER"
+              ? "bg-[#002147] text-white shadow-sm"
+              : "text-[#385071] hover:bg-white/60"
+          }`}
+        >
+          Helper Staff
         </button>
       </div>
 
@@ -292,7 +379,7 @@ export default function ClientLoginPage() {
             </p>
           </div>
         </form>
-      ) : (
+      ) : activePortal === "LECTURER" ? (
         <form onSubmit={handleLecturerLogin} className="space-y-4">
           <div>
             <Label
@@ -377,6 +464,99 @@ export default function ClientLoginPage() {
               Authorized Lecturer Access Only
             </p>
           </div>
+        </form>
+      ) : (
+        <form onSubmit={handleHelperLogin} className="space-y-4">
+          <div className="flex rounded-xl bg-slate-200/70 p-0.5">
+            {(["TECHNICIAN", "CLEANER", "SECURITY"] as HelperRole[]).map((role) => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => {
+                  setHelperRole(role);
+                  setError("");
+                  setSuccessMessage("");
+                  setShowPassword(false);
+                }}
+                className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${
+                  helperRole === role
+                    ? "bg-[#002147] text-white shadow-sm"
+                    : "text-[#385071] hover:bg-white/60"
+                }`}
+              >
+                {role === "TECHNICIAN" ? "Technician" : role === "CLEANER" ? "Cleaner" : "Security"}
+              </button>
+            ))}
+          </div>
+
+          <div>
+            <Label
+              htmlFor="helperEmail"
+              className="mb-1 block text-[10px] font-bold uppercase tracking-[0.2em] text-[#1f3d63]"
+            >
+              Institutional Email
+            </Label>
+            <Input
+              id="helperEmail"
+              type="email"
+              name="email"
+              value={helperFormData.email}
+              onChange={handleHelperChange}
+              onFocus={() => setIsTyping(true)}
+              onBlur={() => setIsTyping(false)}
+              placeholder={`Enter ${helperRole.toLowerCase()} email`}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-[#002147] focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <Label
+              htmlFor="helperPassword"
+              className="mb-1 block text-[10px] font-bold uppercase tracking-[0.2em] text-[#1f3d63]"
+            >
+              Password
+            </Label>
+            <div className="relative">
+              <Input
+                id="helperPassword"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={helperFormData.password}
+                onChange={handleHelperChange}
+                onFocus={() => setIsTyping(true)}
+                onBlur={() => setIsTyping(false)}
+                placeholder="Enter your password"
+                className="w-full pr-10 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-[#002147] focus:bg-white"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              >
+                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+              {error}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              {successMessage}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-xl bg-[#002147] py-2.5 text-sm font-semibold text-white transition hover:bg-[#00152d] disabled:opacity-70"
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </Button>
         </form>
       )}
 

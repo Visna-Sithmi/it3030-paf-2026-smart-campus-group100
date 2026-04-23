@@ -61,6 +61,19 @@ const Header: React.FC = () => {
       return;
     }
 
+    if (
+      (storedRole === "TECHNICIAN" || storedRole === "CLEANER" || storedRole === "SECURITY") &&
+      (storedEmail || storedLecturerName || storedId)
+    ) {
+      setUser({
+        name: storedLecturerName || "Helper Staff",
+        email: storedEmail || `${storedRole.toLowerCase()}@northbridge.edu`,
+        role: storedRole,
+      });
+      setIsLoggedIn(true);
+      return;
+    }
+
     setUser(null);
     setIsLoggedIn(false);
   };

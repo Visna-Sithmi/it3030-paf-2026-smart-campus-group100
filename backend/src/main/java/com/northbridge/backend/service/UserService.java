@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -218,7 +219,7 @@ public class UserService {
     }
 
     public ManagerProfileResponseDTO getBookingManagerProfile(Long managerId) {
-        User manager = userRepository.findById(managerId)
+        User manager = userRepository.findById(Objects.requireNonNull(managerId, "managerId"))
                 .orElseThrow(() -> new RuntimeException("Booking manager not found"));
 
         if (!"BOOKING_MANAGER".equals(manager.getRole())) {
@@ -235,7 +236,7 @@ public class UserService {
     }
 
     public ManagerProfileResponseDTO updateBookingManagerProfile(Long managerId, ManagerProfileUpdateRequestDTO request) {
-        User manager = userRepository.findById(managerId)
+        User manager = userRepository.findById(Objects.requireNonNull(managerId, "managerId"))
                 .orElseThrow(() -> new RuntimeException("Booking manager not found"));
 
         if (!"BOOKING_MANAGER".equals(manager.getRole())) {
@@ -282,5 +283,54 @@ public class UserService {
         }
 
         return new LoginResponse(true, "Lecturer login successful", user.getRole(), user.getName(), user.getId(), user.getEmail());
+    }
+
+    public LoginResponse helperStaffLogin(LoginRequest loginRequest, String allowedRole) {
+        logger.info("Helper staff login attempt for role {} and email: {}", allowedRole, loginRequest.getEmail());
+
+        Optional<User> optionalUser = userRepository.findByEmail(loginRequest.getEmail());
+
+        if (optionalUser.isEmpty()) {
+            return new LoginResponse(false, "Invalid email or password", null, null);
+        }
+
+        User user = optionalUser.get();
+
+        if (!allowedRole.equals(user.getRole())) {
+            logger.warn("User {} is not a {}. Role: {}", user.getEmail(), allowedRole, user.getRole());
+            return new LoginResponse(false, "Access denied. " + formatRoleLabel(allowedRole) + " only.", null, null);
+        }
+
+        if (!user.getPassword().equals(loginRequest.getPassword())) {
+            return new LoginResponse(false, "Invalid email or password", null, null);
+        }
+
+        if (!user.isActive()) {
+            return new LoginResponse(false, "Account is inactive.", null, null);
+        }
+
+        return new LoginResponse(true, formatRoleLabel(allowedRole) + " login successful", user.getRole(), user.getName(), user.getId(), user.getEmail());
+    }
+
+    private String formatRoleLabel(String role) {
+        String[] parts = role.toLowerCase().split("_");
+        StringBuilder builder = new StringBuilder();
+
+        for (String part : parts) {
+            if (part.isEmpty()) {
+                continue;
+            }
+
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+
+            builder.append(Character.toUpperCase(part.charAt(0)));
+            if (part.length() > 1) {
+                builder.append(part.substring(1));
+            }
+        }
+
+        return builder.toString();
     }
 }

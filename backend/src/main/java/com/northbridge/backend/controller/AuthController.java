@@ -90,6 +90,39 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/helper-staff/technician/login")
+    public ResponseEntity<LoginResponse> technicianLogin(@RequestBody LoginRequest loginRequest) {
+        LoginResponse response = userService.helperStaffLogin(loginRequest, "TECHNICIAN");
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(401).body(response);
+        }
+    }
+
+    @PostMapping("/helper-staff/cleaner/login")
+    public ResponseEntity<LoginResponse> cleanerLogin(@RequestBody LoginRequest loginRequest) {
+        LoginResponse response = userService.helperStaffLogin(loginRequest, "CLEANER");
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(401).body(response);
+        }
+    }
+
+    @PostMapping("/helper-staff/security/login")
+    public ResponseEntity<LoginResponse> securityLogin(@RequestBody LoginRequest loginRequest) {
+        LoginResponse response = userService.helperStaffLogin(loginRequest, "SECURITY");
+
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(401).body(response);
+        }
+    }
+
     @GetMapping("/booking-manager/profile/{id}")
     public ResponseEntity<?> getBookingManagerProfile(@PathVariable Long id) {
         try {

@@ -1,5 +1,8 @@
 package com.northbridge.backend.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class StudentLoginResponse {
     private boolean success;
     private String message;

@@ -108,15 +108,15 @@ public class StudentAuthService {
             student.setName(request.getName().trim());
         }
 
-        if (request.getPhone() != null) {
+        if (request.getPhone() != null && !request.getPhone().isBlank()) {
             student.setPhone(request.getPhone().trim());
         }
 
-        if (request.getAddress() != null) {
+        if (request.getAddress() != null && !request.getAddress().isBlank()) {
             student.setAddress(request.getAddress().trim());
         }
 
-        if (request.getCourse() != null) {
+        if (request.getCourse() != null && !request.getCourse().isBlank()) {
             student.setCourse(request.getCourse().trim());
         }
 
@@ -128,16 +128,21 @@ public class StudentAuthService {
             student.setSemester(request.getSemester());
         }
 
+        // Handle dateOfBirth: only update if explicitly provided (null or valid date)
         if (request.getDateOfBirth() != null) {
             student.setDateOfBirth(request.getDateOfBirth());
         }
 
-        if (request.getGender() != null) {
+        if (request.getGender() != null && !request.getGender().isBlank()) {
             student.setGender(request.getGender().trim());
         }
 
-        if (request.getProfileImageUrl() != null) {
+        // Handle profileImageUrl: only update if explicitly provided and not empty
+        if (request.getProfileImageUrl() != null && !request.getProfileImageUrl().isBlank()) {
             student.setProfileImageUrl(request.getProfileImageUrl());
+        } else if (request.getProfileImageUrl() != null && request.getProfileImageUrl().isEmpty()) {
+            // Explicitly clear profile image URL if empty string is provided
+            student.setProfileImageUrl(null);
         }
 
         Student updated = studentRepository.save(student);

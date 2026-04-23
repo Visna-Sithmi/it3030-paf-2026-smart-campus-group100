@@ -56,11 +56,20 @@ const Header: React.FC = () => {
         role: "LECTURER",
       });
       setIsLoggedIn(true);
+    } else if (
+      (storedRole === "TECHNICIAN" || storedRole === "CLEANER" || storedRole === "SECURITY") &&
+      (storedEmail || storedLecturerName || storedId)
+    ) {
+      setUser({
+        name: storedLecturerName || "Helper Staff",
+        email: storedEmail || `${storedRole.toLowerCase()}@northbridge.edu`,
+        role: storedRole,
+      });
+      setIsLoggedIn(true);
     } else {
       setUser(null);
       setIsLoggedIn(false);
     }
-
     // Handle scroll effect with JavaScript animation
     const handleScroll = () => {
       const scrolled = window.scrollY > 10;

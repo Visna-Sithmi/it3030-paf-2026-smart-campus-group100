@@ -1,7 +1,10 @@
 package com.northbridge.backend.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.LocalDate;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class StudentProfileResponseDTO {
     private Long id;
     private String studentId;
@@ -12,6 +15,8 @@ public class StudentProfileResponseDTO {
     private String course;
     private Integer year;
     private Integer semester;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate dateOfBirth;
     private String gender;
     private String status;

@@ -215,8 +215,8 @@ export default function StudentProfilePage() {
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Date of Birth</label>
                     <input
                       type="date"
-                      value={profile.dateOfBirth || ""}
-                      onChange={(e) => updateField("dateOfBirth", e.target.value)}
+                      value={typeof profile.dateOfBirth === "string" ? profile.dateOfBirth : (profile.dateOfBirth ? new Date(profile.dateOfBirth).toISOString().split("T")[0] : "")}
+                      onChange={(e) => updateField("dateOfBirth", e.target.value || null)}
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
                     />
                   </div>

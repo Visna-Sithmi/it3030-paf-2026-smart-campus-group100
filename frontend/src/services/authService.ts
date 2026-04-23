@@ -132,6 +132,45 @@ export const loginLecturer = async (
   }
 };
 
+// ==================== HELPER STAFF LOGIN ====================
+const loginHelperStaff = async (
+  role: "TECHNICIAN" | "CLEANER" | "SECURITY",
+  loginData: LoginRequest
+): Promise<LoginResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/helper-staff/${role.toLowerCase()}/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(loginData),
+    });
+
+    const data: LoginResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`${role} login error:`, error);
+    return {
+      success: false,
+      message: "Cannot connect to server. Please make sure the backend is running.",
+      role: null,
+      name: null,
+    };
+  }
+};
+
+export const loginTechnician = async (
+  loginData: LoginRequest
+): Promise<LoginResponse> => loginHelperStaff("TECHNICIAN", loginData);
+
+export const loginCleaner = async (
+  loginData: LoginRequest
+): Promise<LoginResponse> => loginHelperStaff("CLEANER", loginData);
+
+export const loginSecurity = async (
+  loginData: LoginRequest
+): Promise<LoginResponse> => loginHelperStaff("SECURITY", loginData);
+
 // ==================== GENERAL LOGIN (Auto-detects role) ====================
 export const login = async (
   loginData: LoginRequest

@@ -53,6 +53,7 @@ const normalizeResource = (resource: ResourceApiModel): Resource => ({
   resourceCode: resource.resourceCode || resource.resource_code || '',
   name: resource.name || '',
   type: resource.type || 'LECTURE_HALL',
+  targetAudience: resource.targetAudience || resource.target_audience || 'BOTH',
   capacity: resource.capacity ?? 0,
   location: resource.location || '',
   description: resource.description || '',

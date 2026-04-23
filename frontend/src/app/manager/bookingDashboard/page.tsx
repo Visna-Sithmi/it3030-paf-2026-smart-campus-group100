@@ -46,6 +46,24 @@ const REJECT_REASON_OPTIONS: Array<{
 
 const APPROVAL_NOTE_TEMPLATE = "Your booking request is confirmed.";
 
+const getStoredManagerId = () => {
+  const directId = localStorage.getItem("id");
+  if (directId && Number(directId) > 0) {
+    return Number(directId);
+  }
+
+  const rawUser = localStorage.getItem("user");
+  if (!rawUser) return 0;
+
+  try {
+    const parsed = JSON.parse(rawUser);
+    const fromUser = Number(parsed?.id || 0);
+    return fromUser > 0 ? fromUser : 0;
+  } catch {
+    return 0;
+  }
+};
+
 const BookingDashboard = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
@@ -137,8 +155,7 @@ const BookingDashboard = () => {
     setUserEmail(email || "");
 
     const profileImageUrl = localStorage.getItem("profileImageUrl");
-    const idRaw = localStorage.getItem("id");
-    const id = idRaw ? Number(idRaw) : 0;
+    const id = getStoredManagerId();
     setProfile({
       id,
       name,
@@ -173,8 +190,16 @@ const BookingDashboard = () => {
     setShowProfileModal(true);
     setProfileError("");
 
-    const idRaw = localStorage.getItem("id");
-    const managerId = idRaw ? Number(idRaw) : 0;
+    // Prefill modal from locally available values first for fast UX.
+    setProfile((prev) => ({
+      id: prev?.id || getStoredManagerId(),
+      name: prev?.name || localStorage.getItem("name") || "",
+      email: prev?.email || localStorage.getItem("email") || "",
+      role: prev?.role || localStorage.getItem("role") || "BOOKING_MANAGER",
+      profileImageUrl: prev?.profileImageUrl || localStorage.getItem("profileImageUrl") || null,
+    }));
+
+    const managerId = getStoredManagerId();
 
     if (!managerId) {
       setProfileError("Manager session not found. Please login again.");
@@ -214,6 +239,13 @@ const BookingDashboard = () => {
     e.preventDefault();
     if (!profile) return;
 
+    const managerId = profile.id || getStoredManagerId();
+
+    if (!managerId) {
+      setProfileError("Manager session not found. Please login again.");
+      return;
+    }
+
     if (!profile.name?.trim()) {
       setProfileError("Name is required.");
       return;
@@ -223,7 +255,7 @@ const BookingDashboard = () => {
       setProfileSaving(true);
       setProfileError("");
 
-      const updated = await managerProfileService.updateProfile(profile.id, {
+      const updated = await managerProfileService.updateProfile(managerId, {
         name: profile.name.trim(),
         profileImageUrl: profile.profileImageUrl || null,
       });
@@ -233,6 +265,7 @@ const BookingDashboard = () => {
       setUserEmail(updated.email || "");
       localStorage.setItem("name", updated.name || "");
       localStorage.setItem("email", updated.email || "");
+      localStorage.setItem("id", String(updated.id || managerId));
       localStorage.setItem("profileImageUrl", updated.profileImageUrl || "");
       localStorage.setItem("user", JSON.stringify({
         ...(JSON.parse(localStorage.getItem("user") || "{}")),
@@ -240,6 +273,7 @@ const BookingDashboard = () => {
         email: updated.email,
         profileImageUrl: updated.profileImageUrl || null,
       }));
+      window.dispatchEvent(new Event("profile-updated"));
       closeProfileModal();
     } catch (err: any) {
       setProfileError(err?.response?.data?.message || err.message || "Failed to update profile");

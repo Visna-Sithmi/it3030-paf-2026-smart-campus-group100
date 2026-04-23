@@ -10,8 +10,26 @@ export default function StudentDashboardPage() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [studentName, setStudentName] = useState(localStorage.getItem("studentName") || "Student");
 
-  const studentName = localStorage.getItem("studentName") || "Student";
+  useEffect(() => {
+    const syncStudentName = () => {
+      setStudentName(localStorage.getItem("studentName") || "Student");
+    };
+
+    syncStudentName();
+
+    const handleProfileUpdated = () => syncStudentName();
+    window.addEventListener("student-profile-updated", handleProfileUpdated);
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    window.addEventListener("storage", handleProfileUpdated);
+
+    return () => {
+      window.removeEventListener("student-profile-updated", handleProfileUpdated);
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+      window.removeEventListener("storage", handleProfileUpdated);
+    };
+  }, []);
 
   useEffect(() => {
     const role = localStorage.getItem("role");

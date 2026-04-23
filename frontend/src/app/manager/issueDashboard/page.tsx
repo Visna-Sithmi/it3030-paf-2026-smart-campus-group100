@@ -8,8 +8,17 @@ const IssueDashboard = () => {
   const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
+    const syncProfileFromStorage = () => {
+      const name = localStorage.getItem("name");
+      const email = localStorage.getItem("email");
+
+      if (name) {
+        setUserName(name);
+      }
+      setUserEmail(email || "");
+    };
+
     const name = localStorage.getItem("name");
-    const email = localStorage.getItem("email");
     const role = localStorage.getItem("role");
 
     if (!name || role !== "ISSUE_MANAGER") {
@@ -17,8 +26,16 @@ const IssueDashboard = () => {
       return;
     }
 
-    setUserName(name);
-    setUserEmail(email || "");
+    syncProfileFromStorage();
+
+    const handleProfileUpdated = () => syncProfileFromStorage();
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    window.addEventListener("storage", handleProfileUpdated);
+
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+      window.removeEventListener("storage", handleProfileUpdated);
+    };
   }, [navigate]);
 
   const handleLogout = () => {

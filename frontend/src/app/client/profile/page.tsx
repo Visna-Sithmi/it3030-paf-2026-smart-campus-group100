@@ -84,6 +84,7 @@ export default function StudentProfilePage() {
       localStorage.setItem("studentName", updated.name || "Student");
       localStorage.setItem("profileImageUrl", updated.profileImageUrl || "");
       window.dispatchEvent(new Event("student-profile-updated"));
+      window.dispatchEvent(new Event("profile-updated"));
 
       setSuccess("Profile updated successfully.");
     } catch (err: any) {

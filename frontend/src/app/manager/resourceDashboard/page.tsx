@@ -222,6 +222,8 @@ const ResourceDashboard: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [managerName, setManagerName] = useState(localStorage.getItem('name') || 'Resource Manager');
+  const [managerEmail, setManagerEmail] = useState(localStorage.getItem('email') || 'resource.m@campus.com');
 
 const normalizeResource = (resource: ResourceApi): Resource => {
   return {
@@ -279,6 +281,24 @@ const normalizeResource = (resource: ResourceApi): Resource => {
 
     return () => {
       window.clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncProfileFromStorage = () => {
+      setManagerName(localStorage.getItem('name') || 'Resource Manager');
+      setManagerEmail(localStorage.getItem('email') || 'resource.m@campus.com');
+    };
+
+    syncProfileFromStorage();
+
+    const handleProfileUpdated = () => syncProfileFromStorage();
+    window.addEventListener('profile-updated', handleProfileUpdated);
+    window.addEventListener('storage', handleProfileUpdated);
+
+    return () => {
+      window.removeEventListener('profile-updated', handleProfileUpdated);
+      window.removeEventListener('storage', handleProfileUpdated);
     };
   }, []);
 
@@ -782,10 +802,10 @@ const normalizeResource = (resource: ResourceApi): Resource => {
     <div className="flex items-center gap-6">
       <div className="text-right hidden sm:block">
         <p className="font-semibold text-sm text-[#002147]">
-          {localStorage.getItem('name') || 'Resource Manager'}
+          {managerName}
         </p>
         <p className="text-[11px] text-slate-500">
-          {localStorage.getItem('email') || 'resource.m@campus.com'}
+          {managerEmail}
         </p>
       </div>
 

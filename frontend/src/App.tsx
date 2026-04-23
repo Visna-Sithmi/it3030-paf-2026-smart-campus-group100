@@ -12,6 +12,7 @@ import ResourceCataloguePage from "./app/client/resources/page";
 import ClientLoginPage from "./app/client/login/page";
 import ResourceBookingPage from "./app/client/resourceBooking/page";
 import MyBookingsPage from "./app/client/myBookings/page";
+import StudentProfilePage from "./app/client/profile/page";
 
 const HomeRedirect = () => {
   const role = localStorage.getItem("role");
@@ -190,6 +191,22 @@ function App() {
           element={
             <ClientUserRoute>
               <MyBookingsPage />
+            </ClientUserRoute>
+          }
+        />
+        <Route
+          path="/client/profile"
+          element={
+            <ClientUserRoute>
+              <StudentProfilePage />
+            </ClientUserRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ClientUserRoute>
+              <Navigate to="/client/profile" replace />
             </ClientUserRoute>
           }
         />

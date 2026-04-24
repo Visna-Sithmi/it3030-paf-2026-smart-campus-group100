@@ -13,6 +13,9 @@ import ResourceCataloguePage from "./app/client/resources/page";
 import ClientLoginPage from "./app/client/login/page";
 import ResourceBookingPage from "./app/client/resourceBooking/page";
 import MyBookingsPage from "./app/client/myBookings/page";
+import CreateTicket from "./app/client/tickets/CreateTicket";
+import MyTickets from "./app/client/tickets/MyTickets";
+import TicketDetails from "./app/client/tickets/TicketDetails";
 
 const HomeRedirect = () => {
   const role = localStorage.getItem("role");
@@ -206,6 +209,33 @@ function App() {
 
         {/* Redirect unknown routes */}
         <Route path="*" element={<HomeRedirect />} />
+
+        {/* Tickets Routes - Protected */}
+        <Route
+          path="/create-ticket"
+          element={
+            <ClientUserRoute>
+              <CreateTicket />
+            </ClientUserRoute>
+          }
+        />
+        <Route
+          path="/my-tickets"
+          element={
+            <ClientUserRoute>
+              <MyTickets />
+            </ClientUserRoute>
+          }
+        />
+        <Route
+          path="/ticket/:id"
+          element={
+            <ClientUserRoute>
+              <TicketDetails />
+            </ClientUserRoute>
+          }
+        />
+
       </Routes>
     </BrowserRouter>
   );

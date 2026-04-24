@@ -63,7 +63,7 @@ public class TicketService {
             ticket.setCategory(request.getCategory());
             ticket.setDescription(request.getDescription());
             ticket.setPriority(request.getPriority());
-            ticket.setPreferredContact(request.getPreferredContact());
+            ticket.setPreferredContact(request.getPreferredContact() != null ? request.getPreferredContact() : "");
             ticket.setStatus("OPEN");
 
             ticket = ticketRepository.save(ticket);
@@ -195,6 +195,25 @@ public class TicketService {
                 .collect(Collectors.toList());
     }
 
+    public List<TicketResponseDTO> getTicketsByUserAndRole(Long userId, String role) {
+
+        if ("STUDENT".equalsIgnoreCase(role)) {
+            return ticketRepository.findByCreatedById(userId)
+                    .stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+
+        } else if ("LECTURER".equalsIgnoreCase(role)) {
+            return ticketRepository.findByAssignedToId(userId)
+                    .stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+
+        } else {
+            return new ArrayList<>();
+        }
+    }
+
     private void saveAttachments(IncidentTicket ticket, List<MultipartFile> files) throws IOException {
         if (files == null) return;
 
@@ -224,6 +243,10 @@ public class TicketService {
         TicketResponseDTO dto = new TicketResponseDTO();
 
         dto.setId(ticket.getId());
+        dto.setResourceId(ticket.getResource() != null ? ticket.getResource().getId() : null);
+        dto.setPreferredContact(ticket.getPreferredContact());
+        dto.setCreatedAt(ticket.getCreatedAt());
+
         dto.setResourceName(ticket.getResource() != null ? ticket.getResource().getName() : "N/A");
         dto.setCreatedByName(ticket.getCreatedBy() != null ? ticket.getCreatedBy().getName() : "N/A");
         dto.setAssignedToName(ticket.getAssignedTo() != null ? ticket.getAssignedTo().getName() : null);
@@ -235,14 +258,29 @@ public class TicketService {
         dto.setRejectionReason(ticket.getRejectionReason());
         dto.setResolutionNotes(ticket.getResolutionNotes());
 
+        // Add attachments
         List<String> urls = new ArrayList<>();
         if (ticket.getAttachments() != null) {
             urls = ticket.getAttachments().stream()
                     .map(a -> "/api/uploads/tickets/" + a.getId())
                     .collect(Collectors.toList());
         }
-
         dto.setAttachmentUrls(urls);
+
+        // Add comments
+        List<com.northbridge.backend.dto.TicketCommentDTO> commentDTOs = new ArrayList<>();
+        if (ticket.getComments() != null) {
+            commentDTOs = ticket.getComments().stream()
+                    .map(c -> new com.northbridge.backend.dto.TicketCommentDTO(
+                            c.getId(),
+                            ticket.getId(),
+                            c.getUser() != null ? c.getUser().getName() : "Unknown",
+                            c.getCommentText(),
+                            c.getCreatedAt()
+                    ))
+                    .collect(Collectors.toList());
+        }
+        dto.setComments(commentDTOs);
 
         return dto;
     }

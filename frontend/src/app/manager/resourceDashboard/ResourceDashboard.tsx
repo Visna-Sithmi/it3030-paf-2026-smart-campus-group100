@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios, { AxiosError } from 'axios';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 import {
   Search,
   BarChart3,
@@ -10,7 +12,7 @@ import {
   Edit,
   Info,
   Trash2,
-  Calendar,
+  Calendar as CalendarIcon,
   MapPin,
   Users,
   Shield,
@@ -19,6 +21,9 @@ import {
 } from 'lucide-react';
 import logo from '../../../assets/logo.jpeg';
 import './resourceDashboard.css';
+
+type ValuePiece = Date | null;
+type Value = ValuePiece | [ValuePiece, ValuePiece];
 
 interface ResourceApi {
   id: number;
@@ -73,10 +78,10 @@ interface AvailabilityConfig {
 
 interface Holiday {
   id: number;
-  holiday_name: string;   // snake_case from backend
-  holidayName?: string;   // for compatibility
-  holiday_date: string;   // snake_case from backend
-  holidayDate?: string;   // for compatibility
+  holiday_name: string;
+  holidayName?: string;
+  holiday_date: string;
+  holidayDate?: string;
   description: string;
   closed: boolean;
   created_at?: string;
@@ -92,6 +97,17 @@ interface SystemStatus {
   globalLock: boolean;
   isHoliday: boolean;
   today: string;
+}
+
+interface ValidationErrors {
+  resourceCode?: string;
+  name?: string;
+  capacity?: string;
+  location?: string;
+  description?: string;
+  holidayDate?: string;
+  holidayName?: string;
+  holidayDesc?: string;
 }
 
 const API_BASE_URL = 'http://localhost:8081/api/resource-manager';
@@ -144,20 +160,16 @@ const formatDateForDisplay = (dateString: string) => {
   });
 };
 
-// Add this helper function
 const formatHolidayDate = (dateString: string) => {
   if (!dateString) return 'Invalid Date';
   try {
-    // Handle different date formats
     let date: Date;
     if (dateString.includes('-')) {
-      // Format: 2026-12-25
       date = new Date(dateString);
     } else {
       date = new Date(dateString);
     }
     
-    // Check if date is valid
     if (isNaN(date.getTime())) {
       return 'Invalid Date';
     }
@@ -262,11 +274,6 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
-const normalizeDateForBackend = (dateValue: string) => {
-  if (!dateValue) return '';
-  return dateValue;
-};
-
 const ResourceDashboard: React.FC = () => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -278,6 +285,8 @@ const ResourceDashboard: React.FC = () => {
   const [availabilityViewDate, setAvailabilityViewDate] = useState<string>(getTodayDateString());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const [holidayValidationErrors, setHolidayValidationErrors] = useState<ValidationErrors>({});
 
   const [globalLock, setGlobalLock] = useState(false);
   const [isHoliday, setIsHoliday] = useState(false);
@@ -289,6 +298,12 @@ const ResourceDashboard: React.FC = () => {
     isHoliday: false,
     today: getTodayDateString(),
   });
+
+  // Calendar State
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedHoliday, setSelectedHoliday] = useState<Holiday | null>(null);
+  const [showNoHolidayPopup, setShowNoHolidayPopup] = useState(false);
+  const [noHolidayDate, setNoHolidayDate] = useState<Date | null>(null);
 
   const [newHoliday, setNewHoliday] = useState({
     holidayName: '',
@@ -317,6 +332,151 @@ const ResourceDashboard: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+
+  // Real-time input restriction functions
+  const restrictResourceCode = (value: string): string => {
+    let filtered = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (filtered.length > 6) filtered = filtered.slice(0, 6);
+    
+    const letters = filtered.match(/[A-Z]/g) || [];
+    const numbers = filtered.match(/[0-9]/g) || [];
+    
+    if (letters.length > 3) return filtered.slice(0, 3) + numbers.join('').slice(0, 3);
+    if (numbers.length > 3) return letters.join('') + numbers.slice(0, 3).join('');
+    
+    return filtered;
+  };
+
+  const restrictResourceName = (value: string): string => {
+    let filtered = value.replace(/[^A-Za-z\s]/g, '');
+    if (filtered.length > 100) filtered = filtered.slice(0, 100);
+    return filtered;
+  };
+
+  // Holiday restriction functions
+  const restrictHolidayName = (value: string): string => {
+    let filtered = value.replace(/[^A-Za-z\s-]/g, '');
+    if (filtered.length > 100) filtered = filtered.slice(0, 100);
+    return filtered;
+  };
+
+  const restrictHolidayDescription = (value: string): string => {
+    let filtered = value.replace(/[^A-Za-z0-9\s,.'"!?-]/g, '');
+    if (filtered.length > 500) filtered = filtered.slice(0, 500);
+    return filtered;
+  };
+
+  const restrictCapacity = (value: number): number => {
+    if (isNaN(value)) return 1;
+    if (value < 1) return 1;
+    if (value > 30000) return 30000;
+    return value;
+  };
+
+  // Validation Functions
+  const validateResourceCode = (code: string): boolean => {
+    const pattern = /^[A-Z]{1,3}\d{3}$/;
+    return pattern.test(code);
+  };
+
+  const validateResourceName = (name: string): boolean => {
+    const pattern = /^[A-Za-z\s]+$/;
+    return pattern.test(name) && name.trim().length > 0 && name.trim().length <= 100;
+  };
+
+  const validateCapacity = (capacity: number, type: string): boolean => {
+    if (type === 'EQUIPMENT') return true;
+    return capacity >= 1 && capacity <= 30000;
+  };
+
+  const validateLocation = (location: string): boolean => {
+    return location.trim().length > 0;
+  };
+
+  const validateDescription = (description: string): boolean => {
+    if (!description.trim()) return false;
+    const wordCount = description.trim().split(/\s+/).length;
+    return wordCount >= 5;
+  };
+
+  const validateHolidayDate = (date: string): boolean => {
+    if (!date) return false;
+    const selectedDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return selectedDate >= today;
+  };
+
+  const validateHolidayName = (name: string): boolean => {
+    const pattern = /^[A-Za-z\s-]+$/;
+    return pattern.test(name) && name.trim().length > 0 && name.trim().length <= 100;
+  };
+
+  const validateHolidayDescription = (desc: string): boolean => {
+    if (!desc.trim()) return true;
+    const pattern = /^[A-Za-z0-9\s,.'"!?-]+$/;
+    return pattern.test(desc) && desc.length <= 500;
+  };
+
+  const validateForm = (): boolean => {
+    const errors: ValidationErrors = {};
+    
+    if (!formData.resourceCode) {
+      errors.resourceCode = 'Resource code is required';
+    } else if (!validateResourceCode(formData.resourceCode)) {
+      errors.resourceCode = 'Resource code must contain 1-3 CAPITAL letters followed by 3 digits (e.g., LH101, ABC123)';
+    }
+    
+    if (!formData.name) {
+      errors.name = 'Resource name is required';
+    } else if (!validateResourceName(formData.name)) {
+      errors.name = 'Resource name can only contain letters and spaces (no numbers)';
+    }
+    
+    if (formData.type !== 'EQUIPMENT') {
+      if (formData.capacity < 1) {
+        errors.capacity = 'Capacity cannot be 0 or negative';
+      } else if (formData.capacity > 30000) {
+        errors.capacity = 'Capacity cannot exceed 30,000';
+      }
+    }
+    
+    if (!formData.location) {
+      errors.location = 'Location is required';
+    }
+    
+    if (!formData.description) {
+      errors.description = 'Description is required';
+    } else if (!validateDescription(formData.description)) {
+      errors.description = 'Description must contain at least 5 words';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateHolidayForm = (): boolean => {
+    const errors: ValidationErrors = {};
+    
+    if (!newHoliday.holidayName.trim()) {
+      errors.holidayName = 'Holiday name is required';
+    } else if (!validateHolidayName(newHoliday.holidayName)) {
+      errors.holidayName = 'Holiday name can only contain letters, spaces, and hyphens (no numbers or special characters)';
+    }
+    
+    if (!newHoliday.holidayDate) {
+      errors.holidayDate = 'Holiday date is required';
+    } else if (!validateHolidayDate(newHoliday.holidayDate)) {
+      errors.holidayDate = 'Holiday date cannot be in the past';
+    }
+    
+    if (newHoliday.description && !validateHolidayDescription(newHoliday.description)) {
+      errors.holidayDesc = 'Description can only contain letters, numbers, spaces, and basic punctuation (no special characters)';
+    }
+    
+    setHolidayValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const normalizeResource = (resource: ResourceApi): Resource => {
     return {
@@ -440,6 +600,7 @@ const ResourceDashboard: React.FC = () => {
     setSelectedImage(null);
     setImagePreview(null);
     setCurrentImageUrl(null);
+    setValidationErrors({});
   };
 
   const resetHolidayForm = () => {
@@ -448,6 +609,7 @@ const ResourceDashboard: React.FC = () => {
       holidayDate: '',
       description: '',
     });
+    setHolidayValidationErrors({});
   };
 
   const enableGlobalLock = async () => {
@@ -482,49 +644,46 @@ const ResourceDashboard: React.FC = () => {
     }
   };
 
-const addHoliday = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const addHoliday = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  if (!newHoliday.holidayName.trim()) {
-    alert('Holiday name is required');
-    return;
-  }
-
-  if (!newHoliday.holidayDate) {
-    alert('Holiday date is required');
-    return;
-  }
-
-  setHolidaySubmitting(true);
-
-  try {
-    // Ensure date is in YYYY-MM-DD format
-    const formattedDate = newHoliday.holidayDate; // Input date is already YYYY-MM-DD
-    
-    const holidayData = {
-      holidayName: newHoliday.holidayName.trim(),
-      holidayDate: formattedDate,
-      description: newHoliday.description.trim(),
-    };
-
-    console.log('Sending holiday data:', holidayData);
-
-    const response = await api.post<ApiResponse<any>>('/holidays/add', holidayData);
-
-    if (response.data.success) {
-      alert(response.data.message || 'Holiday added successfully');
-      resetHolidayForm();
-      await Promise.all([fetchHolidays(), fetchResources(), checkSystemStatus()]);
-    } else {
-      alert(response.data.message || 'Failed to add holiday');
+    if (!validateHolidayForm()) {
+      const firstError = document.querySelector('.holiday-error');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
     }
-  } catch (error) {
-    console.error('Error adding holiday:', error);
-    alert(getErrorMessage(error, 'Failed to add holiday'));
-  } finally {
-    setHolidaySubmitting(false);
-  }
-};
+
+    setHolidaySubmitting(true);
+
+    try {
+      const formattedDate = newHoliday.holidayDate;
+      
+      const holidayData = {
+        holidayName: newHoliday.holidayName.trim(),
+        holidayDate: formattedDate,
+        description: newHoliday.description.trim(),
+      };
+
+      console.log('Sending holiday data:', holidayData);
+
+      const response = await api.post<ApiResponse<any>>('/holidays/add', holidayData);
+
+      if (response.data.success) {
+        alert(response.data.message || 'Holiday added successfully');
+        resetHolidayForm();
+        await Promise.all([fetchHolidays(), fetchResources(), checkSystemStatus()]);
+      } else {
+        alert(response.data.message || 'Failed to add holiday');
+      }
+    } catch (error) {
+      console.error('Error adding holiday:', error);
+      alert(getErrorMessage(error, 'Failed to add holiday'));
+    } finally {
+      setHolidaySubmitting(false);
+    }
+  };
 
   const deleteHoliday = async (id: number) => {
     if (!window.confirm('Delete this holiday?')) return;
@@ -545,6 +704,15 @@ const addHoliday = async (e: React.FormEvent) => {
 
   const handleAddResource = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      const firstError = document.querySelector('.error-message');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+    
     setSubmitting(true);
 
     try {
@@ -554,7 +722,7 @@ const addHoliday = async (e: React.FormEvent) => {
         resource_code: formData.resourceCode,
         name: formData.name,
         type: formData.type,
-        capacity: formData.capacity,
+        capacity: formData.type === 'EQUIPMENT' ? null : formData.capacity,
         location: formData.location,
         description: formData.description,
         availabilityWindows: buildAvailabilityString(availabilityConfig),
@@ -591,6 +759,15 @@ const addHoliday = async (e: React.FormEvent) => {
 
   const handleEditResource = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      const firstError = document.querySelector('.error-message');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+    
     setSubmitting(true);
 
     try {
@@ -600,7 +777,7 @@ const addHoliday = async (e: React.FormEvent) => {
         resource_code: formData.resourceCode,
         name: formData.name,
         type: formData.type,
-        capacity: formData.capacity,
+        capacity: formData.type === 'EQUIPMENT' ? null : formData.capacity,
         location: formData.location,
         description: formData.description,
         availabilityWindows: buildAvailabilityString(availabilityConfig),
@@ -695,6 +872,7 @@ const addHoliday = async (e: React.FormEvent) => {
     setCurrentImageUrl(getImageUrl(resource));
     setImagePreview(null);
     setSelectedImage(null);
+    setValidationErrors({});
     setShowEditModal(true);
   };
 
@@ -712,6 +890,18 @@ const addHoliday = async (e: React.FormEvent) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      alert('File size must be less than 10MB');
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Only JPG and PNG files are allowed');
+      return;
+    }
+
     setSelectedImage(file);
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -720,15 +910,130 @@ const addHoliday = async (e: React.FormEvent) => {
     reader.readAsDataURL(file);
   };
 
+  // Calendar helper functions for react-calendar
+  const getHolidayForDate = (date: Date): Holiday | undefined => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    return holidays.find(h => {
+      const hDate = h.holiday_date || h.holidayDate;
+      return hDate === dateStr;
+    });
+  };
+
+  const handleDateClick = (value: Value) => {
+    if (value instanceof Date) {
+      const holiday = getHolidayForDate(value);
+      if (holiday) {
+        setSelectedHoliday(holiday);
+      } else {
+        setNoHolidayDate(value);
+        setShowNoHolidayPopup(true);
+      }
+    }
+  };
+
+  const closeNoHolidayPopup = () => {
+    setShowNoHolidayPopup(false);
+    setNoHolidayDate(null);
+  };
+
+  const tileClassName = ({ date, view }: { date: Date; view: string }) => {
+    if (view === 'month') {
+      const holiday = getHolidayForDate(date);
+      if (holiday) {
+        return 'holiday-tile';
+      }
+    }
+    return null;
+  };
+
+  const tileContent = ({ date, view }: { date: Date; view: string }) => {
+    if (view === 'month') {
+      const holiday = getHolidayForDate(date);
+      if (holiday) {
+        return <div className="holiday-dot"></div>;
+      }
+    }
+    return null;
+  };
+
+  const handleHolidayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
+    if (name === 'holidayName') {
+      const restrictedValue = restrictHolidayName(value);
+      setNewHoliday((prev) => ({ ...prev, holidayName: restrictedValue }));
+      if (holidayValidationErrors.holidayName && validateHolidayName(restrictedValue)) {
+        setHolidayValidationErrors((prev) => ({ ...prev, holidayName: undefined }));
+      }
+    } else if (name === 'description') {
+      const restrictedValue = restrictHolidayDescription(value);
+      setNewHoliday((prev) => ({ ...prev, description: restrictedValue }));
+      if (holidayValidationErrors.holidayDesc && validateHolidayDescription(restrictedValue)) {
+        setHolidayValidationErrors((prev) => ({ ...prev, holidayDesc: undefined }));
+      }
+    } else if (name === 'holidayDate') {
+      setNewHoliday((prev) => ({ ...prev, holidayDate: value }));
+      if (holidayValidationErrors.holidayDate && validateHolidayDate(value)) {
+        setHolidayValidationErrors((prev) => ({ ...prev, holidayDate: undefined }));
+      }
+    }
+  };
+
   const handleFormChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value, type } = e.target;
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'number' ? Number(value) : value,
-    }));
+    if (name === 'resourceCode') {
+      const restrictedValue = restrictResourceCode(value);
+      setFormData((prev) => ({ ...prev, resourceCode: restrictedValue }));
+      if (validationErrors.resourceCode && validateResourceCode(restrictedValue)) {
+        setValidationErrors((prev) => ({ ...prev, resourceCode: undefined }));
+      }
+    } 
+    else if (name === 'name') {
+      const restrictedValue = restrictResourceName(value);
+      setFormData((prev) => ({ ...prev, name: restrictedValue }));
+      if (validationErrors.name && validateResourceName(restrictedValue)) {
+        setValidationErrors((prev) => ({ ...prev, name: undefined }));
+      }
+    }
+    else if (name === 'location') {
+      setFormData((prev) => ({ ...prev, location: value }));
+      if (validationErrors.location && value.trim().length > 0) {
+        setValidationErrors((prev) => ({ ...prev, location: undefined }));
+      }
+    }
+    else if (name === 'description') {
+      setFormData((prev) => ({ ...prev, description: value }));
+      if (validationErrors.description && value.trim().split(/\s+/).length >= 5) {
+        setValidationErrors((prev) => ({ ...prev, description: undefined }));
+      }
+    }
+    else if (name === 'capacity') {
+      let numValue = type === 'number' ? Number(value) : Number(value);
+      if (isNaN(numValue)) numValue = 1;
+      const restrictedValue = restrictCapacity(numValue);
+      setFormData((prev) => ({ ...prev, capacity: restrictedValue }));
+      if (validationErrors.capacity && validateCapacity(restrictedValue, formData.type)) {
+        setValidationErrors((prev) => ({ ...prev, capacity: undefined }));
+      }
+    }
+    else if (name === 'type') {
+      setFormData((prev) => {
+        let updated = { ...prev, type: value };
+        if (value === 'EQUIPMENT') {
+          updated.capacity = 1;
+        }
+        return updated;
+      });
+    }
+    else {
+      setFormData((prev) => ({ ...prev, [name]: type === 'number' ? Number(value) : value }));
+    }
   };
 
   const filteredResources = resources.filter((resource) => {
@@ -768,6 +1073,10 @@ const addHoliday = async (e: React.FormEvent) => {
       default:
         return status;
     }
+  };
+
+  const closeHolidayPopup = () => {
+    setSelectedHoliday(null);
   };
 
   const availabilitySlotsForForm = generateTimeSlots(availabilityConfig);
@@ -830,6 +1139,7 @@ const addHoliday = async (e: React.FormEvent) => {
           <input
             type="date"
             value={availabilityFormDate}
+            min={getTodayDateString()}
             onChange={(e) => setAvailabilityFormDate(e.target.value)}
             className="input-field input-date-preview"
           />
@@ -868,6 +1178,7 @@ const addHoliday = async (e: React.FormEvent) => {
           <input
             type="date"
             value={availabilityViewDate}
+            min={getTodayDateString()}
             onChange={(e) => setAvailabilityViewDate(e.target.value)}
             className="input-field"
           />
@@ -895,8 +1206,8 @@ const addHoliday = async (e: React.FormEvent) => {
 
   return (
     <div className="resource-dashboard">
-      {(showAddModal || showEditModal || showDetailsModal || showHolidayModal) && (
-        <div className="modal-backdrop" />
+      {(showAddModal || showEditModal || showDetailsModal || showHolidayModal || selectedHoliday || showNoHolidayPopup) && (
+        <div className="modal-backdrop" onClick={selectedHoliday ? closeHolidayPopup : showNoHolidayPopup ? closeNoHolidayPopup : undefined} />
       )}
 
       <header className="dashboard-header">
@@ -973,8 +1284,8 @@ const addHoliday = async (e: React.FormEvent) => {
                 className="search-input"
               />
               <button className="bg-[#002147] text-white rounded-r-xl hover:bg-blue-900 transition-colors flex items-center justify-center h-[48px] w-[48px] p-0">
-  <Search size={20} className="block" />
-</button>
+                <Search size={20} className="block" />
+              </button>
             </div>
 
             <button
@@ -992,7 +1303,7 @@ const addHoliday = async (e: React.FormEvent) => {
               }}
               className="btn btn-holiday"
             >
-              <Calendar size={18} />
+              <CalendarIcon size={18} />
               <span className="btn-text-hide-sm">Holidays</span>
             </button>
 
@@ -1074,7 +1385,7 @@ const addHoliday = async (e: React.FormEvent) => {
                         </span>
                       ) : isHoliday ? (
                         <span className="status-chip chip-holiday">
-                          <Calendar size={10} /> HOLIDAY
+                          <CalendarIcon size={10} /> HOLIDAY
                         </span>
                       ) : (
                         <span className={`status-chip ${getStatusColorClass(resource.status)}`}>
@@ -1093,13 +1404,15 @@ const addHoliday = async (e: React.FormEvent) => {
                     </div>
 
                     <div className="resource-info-grid">
-                      <div className="info-item">
-                        <Users size={14} className="info-icon" />
-                        <div>
-                          <p className="info-label">Capacity</p>
-                          <p className="info-value">{resource.capacity}</p>
+                      {resource.type !== 'EQUIPMENT' && (
+                        <div className="info-item">
+                          <Users size={14} className="info-icon" />
+                          <div>
+                            <p className="info-label">Capacity</p>
+                            <p className="info-value">{resource.capacity}</p>
+                          </div>
                         </div>
-                      </div>
+                      )}
                       <div className="info-item">
                         <MapPin size={14} className="info-icon" />
                         <div>
@@ -1129,7 +1442,7 @@ const addHoliday = async (e: React.FormEvent) => {
                       className="calendar-btn"
                       disabled={isUnavailableDueToLock}
                     >
-                      <Calendar size={16} /> View Availability Calendar
+                      <CalendarIcon size={16} /> View Availability Calendar
                     </button>
 
                     {showAvailabilityId === resource.id && !isUnavailableDueToLock && (
@@ -1222,7 +1535,7 @@ const addHoliday = async (e: React.FormEvent) => {
                       <span className="upload-text">Upload</span>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/jpg"
                         onChange={handleImageChange}
                         className="hidden-input"
                       />
@@ -1241,9 +1554,14 @@ const addHoliday = async (e: React.FormEvent) => {
                     value={formData.resourceCode}
                     onChange={handleFormChange}
                     required
-                    className="input-field"
-                    placeholder="e.g., LH101"
+                    maxLength={6}
+                    className={`input-field ${validationErrors.resourceCode ? 'error-input' : ''}`}
+                    placeholder="e.g., LH101, ABC123"
                   />
+                  {validationErrors.resourceCode && (
+                    <p className="error-message">{validationErrors.resourceCode}</p>
+                  )}
+                  <small className="helper-text">Format: 1-3 CAPITAL letters + 3 digits (e.g., LH101)</small>
                 </div>
 
                 <div>
@@ -1254,9 +1572,14 @@ const addHoliday = async (e: React.FormEvent) => {
                     value={formData.name}
                     onChange={handleFormChange}
                     required
-                    className="input-field"
+                    maxLength={100}
+                    className={`input-field ${validationErrors.name ? 'error-input' : ''}`}
                     placeholder="e.g., Main Lecture Hall"
                   />
+                  {validationErrors.name && (
+                    <p className="error-message">{validationErrors.name}</p>
+                  )}
+                  <small className="helper-text">Letters and spaces only (no numbers)</small>
                 </div>
 
                 <div>
@@ -1276,18 +1599,26 @@ const addHoliday = async (e: React.FormEvent) => {
                   </select>
                 </div>
 
-                <div>
-                  <label className="form-label">Capacity *</label>
-                  <input
-                    type="number"
-                    name="capacity"
-                    value={formData.capacity}
-                    onChange={handleFormChange}
-                    required
-                    min="0"
-                    className="input-field"
-                  />
-                </div>
+                {formData.type !== 'EQUIPMENT' && (
+                  <div>
+                    <label className="form-label">Capacity *</label>
+                    <input
+                      type="number"
+                      name="capacity"
+                      value={formData.capacity}
+                      onChange={handleFormChange}
+                      required
+                      min="1"
+                      max="30000"
+                      step="1"
+                      className={`input-field ${validationErrors.capacity ? 'error-input' : ''}`}
+                    />
+                    {validationErrors.capacity && (
+                      <p className="error-message">{validationErrors.capacity}</p>
+                    )}
+                    <small className="helper-text">Must be between 1 and 30,000</small>
+                  </div>
+                )}
 
                 <div className="form-col-span-2">
                   <label className="form-label">Location *</label>
@@ -1297,23 +1628,31 @@ const addHoliday = async (e: React.FormEvent) => {
                     value={formData.location}
                     onChange={handleFormChange}
                     required
-                    className="input-field"
+                    className={`input-field ${validationErrors.location ? 'error-input' : ''}`}
                     placeholder="e.g., Building A, Floor 1"
                   />
+                  {validationErrors.location && (
+                    <p className="error-message">{validationErrors.location}</p>
+                  )}
+                  <small className="helper-text">No restrictions - any characters allowed</small>
                 </div>
 
                 <AvailabilityEditor />
 
                 <div className="form-col-span-2">
-                  <label className="form-label">Description</label>
+                  <label className="form-label">Description *</label>
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={handleFormChange}
                     rows={3}
-                    className="input-field textarea-field"
-                    placeholder="Resource description..."
+                    className={`input-field textarea-field ${validationErrors.description ? 'error-input' : ''}`}
+                    placeholder="Resource description... (minimum 5 words)"
                   />
+                  {validationErrors.description && (
+                    <p className="error-message">{validationErrors.description}</p>
+                  )}
+                  <small className="helper-text">Minimum 5 words, numbers and letters allowed</small>
                 </div>
               </div>
 
@@ -1389,7 +1728,7 @@ const addHoliday = async (e: React.FormEvent) => {
                       <span className="upload-text">Upload Image</span>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/jpg"
                         onChange={handleImageChange}
                         className="hidden-input"
                       />
@@ -1401,7 +1740,7 @@ const addHoliday = async (e: React.FormEvent) => {
                       <Upload size={16} /> Change Image
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/jpg"
                         onChange={handleImageChange}
                         className="hidden-input"
                       />
@@ -1419,9 +1758,14 @@ const addHoliday = async (e: React.FormEvent) => {
                     value={formData.resourceCode}
                     onChange={handleFormChange}
                     required
-                    className="input-field"
-                    placeholder="e.g., LH101"
+                    maxLength={6}
+                    className={`input-field ${validationErrors.resourceCode ? 'error-input' : ''}`}
+                    placeholder="e.g., LH101, ABC123"
                   />
+                  {validationErrors.resourceCode && (
+                    <p className="error-message">{validationErrors.resourceCode}</p>
+                  )}
+                  <small className="helper-text">Format: 1-3 CAPITAL letters + 3 digits (e.g., LH101)</small>
                 </div>
 
                 <div>
@@ -1432,8 +1776,13 @@ const addHoliday = async (e: React.FormEvent) => {
                     value={formData.name}
                     onChange={handleFormChange}
                     required
-                    className="input-field"
+                    maxLength={100}
+                    className={`input-field ${validationErrors.name ? 'error-input' : ''}`}
                   />
+                  {validationErrors.name && (
+                    <p className="error-message">{validationErrors.name}</p>
+                  )}
+                  <small className="helper-text">Letters and spaces only (no numbers)</small>
                 </div>
 
                 <div>
@@ -1453,18 +1802,26 @@ const addHoliday = async (e: React.FormEvent) => {
                   </select>
                 </div>
 
-                <div>
-                  <label className="form-label">Capacity *</label>
-                  <input
-                    type="number"
-                    name="capacity"
-                    value={formData.capacity}
-                    onChange={handleFormChange}
-                    required
-                    min="0"
-                    className="input-field"
-                  />
-                </div>
+                {formData.type !== 'EQUIPMENT' && (
+                  <div>
+                    <label className="form-label">Capacity *</label>
+                    <input
+                      type="number"
+                      name="capacity"
+                      value={formData.capacity}
+                      onChange={handleFormChange}
+                      required
+                      min="1"
+                      max="30000"
+                      step="1"
+                      className={`input-field ${validationErrors.capacity ? 'error-input' : ''}`}
+                    />
+                    {validationErrors.capacity && (
+                      <p className="error-message">{validationErrors.capacity}</p>
+                    )}
+                    <small className="helper-text">Must be between 1 and 30,000</small>
+                  </div>
+                )}
 
                 <div className="form-col-span-2">
                   <label className="form-label">Location *</label>
@@ -1474,22 +1831,30 @@ const addHoliday = async (e: React.FormEvent) => {
                     value={formData.location}
                     onChange={handleFormChange}
                     required
-                    className="input-field"
+                    className={`input-field ${validationErrors.location ? 'error-input' : ''}`}
                   />
+                  {validationErrors.location && (
+                    <p className="error-message">{validationErrors.location}</p>
+                  )}
+                  <small className="helper-text">No restrictions - any characters allowed</small>
                 </div>
 
                 <AvailabilityEditor />
 
                 <div className="form-col-span-2">
-                  <label className="form-label">Description</label>
+                  <label className="form-label">Description *</label>
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={handleFormChange}
                     rows={3}
-                    className="input-field textarea-field"
-                    placeholder="Resource description..."
+                    className={`input-field textarea-field ${validationErrors.description ? 'error-input' : ''}`}
+                    placeholder="Resource description... (minimum 5 words)"
                   />
+                  {validationErrors.description && (
+                    <p className="error-message">{validationErrors.description}</p>
+                  )}
+                  <small className="helper-text">Minimum 5 words, numbers and letters allowed</small>
                 </div>
               </div>
 
@@ -1622,10 +1987,12 @@ const addHoliday = async (e: React.FormEvent) => {
                   <p className="detail-value">{selectedResource.name}</p>
                 </div>
 
-                <div className="details-card">
-                  <label className="detail-label">Capacity</label>
-                  <p className="detail-value">{selectedResource.capacity}</p>
-                </div>
+                {selectedResource.type !== 'EQUIPMENT' && (
+                  <div className="details-card">
+                    <label className="detail-label">Capacity</label>
+                    <p className="detail-value">{selectedResource.capacity}</p>
+                  </div>
+                )}
 
                 <div className="details-card details-span-2">
                   <label className="detail-label">Location</label>
@@ -1669,120 +2036,152 @@ const addHoliday = async (e: React.FormEvent) => {
         </div>
       )}
 
-{showHolidayModal && (
-  <div className="modal-center">
-    <div className="modal-card modal-medium">
-      <div className="modal-header sticky-header">
-        <h2 className="modal-title">Holiday Management</h2>
-        <button
-          onClick={() => setShowHolidayModal(false)}
-          className="icon-close-btn"
-        >
-          <X size={24} />
-        </button>
-      </div>
+      {showHolidayModal && (
+        <div className="modal-center">
+          <div className="modal-card modal-medium">
+            <div className="modal-header sticky-header">
+              <h2 className="modal-title">Holiday Management</h2>
+              <button
+                onClick={() => setShowHolidayModal(false)}
+                className="icon-close-btn"
+              >
+                <X size={24} />
+              </button>
+            </div>
 
-      <div className="holiday-body">
-        <form onSubmit={addHoliday} className="holiday-form">
-          <h3 className="holiday-section-title">Add New Holiday</h3>
+            <div className="holiday-body">
+              <form onSubmit={addHoliday} className="holiday-form">
+                <h3 className="holiday-section-title">Add New Holiday</h3>
 
-          <div className="holiday-form-grid">
-            <input
-              type="text"
-              placeholder="Holiday Name"
-              value={newHoliday.holidayName}
-              onChange={(e) =>
-                setNewHoliday((prev) => ({ ...prev, holidayName: e.target.value }))
-              }
-              required
-              className="input-field"
-            />
-
-            <input
-              type="date"
-              value={newHoliday.holidayDate}
-              onChange={(e) =>
-                setNewHoliday((prev) => ({ ...prev, holidayDate: e.target.value }))
-              }
-              required
-              className="input-field"
-            />
-
-            <input
-              type="text"
-              placeholder="Description (optional)"
-              value={newHoliday.description}
-              onChange={(e) =>
-                setNewHoliday((prev) => ({ ...prev, description: e.target.value }))
-              }
-              className="input-field holiday-description-input"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={holidaySubmitting}
-            className="btn btn-primary holiday-submit-btn"
-          >
-            {holidaySubmitting ? 'Adding...' : 'Add Holiday'}
-          </button>
-        </form>
-
-        <div>
-          <h3 className="holiday-section-title">Holidays List</h3>
-          <div className="holiday-list">
-            {holidays.map((holiday) => {
-              // Get values from either snake_case or camelCase
-              const holidayName = holiday.holiday_name || holiday.holidayName;
-              const holidayDate = holiday.holiday_date || holiday.holidayDate;
-              
-              return (
-                <div key={holiday.id} className="holiday-item">
+                <div className="holiday-form-grid">
                   <div>
-                    <p className="holiday-name">{holidayName}</p>
-                    <p className="holiday-date">
-                      {(() => {
-                        if (!holidayDate) return 'No date';
-                        // Parse YYYY-MM-DD format manually
-                        const parts = holidayDate.split('-');
-                        if (parts.length === 3) {
-                          const date = new Date(
-                            parseInt(parts[0]), 
-                            parseInt(parts[1]) - 1, 
-                            parseInt(parts[2])
-                          );
-                          return date.toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          });
-                        }
-                        return holidayDate;
-                      })()}
-                    </p>
-                    {holiday.description && (
-                      <p className="holiday-description">{holiday.description}</p>
+                    <input
+                      type="text"
+                      name="holidayName"
+                      placeholder="Holiday Name"
+                      value={newHoliday.holidayName}
+                      onChange={handleHolidayChange}
+                      required
+                      maxLength={100}
+                      className={`input-field ${holidayValidationErrors.holidayName ? 'error-input' : ''}`}
+                    />
+                    {holidayValidationErrors.holidayName && (
+                      <p className="error-message holiday-error">{holidayValidationErrors.holidayName}</p>
                     )}
+                    <small className="helper-text">Letters, spaces, and hyphens only (no numbers or special characters)</small>
                   </div>
-                  <button
-                    onClick={() => deleteHoliday(holiday.id)}
-                    className="holiday-delete-btn"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              );
-            })}
 
-            {holidays.length === 0 && (
-              <p className="holiday-empty">No holidays added yet</p>
-            )}
+                  <div>
+                    <input
+                      type="date"
+                      name="holidayDate"
+                      value={newHoliday.holidayDate}
+                      min={getTodayDateString()}
+                      onChange={handleHolidayChange}
+                      required
+                      className={`input-field ${holidayValidationErrors.holidayDate ? 'error-input' : ''}`}
+                    />
+                    {holidayValidationErrors.holidayDate && (
+                      <p className="error-message holiday-error">{holidayValidationErrors.holidayDate}</p>
+                    )}
+                    <small className="helper-text">Cannot select past dates</small>
+                  </div>
+
+                  <div>
+                    <input
+                      type="text"
+                      name="description"
+                      placeholder="Description (optional)"
+                      value={newHoliday.description}
+                      onChange={handleHolidayChange}
+                      maxLength={500}
+                      className={`input-field holiday-description-input ${holidayValidationErrors.holidayDesc ? 'error-input' : ''}`}
+                    />
+                    {holidayValidationErrors.holidayDesc && (
+                      <p className="error-message holiday-error">{holidayValidationErrors.holidayDesc}</p>
+                    )}
+                    <small className="helper-text">Letters, numbers, spaces, and basic punctuation only (no special characters)</small>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={holidaySubmitting}
+                  className="btn btn-primary holiday-submit-btn"
+                >
+                  {holidaySubmitting ? 'Adding...' : 'Add Holiday'}
+                </button>
+              </form>
+
+              {/* react-calendar */}
+              <div>
+                <h3 className="holiday-section-title">Holidays Calendar</h3>
+                <div className="calendar-wrapper">
+                  <Calendar
+                    onChange={handleDateClick}
+                    value={selectedDate}
+                    tileClassName={tileClassName}
+                    tileContent={tileContent}
+                    minDate={new Date()}
+                    formatMonthYear={(locale, date) => `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`}
+                  />
+                </div>
+                
+                {holidays.length === 0 && (
+                  <p className="holiday-empty" style={{textAlign: 'center', marginTop: '1rem'}}>No holidays added yet</p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
+
+      {/* Holiday Details Popup */}
+      {selectedHoliday && (
+        <div className="modal-center holiday-popup" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card modal-small">
+            <div className="modal-header">
+              <h2 className="modal-title">Holiday Details</h2>
+              <button onClick={closeHolidayPopup} className="icon-close-btn">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="holiday-popup-content">
+              <p><strong>Name:</strong> {selectedHoliday.holiday_name || selectedHoliday.holidayName}</p>
+              <p><strong>Date:</strong> {formatHolidayDate(selectedHoliday.holiday_date || selectedHoliday.holidayDate || '')}</p>
+              {selectedHoliday.description && <p><strong>Description:</strong> {selectedHoliday.description}</p>}
+            </div>
+            <div className="modal-footer">
+              <button onClick={closeHolidayPopup} className="btn btn-primary btn-full">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No Holiday Popup */}
+      {showNoHolidayPopup && noHolidayDate && (
+        <div className="modal-center no-holiday-popup" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card modal-small">
+            <div className="modal-header">
+              <h2 className="modal-title">No Holiday</h2>
+              <button onClick={closeNoHolidayPopup} className="icon-close-btn">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="no-holiday-popup-content">
+              <div className="no-holiday-icon">📅</div>
+              <p className="no-holiday-message">
+                <strong>{noHolidayDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+              </p>
+              <p>No holiday is scheduled on this date.</p>
+              <p className="no-holiday-suggestion">You can add a holiday using the form above.</p>
+            </div>
+            <div className="modal-footer">
+              <button onClick={closeNoHolidayPopup} className="btn btn-primary btn-full">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="dashboard-footer">
         <div className="footer-left">

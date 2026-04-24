@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/tickets")
 public class TicketController {
@@ -23,22 +24,13 @@ public class TicketController {
         this.ticketService = ticketService;
     }
 
-    @GetMapping
-    public ResponseEntity<?> getTickets() {
-        try {
-            List<TicketResponseDTO> tickets = ticketService.getAllTickets();
-            return ResponseEntity.ok(tickets);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error fetching tickets: " + e.getMessage());
-        }
-    }
 
     @GetMapping("/my")
-    public ResponseEntity<?> getMyTickets() {
+    public ResponseEntity<?> getMyTickets(
+            @RequestParam Long userId,
+            @RequestParam String role) {
         try {
-            Long fakeStudentId = 1L;
-            List<TicketResponseDTO> tickets = ticketService.getTicketsByStudent(fakeStudentId);
+            List<TicketResponseDTO> tickets = ticketService.getTicketsByUserAndRole(userId, role);
             return ResponseEntity.ok(tickets);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -64,11 +56,10 @@ public class TicketController {
             @RequestParam String description,
             @RequestParam String priority,
             @RequestParam(required = false) String preferredContact,
+            @RequestParam Long userId,
             @RequestParam(required = false) List<MultipartFile> files) {
 
         try {
-            Long fakeStudentId = 1L;
-
             TicketRequestDTO request = new TicketRequestDTO();
             request.setResourceId(resourceId);
             request.setCategory(category);
@@ -76,7 +67,7 @@ public class TicketController {
             request.setPriority(priority);
             request.setPreferredContact(preferredContact);
 
-            TicketResponseDTO response = ticketService.createTicket(request, fakeStudentId, files);
+            TicketResponseDTO response = ticketService.createTicket(request, userId, files);
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
@@ -119,11 +110,11 @@ public class TicketController {
     @PostMapping("/{ticketId}/comments")
     public ResponseEntity<?> addComment(
             @PathVariable Long ticketId,
-            @RequestParam String commentText) {
+            @RequestParam String commentText,
+            @RequestParam Long userId) {
 
         try {
-            Long fakeUserId = 1L;
-            Map<String, Object> response = ticketService.addComment(ticketId, fakeUserId, commentText);
+            Map<String, Object> response = ticketService.addComment(ticketId, userId, commentText);
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {

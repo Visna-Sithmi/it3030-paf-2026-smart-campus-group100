@@ -1,10 +1,12 @@
 package com.northbridge.backend.dto;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class TicketResponseDTO {
 
     private Long id;
+    private Long resourceId;
     private String resourceName;
     private String createdByName;
     private String assignedToName;
@@ -15,6 +17,9 @@ public class TicketResponseDTO {
     private String rejectionReason;
     private String resolutionNotes;
     private List<String> attachmentUrls;
+    private String preferredContact;
+    private LocalDateTime createdAt;
+    private List<TicketCommentDTO> comments;
 
     // 🔹 Default Constructor
     public TicketResponseDTO() {
@@ -41,6 +46,10 @@ public class TicketResponseDTO {
 
     public Long getId() {
         return id;
+    }
+
+    public Long getResourceId() {
+        return resourceId;
     }
 
     public String getResourceName() {
@@ -83,11 +92,17 @@ public class TicketResponseDTO {
         return attachmentUrls;
     }
 
+    public String getPreferredContact() { return preferredContact; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+
     // 🔹 Setters
 
     public void setId(Long id) {
         this.id = id;
     }
+
+    public void setResourceId(Long resourceId) { this.resourceId = resourceId; }
 
     public void setResourceName(String resourceName) {
         this.resourceName = resourceName;
@@ -127,5 +142,17 @@ public class TicketResponseDTO {
 
     public void setAttachmentUrls(List<String> attachmentUrls) {
         this.attachmentUrls = attachmentUrls;
+    }
+
+    public void setPreferredContact(String preferredContact) { this.preferredContact = preferredContact; }
+
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public List<TicketCommentDTO> getComments() {
+        return comments;
+    }
+
+    public void setComments(List<TicketCommentDTO> comments) {
+        this.comments = comments;
     }
 }

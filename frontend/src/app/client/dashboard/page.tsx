@@ -89,6 +89,12 @@ export default function StudentDashboardPage() {
               View My Bookings
             </button>
             <button
+              onClick={() => navigate("/my-tickets")}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Report Issue
+            </button>
+            <button
               onClick={() => navigate("/client/profile")}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >

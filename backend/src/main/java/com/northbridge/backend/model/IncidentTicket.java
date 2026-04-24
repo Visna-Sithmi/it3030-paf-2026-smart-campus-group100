@@ -34,6 +34,7 @@ public class IncidentTicket {
     @Column(nullable = false)
     private String priority;
 
+    @Column(length = 255)
     private String preferredContact;
 
     @Column(nullable = false)
@@ -44,7 +45,10 @@ public class IncidentTicket {
     @Column(columnDefinition = "TEXT")
     private String resolutionNotes;
 
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)

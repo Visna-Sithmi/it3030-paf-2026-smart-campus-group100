@@ -1,9 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import logo from "../../../assets/logo.jpeg";
 import { bookingService } from "../../../services/bookingService";
 import { resourceService } from "../../../services/resource.service";
 import type { BookingResponseDTO } from "../../../types/booking";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function BookingHistoryPage() {
   const navigate = useNavigate();
@@ -23,6 +36,8 @@ export default function BookingHistoryPage() {
   const [analyticsResourceTypeFilter, setAnalyticsResourceTypeFilter] = useState("ALL");
   const [analyticsFromDate, setAnalyticsFromDate] = useState("");
   const [analyticsToDate, setAnalyticsToDate] = useState("");
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(startOfMonth(new Date()));
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState("");
 
   const userName = localStorage.getItem("name") || "Booking Manager";
 
@@ -152,31 +167,17 @@ export default function BookingHistoryPage() {
 
   const totalTypeCount = resourceTypeChartData.reduce((acc, item) => acc + item.count, 0);
 
-  const pieSegments = resourceTypeChartData.reduce<{ color: string; from: number; to: number; type: string; count: number }[]>((acc, item, index) => {
-    const previousTo = acc.length ? acc[acc.length - 1].to : 0;
-    const ratio = totalTypeCount > 0 ? (item.count / totalTypeCount) * 100 : 0;
-    const to = previousTo + ratio;
-
-    acc.push({
-      color: chartPalette[index % chartPalette.length],
-      from: previousTo,
-      to,
-      type: item.type,
-      count: item.count,
-    });
-
-    return acc;
-  }, []);
-
-  const pieChartBackground = pieSegments.length
-    ? `conic-gradient(${pieSegments
-        .map((segment) => `${segment.color} ${segment.from.toFixed(2)}% ${segment.to.toFixed(2)}%`)
-        .join(", ")})`
-    : "#e2e8f0";
-
   const monthlyChartYear = analyticsYearFilter === "ALL"
     ? availableAnalyticsYears[0] || String(new Date().getFullYear())
     : analyticsYearFilter;
+
+  useEffect(() => {
+    const targetYear = Number(monthlyChartYear);
+    if (Number.isNaN(targetYear)) return;
+
+    const targetMonth = analyticsMonthFilter === "ALL" ? 0 : Math.max(0, Number(analyticsMonthFilter) - 1);
+    setCurrentCalendarMonth(startOfMonth(new Date(targetYear, targetMonth, 1)));
+  }, [monthlyChartYear, analyticsMonthFilter]);
 
   const monthlyChartData = useMemo(() => {
     const monthCounts = Array.from({ length: 12 }, (_, i) => ({ month: monthLabels[i], monthIndex: i + 1, count: 0 }));
@@ -216,6 +217,32 @@ export default function BookingHistoryPage() {
 
   const maxMonthlyCount = Math.max(1, ...monthlyChartData.map((item) => item.count));
   const maxAnnualCount = Math.max(1, ...annualChartData.map((item) => item.count));
+
+  const monthlyCalendarDays = useMemo(
+    () =>
+      eachDayOfInterval({
+        start: startOfWeek(startOfMonth(currentCalendarMonth), { weekStartsOn: 1 }),
+        end: endOfWeek(endOfMonth(currentCalendarMonth), { weekStartsOn: 1 }),
+      }),
+    [currentCalendarMonth]
+  );
+
+  const monthlyCalendarBookingCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    analyticsFilteredBookings
+      .filter((booking) => (booking.bookingDate || "").slice(0, 4) === monthlyChartYear)
+      .forEach((booking) => {
+        const dateKey = booking.bookingDate || "";
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+          counts.set(dateKey, (counts.get(dateKey) || 0) + 1);
+        }
+      });
+
+    return counts;
+  }, [analyticsFilteredBookings, monthlyChartYear]);
+
+  const selectedCalendarDateCount = selectedCalendarDate ? (monthlyCalendarBookingCounts.get(selectedCalendarDate) || 0) : 0;
 
   const filteredHistoryBookings = useMemo(() => {
     const search = historySearch.trim().toLowerCase();
@@ -399,26 +426,54 @@ export default function BookingHistoryPage() {
 
           <div className="grid gap-5 lg:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h4 className="text-sm font-semibold text-slate-700">Resource Type Distribution (Pie)</h4>
+              <h4 className="text-sm font-semibold text-slate-700">Resource Type Distribution</h4>
               {resourceTypeChartData.length === 0 ? (
                 <p className="mt-4 text-sm text-slate-500">No data for selected filters.</p>
               ) : (
-                <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-                  <div className="relative h-44 w-44 rounded-full border border-slate-200" style={{ background: pieChartBackground }}>
-                    <div className="absolute inset-10 rounded-full bg-white" />
-                  </div>
-                  <div className="w-full space-y-2">
-                    {pieSegments.map((segment) => (
-                      <div key={segment.type} className="flex items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: segment.color }} />
-                          <span className="font-semibold text-slate-700">{segment.type.replaceAll("_", " ")}</span>
-                        </div>
-                        <span className="text-slate-600">
-                          {segment.count} ({totalTypeCount > 0 ? ((segment.count / totalTypeCount) * 100).toFixed(1) : "0.0"}%)
-                        </span>
-                      </div>
-                    ))}
+                <div className="mt-4">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={resourceTypeChartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="count"
+                      >
+                        {resourceTypeChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={chartPalette[index % chartPalette.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value) => value}
+                        contentStyle={{
+                          backgroundColor: "#fff",
+                          border: "1px solid #ccc",
+                          borderRadius: "6px",
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
+                    {resourceTypeChartData
+                      .sort((a, b) => b.count - a.count)
+                      .map((item, idx) => {
+                        const percentage = totalTypeCount > 0 ? ((item.count / totalTypeCount) * 100) : 0;
+                        return (
+                          <div key={item.type} className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: chartPalette[idx % chartPalette.length] }} />
+                              <span className="font-semibold text-slate-700">{item.type.replaceAll("_", " ")}</span>
+                            </div>
+                            <span className="text-slate-600">
+                              {item.count} ({percentage.toFixed(1)}%)
+                            </span>
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               )}
@@ -428,19 +483,112 @@ export default function BookingHistoryPage() {
               <h4 className="text-sm font-semibold text-slate-700">Monthly Trend ({monthlyChartYear})</h4>
               <div className="mt-4 grid h-52 grid-cols-12 items-end gap-2">
                 {monthlyChartData.map((item) => {
-                  const heightPercent = (item.count / maxMonthlyCount) * 100;
+                  const barHeightPx = item.count > 0
+                    ? Math.max((item.count / maxMonthlyCount) * 136, 8)
+                    : 4;
                   const isSelectedMonth = analyticsMonthFilter !== "ALL" && analyticsMonthFilter === `${item.monthIndex}`.padStart(2, "0");
                   return (
                     <div key={item.month} className="flex flex-col items-center gap-1">
                       <div className="text-[10px] font-semibold text-slate-500">{item.count}</div>
                       <div
                         className={`w-full rounded-t-md ${isSelectedMonth ? "bg-[#0b4a8b]" : "bg-[#6da1d4]"}`}
-                        style={{ height: `${Math.max(heightPercent, item.count > 0 ? 8 : 2)}%` }}
+                        style={{ height: `${barHeightPx}px` }}
                       />
                       <div className="text-[10px] text-slate-500">{item.month}</div>
                     </div>
                   );
                 })}
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-[0_10px_28px_rgba(2,33,71,0.08)]">
+                <div className="rounded-t-2xl border-b border-slate-100 bg-gradient-to-r from-[#002147] via-[#0f3460] to-[#1f4e79] px-4 py-3 text-white">
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-xl bg-white/10 p-2">
+                      <CalendarDays className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Booking Calendar ({monthlyChartYear})</p>
+                      <p className="text-xs text-slate-200">Dates with bookings are highlighted.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentCalendarMonth((month) => addMonths(month, -1))}
+                      className="rounded-full p-2 text-slate-600 transition hover:bg-slate-100"
+                      aria-label="Previous month"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+
+                    <h5 className="text-sm font-semibold text-slate-900">
+                      {format(currentCalendarMonth, "MMMM yyyy")}
+                    </h5>
+
+                    <button
+                      type="button"
+                      onClick={() => setCurrentCalendarMonth((month) => addMonths(month, 1))}
+                      className="rounded-full p-2 text-slate-600 transition hover:bg-slate-100"
+                      aria-label="Next month"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                      <div key={day} className="py-1.5">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-1 grid grid-cols-7 gap-1">
+                    {monthlyCalendarDays.map((day) => {
+                      const dateKey = format(day, "yyyy-MM-dd");
+                      const bookingCount = monthlyCalendarBookingCounts.get(dateKey) || 0;
+                      const isHighlighted = bookingCount > 0;
+                      const isCurrentMonthDay = isSameMonth(day, currentCalendarMonth);
+                      const isSelected = selectedCalendarDate ? isSameDay(day, new Date(selectedCalendarDate)) : false;
+
+                      return (
+                        <button
+                          key={dateKey}
+                          type="button"
+                          onClick={() => setSelectedCalendarDate(dateKey)}
+                          className={`relative flex h-9 w-full items-center justify-center rounded-full text-xs font-semibold transition ${
+                            !isCurrentMonthDay
+                              ? "text-slate-300"
+                              : isSelected
+                                ? "bg-[#002147] text-white shadow-lg shadow-[#002147]/20"
+                                : isHighlighted
+                                  ? "bg-[#dbeafe] text-[#0b4a8b] ring-1 ring-[#60a5fa]/60"
+                                  : "text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          {format(day, "d")}
+                          {isHighlighted && !isSelected && (
+                            <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-[#0b4a8b]" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-slate-700">
+                        {selectedCalendarDate ? format(new Date(selectedCalendarDate), "EEE, MMM d, yyyy") : "Select a date"}
+                      </span>
+                      <span className="rounded-full bg-[#e6eef8] px-2 py-0.5 font-semibold text-[#0b4a8b]">
+                        {selectedCalendarDate ? `${selectedCalendarDateCount} booking(s)` : "No date selected"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

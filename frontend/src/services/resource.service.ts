@@ -53,6 +53,7 @@ const normalizeResource = (resource: ResourceApiModel): Resource => ({
   resourceCode: resource.resourceCode || resource.resource_code || '',
   name: resource.name || '',
   type: resource.type || 'LECTURE_HALL',
+  targetAudience: resource.targetAudience || resource.target_audience || 'BOTH',
   capacity: resource.capacity ?? 0,
   location: resource.location || '',
   description: resource.description || '',
@@ -99,12 +100,6 @@ export const resourceService = {
   getResourcesForAudience: async (audience: 'STUDENT' | 'LECTURER'): Promise<Resource[]> => {
     const response = await api.get<ApiResponse<Resource[]>>(`/resources/client/${audience}`);
     return (response.data.data || []).map((resource) => normalizeResource(resource as unknown as ResourceApiModel));
-  },
-
-  // Get resources visible to a client audience (STUDENT or LECTURER)
-  getResourcesForAudience: async (audience: 'STUDENT' | 'LECTURER'): Promise<Resource[]> => {
-    const response = await api.get<ApiResponse<Resource[]>>(`/resources/client/${audience}`);
-    return response.data.data || [];
   },
 
   // Search resources

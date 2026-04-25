@@ -26,6 +26,19 @@ export const studentProfileService = {
     return response.data.data;
   },
 
+  async uploadProfileImage(studentId: number, imageFile: File): Promise<StudentProfile> {
+    const formData = new FormData();
+    formData.append("image", imageFile);
+
+    const response = await api.put<ApiResponse<StudentProfile>>(`/profile/${studentId}/image`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    return response.data.data;
+  },
+
   async changePassword(studentId: number, payload: ChangePasswordRequest): Promise<void> {
     await api.put<ApiResponse<null>>(`/profile/${studentId}/password`, payload);
   },

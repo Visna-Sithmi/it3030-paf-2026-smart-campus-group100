@@ -12,12 +12,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,6 +25,9 @@ public class ResourceService {
 
     @Value("${image.upload.directory:uploads/resources}")
     private String uploadDirectory;
+
+    // Emergency lock status
+    private boolean globalLock = false;
 
     private static final List<String> VALID_RESOURCE_TYPES = Arrays.asList(
             "LECTURE_HALL",
@@ -41,11 +41,19 @@ public class ResourceService {
             "OTHER"
     );
 
-            private static final List<String> VALID_TARGET_AUDIENCES = Arrays.asList(
-                "STUDENT",
-                "LECTURER",
-                "BOTH"
-            );
+    private static final List<String> VALID_TARGET_AUDIENCES = Arrays.asList(
+            "STUDENT",
+            "LECTURER",
+            "BOTH"
+    );
+
+    // ==================== HELPER METHODS ====================
+
+    public boolean isGloballyLocked() {
+        return globalLock;
+    }
+
+    // ==================== RESOURCE CRUD METHODS ====================
 
     public Resource addResource(ResourceDTO resourceDTO) {
         if (resourceRepository.existsByResourceCode(resourceDTO.getResourceCode())) {
@@ -171,7 +179,6 @@ public class ResourceService {
                 if (resource.getImageUrl() != null && !resource.getImageUrl().isEmpty()) {
                     deleteOldImage(resource.getImageUrl());
                 }
-
                 String imageUrl = saveImage(resourceDTO.getImageFile());
                 resource.setImageUrl(imageUrl);
             } catch (IOException e) {
@@ -183,12 +190,10 @@ public class ResourceService {
 
         if (resourceDTO.getResourceCode() != null && !resourceDTO.getResourceCode().isBlank()) {
             String newCode = resourceDTO.getResourceCode().trim();
-
             if (!resource.getResourceCode().equals(newCode) &&
                     resourceRepository.existsByResourceCode(newCode)) {
                 throw new RuntimeException("Resource code already exists: " + newCode);
             }
-
             resource.setResourceCode(newCode);
         }
 
@@ -285,6 +290,22 @@ public class ResourceService {
         return stats;
     }
 
+    // ==================== EMERGENCY LOCK METHODS ====================
+
+    public void setGlobalLockStatus(boolean locked) {
+        this.globalLock = locked;
+        System.out.println("Global lock status changed to: " + locked);
+    }
+
+    public Map<String, Object> getSystemStatus() {
+        Map<String, Object> status = new HashMap<>();
+        status.put("globalLock", isGloballyLocked());
+        status.put("today", LocalDate.now().toString());
+        return status;
+    }
+
+    // ==================== PRIVATE HELPER METHODS ====================
+
     private String saveImage(MultipartFile file) throws IOException {
         Path uploadPath = Paths.get(uploadDirectory);
         if (!Files.exists(uploadPath)) {
@@ -358,6 +379,8 @@ public class ResourceService {
         dto.setUpdatedAt(resource.getUpdatedAt());
         return dto;
     }
+
+    // ==================== STATISTICS INNER CLASS ====================
 
     public static class ResourceStatistics {
         private long totalResources;

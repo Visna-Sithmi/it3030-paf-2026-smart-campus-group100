@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
 import { studentProfileService } from "../../../services/studentProfileService";
@@ -10,6 +10,8 @@ export default function StudentProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [selectedProfileImageFile, setSelectedProfileImageFile] = useState<File | null>(null);
+  const [profileImagePreview, setProfileImagePreview] = useState<string>("");
 
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -17,6 +19,44 @@ export default function StudentProfilePage() {
 
   const studentIdRaw = localStorage.getItem("id");
   const studentId = studentIdRaw ? Number(studentIdRaw) : 0;
+  const profilePictureInputRef = useRef<HTMLInputElement | null>(null);
+
+  const normalizeGender = (gender?: string | null) => {
+    const lowered = (gender || "").trim().toLowerCase();
+    if (lowered === "male") return "Male";
+    if (lowered === "female") return "Female";
+    return "";
+  };
+
+  const resolveProfileImageSrc = (imageUrl?: string | null) => {
+    if (!imageUrl) return "";
+    if (imageUrl.startsWith("http") || imageUrl.startsWith("data:")) return imageUrl;
+    return `http://localhost:8081${imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`}`;
+  };
+
+  const resolveEffectiveProfileImageSrc = (imageUrl?: string | null) => {
+    const fromProfile = resolveProfileImageSrc(imageUrl);
+    if (fromProfile) return fromProfile;
+
+    const storedProfileImage = localStorage.getItem("profileImageUrl");
+    return resolveProfileImageSrc(storedProfileImage);
+  };
+
+  const dataUrlToFile = (dataUrl: string, filename: string) => {
+    const parts = dataUrl.split(",");
+    if (parts.length !== 2) return null;
+
+    const mimeMatch = parts[0].match(/data:(.*?);base64/);
+    const mime = mimeMatch?.[1] || "image/png";
+    const binary = atob(parts[1]);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    return new File([bytes], filename, { type: mime });
+  };
 
   const loadProfile = async () => {
     if (!studentId) {
@@ -29,7 +69,11 @@ export default function StudentProfilePage() {
       setLoading(true);
       setError("");
       const data = await studentProfileService.getProfile(studentId);
-      setProfile(data);
+      setProfile({
+        ...data,
+        profileImageUrl: data.profileImageUrl || localStorage.getItem("profileImageUrl") || "",
+        gender: normalizeGender(data.gender),
+      });
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || "Failed to load profile");
     } finally {
@@ -45,15 +89,25 @@ export default function StudentProfilePage() {
     const file = e.target.files?.[0];
     if (!file || !profile) return;
 
+    setSelectedProfileImageFile(file);
+
     const reader = new FileReader();
     reader.onloadend = () => {
-      setProfile({ ...profile, profileImageUrl: String(reader.result || "") });
+      setProfileImagePreview(String(reader.result || ""));
+      setSuccess("Image selected. Click Save Profile to confirm.");
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   const updateField = (field: keyof StudentProfile, value: string | number | null) => {
     if (!profile) return;
+
+    if (field === "gender") {
+      setProfile({ ...profile, gender: normalizeGender(typeof value === "string" ? value : null) });
+      return;
+    }
+
     setProfile({ ...profile, [field]: value });
   };
 
@@ -69,7 +123,7 @@ export default function StudentProfilePage() {
       year: profile.year || null,
       semester: profile.semester || null,
       dateOfBirth: profile.dateOfBirth || null,
-      gender: profile.gender || "",
+      gender: normalizeGender(profile.gender) || "",
       profileImageUrl: profile.profileImageUrl || "",
     };
 
@@ -78,12 +132,40 @@ export default function StudentProfilePage() {
       setError("");
       setSuccess("");
 
-      const updated = await studentProfileService.updateProfile(studentId, payload);
-      setProfile(updated);
+      const hasPreviewDataUrl = (profileImagePreview || "").startsWith("data:");
+      let imageFileToUpload: File | null = selectedProfileImageFile;
 
-      localStorage.setItem("studentName", updated.name || "Student");
-      localStorage.setItem("profileImageUrl", updated.profileImageUrl || "");
+      if (!imageFileToUpload && hasPreviewDataUrl) {
+        imageFileToUpload = dataUrlToFile(profileImagePreview || "", `student-${studentId}-profile.png`);
+      }
+
+      if (imageFileToUpload) {
+        const uploadedProfile = await studentProfileService.uploadProfileImage(studentId, imageFileToUpload);
+        setSelectedProfileImageFile(null);
+        setProfileImagePreview("");
+
+        if (uploadedProfile.profileImageUrl) {
+          payload.profileImageUrl = uploadedProfile.profileImageUrl;
+        } else {
+          delete payload.profileImageUrl;
+        }
+      } else if (hasPreviewDataUrl) {
+        delete payload.profileImageUrl;
+      }
+
+      await studentProfileService.updateProfile(studentId, payload);
+      const refreshed = await studentProfileService.getProfile(studentId);
+      const normalizedProfile = {
+        ...refreshed,
+        gender: normalizeGender(refreshed.gender),
+      };
+
+      setProfile(normalizedProfile);
+
+      localStorage.setItem("studentName", normalizedProfile.name || "Student");
+      localStorage.setItem("profileImageUrl", normalizedProfile.profileImageUrl || "");
       window.dispatchEvent(new Event("student-profile-updated"));
+      window.dispatchEvent(new Event("profile-updated"));
 
       setSuccess("Profile updated successfully.");
     } catch (err: any) {
@@ -221,13 +303,39 @@ export default function StudentProfilePage() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Gender</label>
-                    <input
-                      type="text"
-                      value={profile.gender || ""}
-                      onChange={(e) => updateField("gender", e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
-                    />
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-500">Gender</label>
+                    <div className="flex gap-3">
+                      <label className={`flex flex-1 cursor-pointer items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium transition ${
+                        normalizeGender(profile.gender) === "Male"
+                          ? "border-[#002147] bg-[#002147] text-white"
+                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}>
+                        <input
+                          type="radio"
+                          name="gender"
+                          value="Male"
+                          checked={normalizeGender(profile.gender) === "Male"}
+                          onChange={(e) => updateField("gender", e.target.value)}
+                          className="sr-only"
+                        />
+                        Male
+                      </label>
+                      <label className={`flex flex-1 cursor-pointer items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium transition ${
+                        normalizeGender(profile.gender) === "Female"
+                          ? "border-[#002147] bg-[#002147] text-white"
+                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}>
+                        <input
+                          type="radio"
+                          name="gender"
+                          value="Female"
+                          checked={normalizeGender(profile.gender) === "Female"}
+                          onChange={(e) => updateField("gender", e.target.value)}
+                          className="sr-only"
+                        />
+                        Female
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -238,16 +346,6 @@ export default function StudentProfilePage() {
                     value={profile.address || ""}
                     onChange={(e) => updateField("address", e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Profile Picture</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-slate-600"
                   />
                 </div>
 
@@ -266,8 +364,12 @@ export default function StudentProfilePage() {
                 <h3 className="text-base font-bold text-slate-900">Profile Preview</h3>
                 <div className="mt-4 flex flex-col items-center text-center">
                   <div className="h-24 w-24 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
-                    {profile.profileImageUrl ? (
-                      <img src={profile.profileImageUrl} alt="Profile" className="h-full w-full object-cover" />
+                    {(profileImagePreview || resolveEffectiveProfileImageSrc(profile.profileImageUrl)) ? (
+                      <img
+                        src={profileImagePreview || resolveEffectiveProfileImageSrc(profile.profileImageUrl)}
+                        alt="Profile"
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-slate-500">
                         {(profile.name || "S").charAt(0).toUpperCase()}
@@ -276,6 +378,20 @@ export default function StudentProfilePage() {
                   </div>
                   <p className="mt-3 font-semibold text-slate-900">{profile.name}</p>
                   <p className="text-xs text-slate-500">{profile.studentId}</p>
+                  <input
+                    ref={profilePictureInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => profilePictureInputRef.current?.click()}
+                    className="mt-4 rounded-lg border border-[#002147] px-4 py-2 text-sm font-semibold text-[#002147] transition hover:bg-[#002147] hover:text-white"
+                  >
+                    Edit Profile Picture
+                  </button>
                 </div>
               </div>
 

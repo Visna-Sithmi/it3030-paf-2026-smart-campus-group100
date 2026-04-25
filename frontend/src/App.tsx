@@ -7,12 +7,13 @@ import StudentPage from "./app/admin/student/page";
 import ManagerLoginPage from "./app/manager/login/page";
 import BookingDashboard from "./app/manager/bookingDashboard/page";
 import BookingHistoryPage from "./app/manager/bookingHistory/page";
-import ResourceDashboard from "./app/manager/resourceDashboard/page";
+import ResourceDashboard from "./app/manager/resourceDashboard/ResourceDashboard";
 import IssueDashboard from "./app/manager/issueDashboard/page";
 import ResourceCataloguePage from "./app/client/resources/page";
 import ClientLoginPage from "./app/client/login/page";
 import ResourceBookingPage from "./app/client/resourceBooking/page";
 import MyBookingsPage from "./app/client/myBookings/page";
+import StudentProfilePage from "./app/client/profile/page";
 import CreateTicket from "./app/client/tickets/CreateTicket";
 import MyTickets from "./app/client/tickets/MyTickets";
 import TicketDetails from "./app/client/tickets/TicketDetails";
@@ -94,22 +95,6 @@ const IssueManagerRoute = ({ children }: { children: React.ReactNode }) => {
 const ClientUserRoute = ({ children }: { children: React.ReactNode }) => {
   const role = (localStorage.getItem("role") || "").toUpperCase();
   const userId = localStorage.getItem("id") || localStorage.getItem("studentId");
-
-  if (!role || !userId || !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY"].includes(role)) {
-    return <Navigate to="/client/login" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-const TicketViewerRoute = ({ children }: { children: React.ReactNode }) => {
-  const role = (localStorage.getItem("role") || "").toUpperCase();
-  const userId = localStorage.getItem("id") || localStorage.getItem("studentId");
-  const managerUser = localStorage.getItem("user");
-
-  if (role === "ISSUE_MANAGER" && managerUser) {
-    return <>{children}</>;
-  }
 
   if (!role || !userId || !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY"].includes(role)) {
     return <Navigate to="/client/login" replace />;
@@ -222,6 +207,22 @@ function App() {
             </ClientUserRoute>
           }
         />
+        <Route
+          path="/client/profile"
+          element={
+            <ClientUserRoute>
+              <StudentProfilePage />
+            </ClientUserRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ClientUserRoute>
+              <Navigate to="/client/profile" replace />
+            </ClientUserRoute>
+          }
+        />
 
         {/* Redirect unknown routes */}
         <Route path="*" element={<HomeRedirect />} />
@@ -246,9 +247,9 @@ function App() {
         <Route
           path="/ticket/:id"
           element={
-            <TicketViewerRoute>
+            <ClientUserRoute>
               <TicketDetails />
-            </TicketViewerRoute>
+            </ClientUserRoute>
           }
         />
 

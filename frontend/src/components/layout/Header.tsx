@@ -114,51 +114,51 @@ const Header: React.FC = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [location.pathname, isScrolled]);
 
-  useEffect(() => {
-    const handleProfileUpdate = () => syncUserFromStorage();
-    window.addEventListener("profile-updated", handleProfileUpdate);
-    window.addEventListener("student-profile-updated", handleProfileUpdate);
-    window.addEventListener("storage", handleProfileUpdate);
+      useEffect(() => {
+        const handleProfileUpdate = () => syncUserFromStorage();
+        window.addEventListener("profile-updated", handleProfileUpdate);
+        window.addEventListener("student-profile-updated", handleProfileUpdate);
+        window.addEventListener("storage", handleProfileUpdate);
 
-    return () => {
-      window.removeEventListener("profile-updated", handleProfileUpdate);
-      window.removeEventListener("student-profile-updated", handleProfileUpdate);
-      window.removeEventListener("storage", handleProfileUpdate);
-    };
-  }, []);
+        return () => {
+          window.removeEventListener("profile-updated", handleProfileUpdate);
+          window.removeEventListener("student-profile-updated", handleProfileUpdate);
+          window.removeEventListener("storage", handleProfileUpdate);
+        };
+      }, []);
 
-  useEffect(() => {
-    if (!canViewNotifications) {
-      setNotifications([]);
-      return;
-    }
-
-    let isMounted = true;
-
-    const loadNotifications = async () => {
-      try {
-        setNotificationsLoading(true);
-        const data = await getNotifications(currentUserId);
-        if (isMounted) {
-          setNotifications(data);
+      useEffect(() => {
+        if (!canViewNotifications) {
+          setNotifications([]);
+          return;
         }
-      } catch (error) {
-        console.error("Failed to fetch notifications:", error);
-      } finally {
-        if (isMounted) {
-          setNotificationsLoading(false);
-        }
-      }
-    };
 
-    loadNotifications();
-    const intervalId = window.setInterval(loadNotifications, 10000);
+        let isMounted = true;
 
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-    };
-  }, [canViewNotifications, currentUserId]);
+        const loadNotifications = async () => {
+          try {
+            setNotificationsLoading(true);
+            const data = await getNotifications(currentUserId);
+            if (isMounted) {
+              setNotifications(data);
+            }
+          } catch (error) {
+            console.error("Failed to fetch notifications:", error);
+          } finally {
+            if (isMounted) {
+              setNotificationsLoading(false);
+            }
+          }
+        };
+
+        loadNotifications();
+        const intervalId = window.setInterval(loadNotifications, 10000);
+
+        return () => {
+          isMounted = false;
+          window.clearInterval(intervalId);
+        };
+      }, [canViewNotifications, currentUserId]);
 
   const handleMarkNotificationRead = async (notificationId: number) => {
     try {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../../assets/logo.jpeg";
 import { issueManagerProfileService } from "../../../services/issueManagerProfileService";
@@ -80,6 +80,8 @@ const IssueDashboard = () => {
   const [rejectError, setRejectError] = useState("");
   const [rejectSubmitting, setRejectSubmitting] = useState(false);
 
+  const didInitialLoadRef = useRef(false);
+
   const currentRole = (localStorage.getItem("role") || "").toUpperCase();
   const isIssueManager = currentRole === "ISSUE_MANAGER";
   const currentUserId = Number(localStorage.getItem("id") || "0");
@@ -117,18 +119,40 @@ const IssueDashboard = () => {
   };
 
   useEffect(() => {
+    const syncProfileFromStorage = () => {
+      const name = localStorage.getItem("name");
+      const email = localStorage.getItem("email");
+
+      if (name) {
+        setUserName(name);
+      }
+      setUserEmail(email || "");
+    };
+
     const name = localStorage.getItem("name");
-    const email = localStorage.getItem("email");
-    const image = localStorage.getItem("profileImageUrl");
     const role = localStorage.getItem("role");
     if (!name || role !== "ISSUE_MANAGER") {
       navigate("/manager/login");
       return;
     }
-    setUserName(name);
-    setUserEmail(email || "");
-    setProfileImageUrl(image || "");
-    loadData();
+
+    syncProfileFromStorage();
+
+    // Ensure tickets/staff load on initial mount (page refresh),
+    // while guarding against duplicate calls in dev (StrictMode).
+    if (!didInitialLoadRef.current) {
+      didInitialLoadRef.current = true;
+      void loadData();
+    }
+
+    const handleProfileUpdated = () => syncProfileFromStorage();
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    window.addEventListener("storage", handleProfileUpdated);
+
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+      window.removeEventListener("storage", handleProfileUpdated);
+    };
   }, [navigate]);
 
   const stats = useMemo(() => {

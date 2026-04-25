@@ -7,10 +7,18 @@ import com.northbridge.backend.dto.StudentProfileUpdateRequestDTO;
 import com.northbridge.backend.model.Student;
 import com.northbridge.backend.repository.StudentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class StudentAuthService {
@@ -19,6 +27,9 @@ public class StudentAuthService {
 
     @Autowired
     private StudentRepository studentRepository;
+
+    @Value("${student.profile.upload.directory:uploads/student-profiles}")
+    private String profileUploadDirectory;
 
     // Student Login using Student ID and Password
     public StudentLoginResponse login(StudentLoginRequest request) {
@@ -137,7 +148,6 @@ public class StudentAuthService {
             student.setGender(request.getGender().trim());
         }
 
-        // Handle profileImageUrl: only update if explicitly provided and not empty
         if (request.getProfileImageUrl() != null && !request.getProfileImageUrl().isBlank()) {
             student.setProfileImageUrl(request.getProfileImageUrl());
         } else if (request.getProfileImageUrl() != null && request.getProfileImageUrl().isEmpty()) {
@@ -201,6 +211,44 @@ public class StudentAuthService {
 
         student.setPassword(newPassword.trim());
         studentRepository.save(student);
+    }
+
+    public StudentProfileResponseDTO uploadProfileImage(Long id, MultipartFile imageFile) {
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Student not found with ID: " + id));
+
+        if (imageFile == null || imageFile.isEmpty()) {
+            throw new RuntimeException("Profile image file is required");
+        }
+
+        try {
+            if (student.getProfileImageUrl() != null && student.getProfileImageUrl().startsWith("/api/auth/student/profile-images/")) {
+                String previousFilename = student.getProfileImageUrl().substring(student.getProfileImageUrl().lastIndexOf('/') + 1);
+                Path previousPath = Paths.get(profileUploadDirectory).resolve(previousFilename);
+                Files.deleteIfExists(previousPath);
+            }
+
+            Path uploadPath = Paths.get(profileUploadDirectory);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            String originalFilename = imageFile.getOriginalFilename();
+            String extension = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf('.'));
+            }
+
+            String filename = UUID.randomUUID() + extension;
+            Path targetPath = uploadPath.resolve(filename);
+            Files.write(targetPath, imageFile.getBytes());
+
+            student.setProfileImageUrl("/api/auth/student/profile-images/" + filename);
+            Student updated = studentRepository.save(student);
+            return mapToProfileResponse(updated);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to upload profile image: " + ex.getMessage());
+        }
     }
 
     // Check if student account is active

@@ -25,7 +25,7 @@ const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [user, setUser] = useState<{ name: string; studentId?: string; email: string; role: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; studentId?: string; email: string; role: string; profileImageUrl?: string } | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeHover, setActiveHover] = useState<string | null>(null);
   
@@ -39,6 +39,12 @@ const Header: React.FC = () => {
     const storedName = localStorage.getItem("studentName") || localStorage.getItem("user");
     const storedLecturerName = localStorage.getItem("name") || storedName;
     const storedEmail = localStorage.getItem("email");
+    const storedProfileImage = localStorage.getItem("profileImageUrl");
+    const resolvedProfileImage = storedProfileImage
+      ? (storedProfileImage.startsWith("http")
+          ? storedProfileImage
+          : `http://localhost:8081${storedProfileImage.startsWith("/") ? storedProfileImage : `/${storedProfileImage}`}`)
+      : "";
 
     if (storedRole === "STUDENT" && (storedStudentId || storedId)) {
       setUser({
@@ -46,6 +52,7 @@ const Header: React.FC = () => {
         studentId: storedStudentId || storedId || "",
         email: storedEmail || `${storedStudentId || storedId}@northbridge.edu`,
         role: "STUDENT",
+        profileImageUrl: resolvedProfileImage,
       });
       setIsLoggedIn(true);
       return;
@@ -56,6 +63,7 @@ const Header: React.FC = () => {
         name: storedLecturerName || "Lecturer",
         email: storedEmail || "lecturer@northbridge.edu",
         role: "LECTURER",
+        profileImageUrl: resolvedProfileImage,
       });
       setIsLoggedIn(true);
       return;
@@ -115,6 +123,7 @@ const Header: React.FC = () => {
     localStorage.removeItem("name");
     localStorage.removeItem("email");
     localStorage.removeItem("id");
+    localStorage.removeItem("profileImageUrl");
     
     setUser(null);
     setIsLoggedIn(false);
@@ -221,9 +230,17 @@ const Header: React.FC = () => {
                     className="flex items-center gap-3 px-3 py-2 rounded-full hover:bg-white/10 transition-all duration-300 group"
                   >
                     <div className="w-9 h-9 bg-gradient-to-br from-white/20 to-white/10 rounded-full flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 border border-white/20">
-                      <span className="text-white text-sm font-bold">
-                        {user.name.charAt(0).toUpperCase()}
-                      </span>
+                      {user.profileImageUrl ? (
+                        <img
+                          src={user.profileImageUrl}
+                          alt={user.name}
+                          className="h-full w-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-white text-sm font-bold">
+                          {user.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
                     </div>
                     <div className="hidden lg:block text-left">
                       <p className="text-sm font-semibold text-white">{user.name}</p>
@@ -243,9 +260,17 @@ const Header: React.FC = () => {
                       <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-gradient-to-br from-[#002147] to-[#004080] rounded-full flex items-center justify-center shadow-md">
-                            <span className="text-white text-lg font-bold">
-                              {user.name.charAt(0).toUpperCase()}
-                            </span>
+                            {user.profileImageUrl ? (
+                              <img
+                                src={user.profileImageUrl}
+                                alt={user.name}
+                                className="h-full w-full rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-white text-lg font-bold">
+                                {user.name.charAt(0).toUpperCase()}
+                              </span>
+                            )}
                           </div>
                           <div>
                             <p className="font-semibold text-slate-800">{user.name}</p>

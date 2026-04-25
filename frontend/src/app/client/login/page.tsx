@@ -104,6 +104,7 @@ export default function ClientLoginPage() {
       localStorage.setItem("name", response.name || "Student");
       localStorage.setItem("id", response.id ? String(response.id) : (response.studentId || ""));
       localStorage.setItem("email", response.email || "");
+      localStorage.setItem("profileImageUrl", response.profileImageUrl || "");
 
       setSuccessMessage("Student login successful");
       navigate("/client/resources");

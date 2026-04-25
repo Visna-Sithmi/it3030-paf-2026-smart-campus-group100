@@ -133,6 +133,7 @@ public class ResourceService {
     public List<ResourceDTO> getResourcesForAudience(String audience) {
         String normalizedAudience = normalizeClientAudience(audience);
         List<Resource> resources = resourceRepository.findByTargetAudienceIn(Arrays.asList(normalizedAudience, "BOTH"));
+
         return resources.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());

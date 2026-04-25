@@ -4,11 +4,12 @@ import Sidebar from "../components/Sidebar";
 import { managerService } from "../../../services/managerService";
 import type { Manager } from "../../../types/manager";
 
-const managerRoles = [
+type ManagerRole = "RESOURCE_MANAGER" | "BOOKING_MANAGER" | "ISSUE_MANAGER";
+
+const managerRoles: ManagerRole[] = [
   "RESOURCE_MANAGER",
   "BOOKING_MANAGER",
   "ISSUE_MANAGER",
-  "LECTURER",
 ];
 
 const emptyForm: Manager = {
@@ -18,11 +19,14 @@ const emptyForm: Manager = {
   role: "RESOURCE_MANAGER",
 };
 
+const roleLabel = (role: string) => role.replaceAll("_", " ");
+
 export default function ManagerPage() {
   const [managers, setManagers] = useState<Manager[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [activeRole, setActiveRole] = useState<"ALL" | ManagerRole>("ALL");
 
   const [showModal, setShowModal] = useState(false);
   const [editingManager, setEditingManager] = useState<Manager | null>(null);
@@ -33,8 +37,12 @@ export default function ManagerPage() {
     try {
       setLoading(true);
       setError("");
-      const data = await managerService.getAllManagers();
-      setManagers(data);
+
+      const managerLists = await Promise.all(
+        managerRoles.map((role) => managerService.getManagersByRole(role))
+      );
+
+      setManagers(managerLists.flat());
     } catch (err: any) {
       setError(err.message || "Failed to load managers");
     } finally {
@@ -50,24 +58,27 @@ export default function ManagerPage() {
     const term = search.toLowerCase();
 
     return managers.filter((manager) => {
+      const matchesRole = activeRole === "ALL" || manager.role === activeRole;
+
       return (
-        manager.name.toLowerCase().includes(term) ||
-        manager.email.toLowerCase().includes(term) ||
-        manager.role.toLowerCase().includes(term) ||
-        String(manager.id ?? "").includes(term)
+        matchesRole &&
+        (manager.name.toLowerCase().includes(term) ||
+          manager.email.toLowerCase().includes(term) ||
+          manager.role.toLowerCase().includes(term) ||
+          String(manager.id ?? "").includes(term))
       );
     });
-  }, [managers, search]);
+  }, [managers, search, activeRole]);
 
-  const totalManagers = managers.length;
-  const resourceCount = managers.filter(
-    (m) => m.role === "RESOURCE_MANAGER"
-  ).length;
-  const bookingCount = managers.filter(
-    (m) => m.role === "BOOKING_MANAGER"
-  ).length;
-  const issueCount = managers.filter((m) => m.role === "ISSUE_MANAGER").length;
-  const lecturerCount = managers.filter((m) => m.role === "LECTURER").length;
+  const counts = useMemo(() => {
+    return managerRoles.reduce(
+      (acc, role) => {
+        acc[role] = managers.filter((manager) => manager.role === role).length;
+        return acc;
+      },
+      { RESOURCE_MANAGER: 0, BOOKING_MANAGER: 0, ISSUE_MANAGER: 0 } as Record<ManagerRole, number>
+    );
+  }, [managers]);
 
   const openAddModal = () => {
     setEditingManager(null);
@@ -82,7 +93,7 @@ export default function ManagerPage() {
       name: manager.name,
       email: manager.email,
       password: "",
-      role: manager.role,
+      role: manager.role as ManagerRole,
     });
     setShowModal(true);
   };
@@ -123,7 +134,10 @@ export default function ManagerPage() {
 
         await managerService.updateManager(editingManager.id, payload);
       } else {
-        await managerService.addManager(formData);
+        await managerService.addManager({
+          ...formData,
+          role: formData.role as ManagerRole,
+        });
       }
 
       closeModal();
@@ -138,10 +152,7 @@ export default function ManagerPage() {
   const handleDelete = async (id?: number) => {
     if (!id) return;
 
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this manager?"
-    );
-
+    const confirmed = window.confirm("Are you sure you want to delete this manager account?");
     if (!confirmed) return;
 
     try {
@@ -149,12 +160,8 @@ export default function ManagerPage() {
       await managerService.deleteManager(id);
       await fetchManagers();
     } catch (err: any) {
-      setError(err.message || "Failed to delete manager");
+      setError(err.message || "Failed to delete manager account");
     }
-  };
-
-  const formatRole = (role: string) => {
-    return role.replaceAll("_", " ");
   };
 
   return (
@@ -167,7 +174,6 @@ export default function ManagerPage() {
         <main className="p-8">
           <div className="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
-
               <h1 className="text-4xl font-bold tracking-tight text-slate-900">
                 Manager Administration
               </h1>
@@ -181,7 +187,7 @@ export default function ManagerPage() {
               onClick={openAddModal}
               className="rounded-lg bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow transition hover:bg-slate-800"
             >
-              + Register New Manager
+              + Add Manager
             </button>
           </div>
 
@@ -191,62 +197,50 @@ export default function ManagerPage() {
             </div>
           )}
 
-          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Total Managers
-              </p>
-              <h3 className="mt-2 text-3xl font-bold text-slate-900">
-                {totalManagers}
-              </h3>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Resource Managers
-              </p>
-              <h3 className="mt-2 text-3xl font-bold text-slate-900">
-                {resourceCount}
-              </h3>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Booking Managers
-              </p>
-              <h3 className="mt-2 text-3xl font-bold text-slate-900">
-                {bookingCount}
-              </h3>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Issue Managers
-              </p>
-              <h3 className="mt-2 text-3xl font-bold text-slate-900">
-                {issueCount}
-              </h3>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Lecturers
-              </p>
-              <h3 className="mt-2 text-3xl font-bold text-slate-900">
-                {lecturerCount}
-              </h3>
-            </div>
+          {/* Stats Cards - Clickable role filters */}
+          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+            {managerRoles.map((role) => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => setActiveRole(activeRole === role ? "ALL" : role)}
+                className={`rounded-2xl border px-6 py-5 text-left shadow-sm transition ${
+                  activeRole === role
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-900 hover:border-slate-300"
+                }`}
+              >
+                <p className={`text-xs font-semibold uppercase tracking-widest ${activeRole === role ? "text-white/70" : "text-slate-500"}`}>
+                  {roleLabel(role)}
+                </p>
+                <h3 className="mt-2 text-3xl font-bold">{counts[role]}</h3>
+              </button>
+            ))}
           </div>
 
+          {/* Manager Table */}
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 md:flex-row md:items-center md:justify-between">
-              <h2 className="text-xl font-bold text-slate-900">
-                Institutional Registry
-              </h2>
+              <div className="flex flex-wrap gap-2">
+                {(["ALL", ...managerRoles] as const).map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => setActiveRole(role)}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      activeRole === role
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {role === "ALL" ? "All Managers" : roleLabel(role)}
+                  </button>
+                ))}
+              </div>
 
               <input
                 type="text"
-                placeholder="Search by id, name, email or role..."
+                placeholder="Search by name, email or role..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none focus:border-slate-900 md:w-80"
@@ -256,33 +250,31 @@ export default function ManagerPage() {
             {loading ? (
               <div className="p-6 text-sm text-slate-500">Loading managers...</div>
             ) : filteredManagers.length === 0 ? (
-              <div className="p-6 text-sm text-slate-500">No managers found.</div>
+              <div className="p-6 text-center text-sm text-slate-500">
+                No managers found.
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left">
                   <thead className="bg-slate-50">
                     <tr>
-
                       <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">
-                        Name
+                        NAME
                       </th>
                       <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">
-                        Email
+                        EMAIL
                       </th>
                       <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">
-                        Role
+                        ROLE
                       </th>
-                    
                       <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-slate-500">
-                        Actions
+                        ACTIONS
                       </th>
                     </tr>
                   </thead>
-
                   <tbody className="divide-y divide-slate-100">
                     {filteredManagers.map((manager) => (
                       <tr key={manager.id} className="hover:bg-slate-50">
-                    
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
                           {manager.name}
                         </td>
@@ -290,9 +282,8 @@ export default function ManagerPage() {
                           {manager.email}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
-                          {formatRole(manager.role)}
+                          {roleLabel(manager.role)}
                         </td>
-
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
                             <button
@@ -317,22 +308,20 @@ export default function ManagerPage() {
             )}
 
             <div className="border-t border-slate-200 bg-slate-50 px-6 py-4 text-sm text-slate-500">
-              Showing {filteredManagers.length} manager(s)
+              Showing {filteredManagers.length} manager account(s)
             </div>
           </div>
         </main>
       </div>
 
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl">
             <div className="border-b border-slate-200 px-6 py-4">
               <h3 className="text-xl font-bold text-slate-900">
-                {editingManager ? "Update Manager" : "Register New Manager"}
+                {editingManager ? "Update Manager" : "Add Manager"}
               </h3>
-              <p className="mt-1 text-sm text-slate-500">
-                Fill the form below and save the manager details.
-              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 px-6 py-6">
@@ -366,20 +355,6 @@ export default function ManagerPage() {
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Password {editingManager ? "(Leave blank if no change)" : ""}
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password || ""}
-                  onChange={handleChange}
-                  required={!editingManager}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
                   Role
                 </label>
                 <select
@@ -391,31 +366,40 @@ export default function ManagerPage() {
                 >
                   {managerRoles.map((role) => (
                     <option key={role} value={role}>
-                      {formatRole(role)}
+                      {roleLabel(role)}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Password {editingManager ? "(leave blank to keep current)" : ""}
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password || ""}
+                  onChange={handleChange}
+                  required={!editingManager}
+                  className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-900"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   Cancel
                 </button>
-
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
                 >
-                  {submitting
-                    ? "Saving..."
-                    : editingManager
-                    ? "Update Manager"
-                    : "Add Manager"}
+                  {submitting ? "Saving..." : "Save Manager"}
                 </button>
               </div>
             </form>

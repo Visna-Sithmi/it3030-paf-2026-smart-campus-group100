@@ -36,11 +36,15 @@ const LoginPage = () => {
 
       if (data.success) {
         if (data.role === "ADMIN") {
+          // Store complete user info in localStorage
           localStorage.setItem("user", JSON.stringify(data));
           localStorage.setItem("role", data.role || "");
           localStorage.setItem("name", data.name || "");
           localStorage.setItem("email", data.email || "");
           localStorage.setItem("id", data.id?.toString() || "");
+          localStorage.setItem("adminName", data.name || "Admin User");
+          localStorage.setItem("adminEmail", data.email || "");
+          localStorage.setItem("adminRole", "Chancellor Administrator");
 
           setSuccessMessage(data.message || "Login successful");
           

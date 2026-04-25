@@ -31,6 +31,8 @@ interface ResourceApi {
   resource_code?: string;
   name: string;
   type: string;
+  targetAudience?: 'STUDENT' | 'LECTURER' | 'BOTH' | string;
+  target_audience?: 'STUDENT' | 'LECTURER' | 'BOTH' | string;
   capacity: number;
   location: string;
   description: string;
@@ -56,6 +58,7 @@ interface Resource {
   resourceCode: string;
   name: string;
   type: string;
+  targetAudience: 'STUDENT' | 'LECTURER' | 'BOTH';
   capacity: number;
   location: string;
   description: string;
@@ -131,6 +134,8 @@ const DEFAULT_RESOURCE_TYPES = [
   'AUDITORIUM',
   'OTHER',
 ];
+
+const RESOURCE_AUDIENCE_OPTIONS = ['STUDENT', 'LECTURER', 'BOTH'];
 
 const DEFAULT_AVAILABILITY_CONFIG: AvailabilityConfig = {
   mode: 'FIXED_DAILY',
@@ -316,6 +321,7 @@ const ResourceDashboard: React.FC = () => {
     resourceCode: '',
     name: '',
     type: 'LECTURE_HALL',
+    targetAudience: 'BOTH' as 'STUDENT' | 'LECTURER' | 'BOTH',
     capacity: 0,
     location: '',
     description: '',
@@ -484,6 +490,7 @@ const ResourceDashboard: React.FC = () => {
       resourceCode: resource.resourceCode || resource.resource_code || '',
       name: resource.name || '',
       type: resource.type || 'LECTURE_HALL',
+      targetAudience: (resource.targetAudience || resource.target_audience || 'BOTH') as 'STUDENT' | 'LECTURER' | 'BOTH',
       capacity: resource.capacity ?? 0,
       location: resource.location || '',
       description: resource.description || '',
@@ -587,6 +594,7 @@ const ResourceDashboard: React.FC = () => {
       resourceCode: '',
       name: '',
       type: 'LECTURE_HALL',
+      targetAudience: 'BOTH',
       capacity: 0,
       location: '',
       description: '',
@@ -722,6 +730,7 @@ const ResourceDashboard: React.FC = () => {
         resource_code: formData.resourceCode,
         name: formData.name,
         type: formData.type,
+        targetAudience: formData.targetAudience,
         capacity: formData.type === 'EQUIPMENT' ? null : formData.capacity,
         location: formData.location,
         description: formData.description,
@@ -777,6 +786,7 @@ const ResourceDashboard: React.FC = () => {
         resource_code: formData.resourceCode,
         name: formData.name,
         type: formData.type,
+        targetAudience: formData.targetAudience,
         capacity: formData.type === 'EQUIPMENT' ? null : formData.capacity,
         location: formData.location,
         description: formData.description,
@@ -858,6 +868,7 @@ const ResourceDashboard: React.FC = () => {
       resourceCode: resource.resourceCode || '',
       name: resource.name || '',
       type: resource.type || 'LECTURE_HALL',
+      targetAudience: resource.targetAudience || 'BOTH',
       capacity: resource.capacity || 0,
       location: resource.location || '',
       description: resource.description || '',
@@ -1400,6 +1411,9 @@ const ResourceDashboard: React.FC = () => {
                       <p className="resource-meta">
                         {resource.resourceCode} • {formatTypeLabel(resource.type)}
                       </p>
+                      <p className="resource-meta" style={{ marginTop: '2px', color: '#002147' }}>
+                        For: {resource.targetAudience}
+                      </p>
                       <h3 className="resource-name">{resource.name}</h3>
                     </div>
 
@@ -1594,6 +1608,23 @@ const ResourceDashboard: React.FC = () => {
                     {DEFAULT_RESOURCE_TYPES.map((type) => (
                       <option key={type} value={type}>
                         {formatTypeLabel(type)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="form-label">Visible To *</label>
+                  <select
+                    name="targetAudience"
+                    value={formData.targetAudience}
+                    onChange={handleFormChange}
+                    required
+                    className="input-field"
+                  >
+                    {RESOURCE_AUDIENCE_OPTIONS.map((audience) => (
+                      <option key={audience} value={audience}>
+                        {audience}
                       </option>
                     ))}
                   </select>
@@ -1802,6 +1833,23 @@ const ResourceDashboard: React.FC = () => {
                   </select>
                 </div>
 
+                <div>
+                  <label className="form-label">Visible To *</label>
+                  <select
+                    name="targetAudience"
+                    value={formData.targetAudience}
+                    onChange={handleFormChange}
+                    required
+                    className="input-field"
+                  >
+                    {RESOURCE_AUDIENCE_OPTIONS.map((audience) => (
+                      <option key={audience} value={audience}>
+                        {audience}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {formData.type !== 'EQUIPMENT' && (
                   <div>
                     <label className="form-label">Capacity *</label>
@@ -1947,6 +1995,9 @@ const ResourceDashboard: React.FC = () => {
                   <p className="details-meta">
                     {selectedResource.resourceCode} • {formatTypeLabel(selectedResource.type)}
                   </p>
+                  <p className="details-meta" style={{ marginTop: '2px', color: '#002147' }}>
+                    For: {selectedResource.targetAudience}
+                  </p>
                   <h3 className="details-name">{selectedResource.name}</h3>
 
                   <div className="details-badges">
@@ -1980,6 +2031,11 @@ const ResourceDashboard: React.FC = () => {
                 <div className="details-card">
                   <label className="detail-label">Resource Type</label>
                   <p className="detail-value">{formatTypeLabel(selectedResource.type)}</p>
+                </div>
+
+                <div className="details-card">
+                  <label className="detail-label">Visible To</label>
+                  <p className="detail-value">{selectedResource.targetAudience}</p>
                 </div>
 
                 <div className="details-card">

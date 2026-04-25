@@ -1,35 +1,20 @@
 package com.northbridge.backend.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.northbridge.backend.dto.ApiResponse;
 import com.northbridge.backend.dto.ResourceDTO;
-import com.northbridge.backend.model.Holiday;
 import com.northbridge.backend.model.Resource;
 import com.northbridge.backend.service.ResourceService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
 
 @RestController
-@RequestMapping("/api/resource-manager")
-@CrossOrigin(
-        origins = "http://localhost:5173",
-        allowedHeaders = "*",
-        methods = {
-                RequestMethod.GET,
-                RequestMethod.POST,
-                RequestMethod.PUT,
-                RequestMethod.DELETE,
-                RequestMethod.OPTIONS
-        }
-)
+@RequestMapping("/api/resource-manager/resources")
+@CrossOrigin(origins = "http://localhost:5173")
 public class ResourceController {
 
     @Autowired
@@ -37,10 +22,8 @@ public class ResourceController {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // ==================== RESOURCE MANAGEMENT ENDPOINTS ====================
-
-    // 1. ADD RESOURCE - POST
-    @PostMapping(value = "/resources/add", consumes = {"multipart/form-data"})
+    // 1. ADD RESOURCE - POST (FIXED VERSION)
+    @PostMapping(value = "/add", consumes = {"multipart/form-data"})
     public ResponseEntity<ApiResponse> addResource(
             @RequestParam("resource") String resourceJson,
             @RequestParam(value = "image", required = false) MultipartFile imageFile) {
@@ -48,6 +31,7 @@ public class ResourceController {
             System.out.println("=== DEBUGGING ADD RESOURCE ===");
             System.out.println("Received JSON: " + resourceJson);
 
+            // Parse JSON string to ResourceDTO
             ResourceDTO resourceDTO = objectMapper.readValue(resourceJson, ResourceDTO.class);
 
             System.out.println("Resource Code: " + resourceDTO.getResourceCode());
@@ -77,7 +61,7 @@ public class ResourceController {
     }
 
     // 2. GET ALL RESOURCES - GET
-    @GetMapping("/resources/all")
+    @GetMapping("/all")
     public ResponseEntity<ApiResponse> getAllResources() {
         try {
             List<ResourceDTO> resources = resourceService.getAllResources();
@@ -90,7 +74,7 @@ public class ResourceController {
     }
 
     // 3. GET RESOURCE BY ID - GET
-    @GetMapping("/resources/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<ApiResponse> getResourceById(@PathVariable Long id) {
         try {
             ResourceDTO resource = resourceService.getResourceById(id);
@@ -103,7 +87,7 @@ public class ResourceController {
     }
 
     // 4. GET RESOURCE BY CODE - GET
-    @GetMapping("/resources/code/{resourceCode}")
+    @GetMapping("/code/{resourceCode}")
     public ResponseEntity<ApiResponse> getResourceByCode(@PathVariable String resourceCode) {
         try {
             ResourceDTO resource = resourceService.getResourceByCode(resourceCode);
@@ -116,7 +100,7 @@ public class ResourceController {
     }
 
     // 5. GET RESOURCES BY TYPE - GET
-    @GetMapping("/resources/type/{type}")
+    @GetMapping("/type/{type}")
     public ResponseEntity<ApiResponse> getResourcesByType(@PathVariable String type) {
         try {
             List<ResourceDTO> resources = resourceService.getResourcesByType(type);
@@ -132,7 +116,7 @@ public class ResourceController {
     }
 
     // 6. GET AVAILABLE RESOURCES - GET
-    @GetMapping("/resources/available")
+    @GetMapping("/available")
     public ResponseEntity<ApiResponse> getAvailableResources() {
         try {
             List<ResourceDTO> resources = resourceService.getAvailableResources();
@@ -144,8 +128,23 @@ public class ResourceController {
         }
     }
 
+    @GetMapping("/client/{audience}")
+    public ResponseEntity<ApiResponse> getResourcesForAudience(@PathVariable String audience) {
+        try {
+            List<ResourceDTO> resources = resourceService.getResourcesForAudience(audience);
+            ApiResponse response = new ApiResponse(true, "Audience resources retrieved successfully", resources);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            ApiResponse response = new ApiResponse(false, e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            ApiResponse response = new ApiResponse(false, "Error fetching resources: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
     // 7. GET ALL RESOURCE TYPES - GET
-    @GetMapping("/resources/types")
+    @GetMapping("/types")
     public ResponseEntity<ApiResponse> getAllResourceTypes() {
         try {
             List<String> types = resourceService.getAllResourceTypes();
@@ -158,7 +157,7 @@ public class ResourceController {
     }
 
     // 8. SEARCH RESOURCES BY NAME - GET
-    @GetMapping("/resources/search")
+    @GetMapping("/search")
     public ResponseEntity<ApiResponse> searchResources(@RequestParam String name) {
         try {
             List<ResourceDTO> resources = resourceService.searchResourcesByName(name);
@@ -171,7 +170,7 @@ public class ResourceController {
     }
 
     // 9. FILTER RESOURCES - GET
-    @GetMapping("/resources/filter")
+    @GetMapping("/filter")
     public ResponseEntity<ApiResponse> filterResources(
             @RequestParam(required = false) String type,
             @RequestParam(required = false) Integer minCapacity,
@@ -186,8 +185,8 @@ public class ResourceController {
         }
     }
 
-    // 10. UPDATE RESOURCE - PUT
-    @PutMapping(value = "/resources/update/{id}", consumes = {"multipart/form-data"})
+    // 10. UPDATE RESOURCE - PUT (UPDATED with image upload support)
+    @PutMapping(value = "/update/{id}", consumes = {"multipart/form-data"})
     public ResponseEntity<ApiResponse> updateResource(
             @PathVariable Long id,
             @RequestParam("resource") String resourceJson,
@@ -197,6 +196,7 @@ public class ResourceController {
             System.out.println("Updating resource ID: " + id);
             System.out.println("Received JSON: " + resourceJson);
 
+            // Parse JSON string to ResourceDTO
             ResourceDTO resourceDTO = objectMapper.readValue(resourceJson, ResourceDTO.class);
 
             if (imageFile != null && !imageFile.isEmpty()) {
@@ -217,7 +217,7 @@ public class ResourceController {
     }
 
     // 11. UPDATE RESOURCE STATUS - PUT
-    @PutMapping("/resources/status/{id}")
+    @PutMapping("/status/{id}")
     public ResponseEntity<ApiResponse> updateResourceStatus(@PathVariable Long id, @RequestParam String status) {
         try {
             ResourceDTO updatedResource = resourceService.updateResourceStatus(id, status);
@@ -230,7 +230,7 @@ public class ResourceController {
     }
 
     // 12. DELETE RESOURCE - DELETE
-    @DeleteMapping("/resources/delete/{id}")
+    @DeleteMapping("/delete/{id}")
     public ResponseEntity<ApiResponse> deleteResource(@PathVariable Long id) {
         try {
             resourceService.deleteResource(id);
@@ -243,7 +243,7 @@ public class ResourceController {
     }
 
     // 13. GET STATISTICS - GET
-    @GetMapping("/resources/statistics")
+    @GetMapping("/statistics")
     public ResponseEntity<ApiResponse> getStatistics() {
         try {
             ResourceService.ResourceStatistics stats = resourceService.getStatistics();
@@ -251,133 +251,6 @@ public class ResourceController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             ApiResponse response = new ApiResponse(false, "Error fetching statistics: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-
-    // ==================== HOLIDAY MANAGEMENT ENDPOINTS ====================
-
-    // 14. ADD HOLIDAY - POST
-    @PostMapping("/holidays/add")
-    public ResponseEntity<ApiResponse> addHoliday(@RequestBody Map<String, Object> holidayData) {
-        try {
-            System.out.println("=== ADDING HOLIDAY ===");
-            System.out.println("Received data: " + holidayData);
-
-            String holidayName = (String) holidayData.get("holidayName");
-            String holidayDateStr = (String) holidayData.get("holidayDate");
-            String description = (String) holidayData.get("description");
-
-            System.out.println("Holiday Name: " + holidayName);
-            System.out.println("Holiday Date String: " + holidayDateStr);
-
-            if (holidayName == null || holidayName.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(new ApiResponse(false, "Holiday name is required"));
-            }
-            if (holidayDateStr == null || holidayDateStr.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(new ApiResponse(false, "Holiday date is required"));
-            }
-
-            LocalDate holidayDate;
-            try {
-                holidayDate = LocalDate.parse(holidayDateStr);
-            } catch (Exception e) {
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-                holidayDate = LocalDate.parse(holidayDateStr, formatter);
-            }
-
-            System.out.println("Parsed Date: " + holidayDate);
-
-            Holiday holiday = new Holiday();
-            holiday.setHolidayName(holidayName);
-            holiday.setHolidayDate(holidayDate);
-            holiday.setDescription(description != null ? description : "");
-            holiday.setClosed(true);
-
-            Holiday newHoliday = resourceService.addHoliday(holiday);
-            System.out.println("Holiday saved with ID: " + newHoliday.getId());
-
-            ApiResponse response = new ApiResponse(true, "Holiday added successfully", newHoliday);
-            return ResponseEntity.ok(response);
-
-        } catch (RuntimeException e) {
-            System.err.println("Runtime error: " + e.getMessage());
-            ApiResponse response = new ApiResponse(false, e.getMessage());
-            return ResponseEntity.badRequest().body(response);
-        } catch (Exception e) {
-            System.err.println("Unexpected error: " + e.getMessage());
-            e.printStackTrace();
-            ApiResponse response = new ApiResponse(false, "Error adding holiday: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-
-    // 15. GET ALL HOLIDAYS - GET
-    @GetMapping("/holidays/all")
-    public ResponseEntity<ApiResponse> getAllHolidays() {
-        try {
-            List<Holiday> holidays = resourceService.getAllHolidays();
-            ApiResponse response = new ApiResponse(true, "Holidays retrieved successfully", holidays);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ApiResponse response = new ApiResponse(false, "Error fetching holidays: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-
-    // 16. DELETE HOLIDAY - DELETE
-    @DeleteMapping("/holidays/delete/{id}")
-    public ResponseEntity<ApiResponse> deleteHoliday(@PathVariable Long id) {
-        try {
-            resourceService.deleteHoliday(id);
-            ApiResponse response = new ApiResponse(true, "Holiday deleted successfully");
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            ApiResponse response = new ApiResponse(false, e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        } catch (Exception e) {
-            ApiResponse response = new ApiResponse(false, "Error deleting holiday: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-
-    // ==================== EMERGENCY LOCK ENDPOINTS ====================
-
-    // 17. ENABLE GLOBAL LOCK - PUT
-    @PutMapping("/lock/enable")
-    public ResponseEntity<ApiResponse> enableGlobalLock() {
-        try {
-            resourceService.setGlobalLockStatus(true);
-            ApiResponse response = new ApiResponse(true, "🔒 EMERGENCY LOCK: All resources have been disabled");
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ApiResponse response = new ApiResponse(false, "Error enabling lock: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-
-    // 18. DISABLE GLOBAL LOCK - PUT
-    @PutMapping("/lock/disable")
-    public ResponseEntity<ApiResponse> disableGlobalLock() {
-        try {
-            resourceService.setGlobalLockStatus(false);
-            ApiResponse response = new ApiResponse(true, "🔓 Global lock disabled: Resources are now available");
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ApiResponse response = new ApiResponse(false, "Error disabling lock: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-
-    // 19. GET SYSTEM STATUS - GET
-    @GetMapping("/system/status")
-    public ResponseEntity<ApiResponse> getSystemStatus() {
-        try {
-            Map<String, Object> status = resourceService.getSystemStatus();
-            ApiResponse response = new ApiResponse(true, "System status retrieved successfully", status);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ApiResponse response = new ApiResponse(false, "Error fetching system status: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }

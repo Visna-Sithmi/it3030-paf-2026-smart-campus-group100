@@ -6,6 +6,7 @@ import Footer from "../../../components/layout/Footer";
 import { resourceService } from "../../../services/resource.service";
 import { bookingService } from "../../../services/bookingService";
 import { MeetingScheduler } from "../../../components/ui/meeting-scheduler";
+import { Checkbox } from "../../../components/ui/checkbox";
 import { WaitlistCard } from "../../../components/ui/card-6";
 import type { Resource } from "../../../types/resource.types";
 import type { BookingSlotDTO } from "../../../types/booking";
@@ -151,6 +152,7 @@ export default function ResourceBookingPage() {
   const [success, setSuccess] = useState("");
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(5);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const resourceId = state.resourceId;
 
@@ -304,6 +306,11 @@ export default function ResourceBookingPage() {
       return;
     }
 
+    if (!agreedToTerms) {
+      setError("Please agree to the resource usage terms before confirming the booking.");
+      return;
+    }
+
     if (!startTime || !endTime) {
       setError("Please select an available time slot.");
       return;
@@ -334,6 +341,7 @@ export default function ResourceBookingPage() {
       setSuccess("Booking request submitted successfully. Status is PENDING.");
       setShowSuccessPopup(true);
       setPurpose("");
+      setAgreedToTerms(false);
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || "Failed to submit booking request");
     } finally {
@@ -565,13 +573,27 @@ export default function ResourceBookingPage() {
                 </div>
               </div>
 
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 ring-1 ring-slate-200">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="resource-agreement"
+                    checked={agreedToTerms}
+                    onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+                    className="mt-1"
+                  />
+                  <label htmlFor="resource-agreement" className="text-sm leading-6 text-slate-700">
+                    I agree to use the resource correctly, maintain it properly, and follow the booking rules. I understand that I may be responsible for any damage or misuse caused during my booking.
+                  </label>
+                </div>
+              </div>
+
               <div className="flex flex-wrap gap-3 border-t border-slate-200 pt-4">
                 <button
                   type="submit"
-                  disabled={submitting || !resourceId}
+                  disabled={submitting || !resourceId || !agreedToTerms}
                   className="rounded-full bg-[#002147] px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#001733] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {submitting ? "Submitting..." : "Submit Booking Request"}
+                  {submitting ? "Submitting..." : "Confirm Booking Request"}
                 </button>
 
                 <button

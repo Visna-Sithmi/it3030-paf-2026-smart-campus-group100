@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { CheckCircle2, RefreshCw, XCircle } from "lucide-react";
 import logo from "../../../assets/logo.jpeg";
 import { bookingService } from "../../../services/bookingService";
 import type { BookingResponseDTO } from "../../../types/booking";
@@ -7,6 +9,60 @@ import { managerProfileService } from "../../../services/managerProfileService";
 import type { ManagerProfile } from "../../../types/managerProfile";
 import { resourceService } from "../../../services/resource.service";
 import type { Resource } from "../../../types/resource.types";
+
+type RejectReasonKey = "RESOURCE_ALREADY_BOOKED" | "TIME_NOT_SUITABLE" | "CAPACITY_LIMIT" | "INCOMPLETE_DETAILS" | "OTHER";
+
+const REJECT_REASON_OPTIONS: Array<{
+  key: RejectReasonKey;
+  label: string;
+  note: string;
+}> = [
+  {
+    key: "RESOURCE_ALREADY_BOOKED",
+    label: "Resource already booked",
+    note: "Your booking request was rejected because the resource is already booked for the selected time.",
+  },
+  {
+    key: "TIME_NOT_SUITABLE",
+    label: "Time not suitable",
+    note: "Your booking request was rejected because the requested time is not suitable for this resource.",
+  },
+  {
+    key: "CAPACITY_LIMIT",
+    label: "Capacity limit exceeded",
+    note: "Your booking request was rejected because the expected attendees exceed the resource capacity.",
+  },
+  {
+    key: "INCOMPLETE_DETAILS",
+    label: "Incomplete details",
+    note: "Your booking request was rejected because the booking details are incomplete or need clarification.",
+  },
+  {
+    key: "OTHER",
+    label: "Other",
+    note: "",
+  },
+];
+
+const APPROVAL_NOTE_TEMPLATE = "Your booking request is confirmed.";
+
+const getStoredManagerId = () => {
+  const directId = localStorage.getItem("id");
+  if (directId && Number(directId) > 0) {
+    return Number(directId);
+  }
+
+  const rawUser = localStorage.getItem("user");
+  if (!rawUser) return 0;
+
+  try {
+    const parsed = JSON.parse(rawUser);
+    const fromUser = Number(parsed?.id || 0);
+    return fromUser > 0 ? fromUser : 0;
+  } catch {
+    return 0;
+  }
+};
 
 const BookingDashboard = () => {
   const navigate = useNavigate();
@@ -18,7 +74,8 @@ const BookingDashboard = () => {
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
+  const [selectedRejectReason, setSelectedRejectReason] = useState<RejectReasonKey | "">("");
+  const [otherRejectReason, setOtherRejectReason] = useState("");
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profile, setProfile] = useState<ManagerProfile | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -98,8 +155,7 @@ const BookingDashboard = () => {
     setUserEmail(email || "");
 
     const profileImageUrl = localStorage.getItem("profileImageUrl");
-    const idRaw = localStorage.getItem("id");
-    const id = idRaw ? Number(idRaw) : 0;
+    const id = getStoredManagerId();
     setProfile({
       id,
       name,
@@ -134,8 +190,16 @@ const BookingDashboard = () => {
     setShowProfileModal(true);
     setProfileError("");
 
-    const idRaw = localStorage.getItem("id");
-    const managerId = idRaw ? Number(idRaw) : 0;
+    // Prefill modal from locally available values first for fast UX.
+    setProfile((prev) => ({
+      id: prev?.id || getStoredManagerId(),
+      name: prev?.name || localStorage.getItem("name") || "",
+      email: prev?.email || localStorage.getItem("email") || "",
+      role: prev?.role || localStorage.getItem("role") || "BOOKING_MANAGER",
+      profileImageUrl: prev?.profileImageUrl || localStorage.getItem("profileImageUrl") || null,
+    }));
+
+    const managerId = getStoredManagerId();
 
     if (!managerId) {
       setProfileError("Manager session not found. Please login again.");
@@ -175,6 +239,13 @@ const BookingDashboard = () => {
     e.preventDefault();
     if (!profile) return;
 
+    const managerId = profile.id || getStoredManagerId();
+
+    if (!managerId) {
+      setProfileError("Manager session not found. Please login again.");
+      return;
+    }
+
     if (!profile.name?.trim()) {
       setProfileError("Name is required.");
       return;
@@ -184,7 +255,7 @@ const BookingDashboard = () => {
       setProfileSaving(true);
       setProfileError("");
 
-      const updated = await managerProfileService.updateProfile(profile.id, {
+      const updated = await managerProfileService.updateProfile(managerId, {
         name: profile.name.trim(),
         profileImageUrl: profile.profileImageUrl || null,
       });
@@ -194,6 +265,7 @@ const BookingDashboard = () => {
       setUserEmail(updated.email || "");
       localStorage.setItem("name", updated.name || "");
       localStorage.setItem("email", updated.email || "");
+      localStorage.setItem("id", String(updated.id || managerId));
       localStorage.setItem("profileImageUrl", updated.profileImageUrl || "");
       localStorage.setItem("user", JSON.stringify({
         ...(JSON.parse(localStorage.getItem("user") || "{}")),
@@ -201,6 +273,7 @@ const BookingDashboard = () => {
         email: updated.email,
         profileImageUrl: updated.profileImageUrl || null,
       }));
+      window.dispatchEvent(new Event("profile-updated"));
       closeProfileModal();
     } catch (err: any) {
       setProfileError(err?.response?.data?.message || err.message || "Failed to update profile");
@@ -223,28 +296,43 @@ const BookingDashboard = () => {
 
   const openRejectModal = (bookingId: number) => {
     setSelectedBookingId(bookingId);
-    setRejectReason("");
+    setSelectedRejectReason("");
+    setOtherRejectReason("");
     setShowRejectModal(true);
   };
 
   const closeRejectModal = () => {
     setShowRejectModal(false);
     setSelectedBookingId(null);
-    setRejectReason("");
+    setSelectedRejectReason("");
+    setOtherRejectReason("");
   };
 
   const handleReject = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedBookingId) return;
-    if (!rejectReason.trim()) {
-      setError("Reject reason is required.");
+    if (!selectedRejectReason) {
+      setError("Please select a rejection reason.");
+      return;
+    }
+
+    const selectedReason = REJECT_REASON_OPTIONS.find((option) => option.key === selectedRejectReason);
+    const rejectionNote =
+      selectedRejectReason === "OTHER"
+        ? otherRejectReason.trim()
+          ? `Your booking request was rejected because ${otherRejectReason.trim()}.`
+          : ""
+        : selectedReason?.note || "";
+
+    if (!rejectionNote) {
+      setError("Please provide the rejection reason details.");
       return;
     }
 
     try {
       setActionLoadingId(selectedBookingId);
-      await bookingService.rejectBooking(selectedBookingId, rejectReason.trim());
+      await bookingService.rejectBooking(selectedBookingId, rejectionNote);
       closeRejectModal();
       await fetchBookings();
     } catch (err: any) {
@@ -292,6 +380,16 @@ const BookingDashboard = () => {
     }
     return map;
   }, [allResources, availableResources]);
+
+  const getResourceImageUrl = (resource?: Resource) => {
+    if (!resource?.imageUrl) return null;
+    return resource.imageUrl.startsWith("http") ? resource.imageUrl : `http://localhost:8081${resource.imageUrl}`;
+  };
+
+  const formatResourceType = (value?: string | null) => {
+    if (!value) return "N/A";
+    return value.replaceAll("_", " ");
+  };
 
   useEffect(() => {
     if (heroIndex >= upcomingApprovedBookings.length) {
@@ -601,18 +699,30 @@ const BookingDashboard = () => {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white p-6 shadow-md">
-          <div className="mb-4 space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold text-[#002147]">Booking Requests</h3>
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+          <div className="border-b border-slate-200 bg-gradient-to-r from-[#002147] via-[#0f3460] to-[#163a63] px-6 py-5 text-white">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-sky-100/90">
+                  <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.25em]">Pending approvals</span>
+                  <span className="text-xs uppercase tracking-[0.3em] text-sky-200/80">Booking Requests</span>
+                </div>
+                <h3 className="mt-2 text-2xl font-bold">Review requests with resource previews</h3>
+                <p className="mt-2 max-w-2xl text-sm text-slate-200">
+                  Each booking card includes the resource image, booking metadata, and animated approve/reject actions for quicker decisions.
+                </p>
+              </div>
               <button
                 onClick={() => fetchBookings()}
-                className="rounded-lg border border-[#002147] px-3 py-1.5 text-xs font-semibold text-[#002147] transition hover:bg-slate-100"
+                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white backdrop-blur transition hover:bg-white/20"
               >
+                <RefreshCw className="h-4 w-4" />
                 Refresh
               </button>
             </div>
+          </div>
 
+          <div className="p-6">
             <div className="grid gap-3 md:grid-cols-3">
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Search Bookings</label>
@@ -621,7 +731,7 @@ const BookingDashboard = () => {
                   value={bookingSearch}
                   onChange={(e) => setBookingSearch(e.target.value)}
                   placeholder="Resource, code, requester, purpose"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                  className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-[#002147] focus:bg-white"
                 />
               </div>
 
@@ -631,7 +741,7 @@ const BookingDashboard = () => {
                   type="date"
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                  className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-[#002147] focus:bg-white"
                 />
               </div>
 
@@ -640,7 +750,7 @@ const BookingDashboard = () => {
                 <select
                   value={resourceTypeFilter}
                   onChange={(e) => setResourceTypeFilter(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                  className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-[#002147] focus:bg-white"
                 >
                   <option value="ALL">All Resource Types</option>
                   {pendingResourceTypeOptions.map((type) => (
@@ -652,7 +762,7 @@ const BookingDashboard = () => {
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
               <p>Showing {filteredPendingBookings.length} pending request(s)</p>
               <button
                 type="button"
@@ -661,84 +771,172 @@ const BookingDashboard = () => {
                   setDateFilter("");
                   setResourceTypeFilter("ALL");
                 }}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="rounded-full border border-slate-300 px-3 py-1.5 font-semibold text-slate-700 transition hover:bg-white"
               >
                 Clear Filters
               </button>
             </div>
-          </div>
 
-          {loading ? (
-            <p className="text-sm text-slate-500">Loading booking data...</p>
-          ) : filteredPendingBookings.length === 0 ? (
-            <p className="text-sm text-slate-500">No pending booking requests. Actioned items are moved to Booking History.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold text-slate-600">Resource</th>
-                    <th className="px-4 py-3 font-semibold text-slate-600">Requester</th>
-                    <th className="px-4 py-3 font-semibold text-slate-600">Date</th>
-                    <th className="px-4 py-3 font-semibold text-slate-600">Time</th>
-                    <th className="px-4 py-3 font-semibold text-slate-600">Status</th>
-                    <th className="px-4 py-3 font-semibold text-slate-600">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredPendingBookings.map((booking) => (
-                    <tr key={booking.bookingId}>
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-slate-800">{booking.resourceName}</p>
-                        <p className="text-xs text-slate-500">{booking.resourceCode}</p>
-                        <p className="text-xs text-slate-500">{(booking.resourceType || "N/A").replaceAll("_", " ")}</p>
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">{booking.requestedByName}</td>
-                      <td className="px-4 py-3 text-slate-700">{booking.bookingDate}</td>
-                      <td className="px-4 py-3 text-slate-700">{booking.startTime} - {booking.endTime}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            booking.status === "PENDING"
-                              ? "bg-amber-100 text-amber-800"
-                              : booking.status === "APPROVED"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : booking.status === "REJECTED"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-slate-200 text-slate-700"
-                          }`}
-                        >
-                          {booking.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {booking.status === "PENDING" ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleApprove(booking.bookingId)}
-                              disabled={actionLoadingId === booking.bookingId}
-                              className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => openRejectModal(booking.bookingId)}
-                              disabled={actionLoadingId === booking.bookingId}
-                              className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
-                            >
-                              Reject
-                            </button>
+            {loading ? (
+              <p className="pt-6 text-sm text-slate-500">Loading booking data...</p>
+            ) : filteredPendingBookings.length === 0 ? (
+              <p className="pt-6 text-sm text-slate-500">No pending booking requests. Actioned items are moved to Booking History.</p>
+            ) : (
+              <div className="mt-5 grid gap-5">
+                <AnimatePresence mode="popLayout">
+                  {filteredPendingBookings.map((booking) => {
+                    const resource = resourceById.get(booking.resourceId);
+                    const imageUrl = resource ? getResourceImageUrl(resource) : null;
+                    const loadingThisCard = actionLoadingId === booking.bookingId;
+
+                    return (
+                      <motion.article
+                        key={booking.bookingId}
+                        layout
+                        initial={{ opacity: 0, y: 18, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: -24, scale: 0.97 }}
+                        transition={{ duration: 0.25, ease: "easeOut" }}
+                        whileHover={{ y: -4 }}
+                        className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]"
+                      >
+                        <div className="grid gap-0 lg:grid-cols-[300px_1fr]">
+                          <div className="relative min-h-[260px] bg-slate-900">
+                            {imageUrl ? (
+                              <img src={imageUrl} alt={booking.resourceName} className="absolute inset-0 h-full w-full object-cover" />
+                            ) : (
+                              <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-[#002147] via-[#123b63] to-[#375b86] px-6 text-center text-white">
+                                <div>
+                                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-2xl font-bold backdrop-blur">
+                                    {(booking.resourceName || booking.resourceCode || "R").slice(0, 2).toUpperCase()}
+                                  </div>
+                                  <p className="mt-4 text-sm uppercase tracking-[0.35em] text-sky-100/80">No image available</p>
+                                  <p className="mt-2 text-lg font-semibold">{formatResourceType(booking.resourceType)}</p>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent" />
+                            <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-sky-100/90">Resource</p>
+                              <h4 className="mt-1 text-2xl font-bold leading-tight">{booking.resourceName}</h4>
+                              <p className="mt-1 text-sm text-slate-100/90">{booking.resourceCode}</p>
+                              <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.22em]">
+                                <span className={`rounded-full px-2.5 py-1 ${booking.status === "PENDING" ? "bg-amber-400/20 text-amber-100" : "bg-white/10 text-white"}`}>
+                                  {booking.status}
+                                </span>
+                                <span className="rounded-full bg-white/10 px-2.5 py-1 text-white">
+                                  {booking.resourceType ? formatResourceType(booking.resourceType) : "Unknown Type"}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">Completed</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+
+                          <div className="p-5 sm:p-6">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">Booking details</p>
+                                <p className="mt-2 text-sm text-slate-600">
+                                  Requested by <span className="font-semibold text-slate-800">{booking.requestedByName}</span> · {booking.requestedByRole}
+                                </p>
+                              </div>
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                  booking.status === "PENDING"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : booking.status === "APPROVED"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : booking.status === "REJECTED"
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-slate-200 text-slate-700"
+                                }`}
+                              >
+                                {booking.status}
+                              </span>
+                            </div>
+
+                            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">Date</p>
+                                <p className="mt-1 text-sm font-semibold text-slate-900">{formatDate(booking.bookingDate)}</p>
+                              </div>
+                              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">Time</p>
+                                <p className="mt-1 text-sm font-semibold text-slate-900">{booking.startTime} - {booking.endTime}</p>
+                              </div>
+                              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">Requester</p>
+                                <p className="mt-1 text-sm font-semibold text-slate-900">{booking.requestedByName}</p>
+                              </div>
+                              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">Purpose</p>
+                                <p className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900">{booking.purpose || "No purpose provided."}</p>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+                              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Admin note</p>
+                                <p className="mt-2 text-sm leading-6 text-slate-700">{booking.adminReason || "No admin note yet."}</p>
+                              </div>
+
+                              <div className="rounded-2xl border border-dashed border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Actions</p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {booking.status === "PENDING" ? (
+                                    <>
+                                      <motion.button
+                                        type="button"
+                                        onClick={() => handleApprove(booking.bookingId)}
+                                        disabled={loadingThisCard}
+                                        whileTap={{ scale: 0.96 }}
+                                        whileHover={{ scale: 1.02 }}
+                                        className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                                      >
+                                        {loadingThisCard ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                                        {loadingThisCard ? "Approving..." : "Approve"}
+                                      </motion.button>
+                                      <motion.button
+                                        type="button"
+                                        onClick={() => openRejectModal(booking.bookingId)}
+                                        disabled={loadingThisCard}
+                                        whileTap={{ scale: 0.96 }}
+                                        whileHover={{ scale: 1.02 }}
+                                        className="inline-flex items-center gap-2 rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-70"
+                                      >
+                                        {loadingThisCard ? <RefreshCw className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                                        {loadingThisCard ? "Rejecting..." : "Reject"}
+                                      </motion.button>
+                                    </>
+                                  ) : (
+                                    <span className="text-xs font-medium uppercase tracking-[0.25em] text-slate-400">Completed</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {loadingThisCard && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="absolute inset-0 bg-white/60 backdrop-blur-[1px]"
+                              >
+                                <div className="flex h-full items-center justify-center">
+                                  <div className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-md">
+                                    Processing booking action...
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.article>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mt-8 rounded-xl bg-white p-6 shadow-md">
@@ -831,26 +1029,85 @@ const BookingDashboard = () => {
         </div>
       </main>
 
+      <AnimatePresence>
       {showRejectModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+        <motion.div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="w-full max-w-lg rounded-3xl bg-white shadow-2xl"
+            initial={{ y: 20, opacity: 0, scale: 0.96 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 12, opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+          >
             <div className="border-b border-slate-200 px-6 py-4">
               <h3 className="text-lg font-bold text-slate-900">Reject Booking</h3>
               <p className="mt-1 text-sm text-slate-500">Provide a reason for rejection.</p>
             </div>
 
             <form onSubmit={handleReject} className="p-6">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Rejection Reason
-              </label>
-              <textarea
-                rows={4}
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
-                placeholder="Reason for rejection"
-                required
-              />
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  Rejection Reason
+                </p>
+
+                <div className="grid gap-2">
+                  {REJECT_REASON_OPTIONS.map((option) => {
+                    const isSelected = selectedRejectReason === option.key;
+                    return (
+                      <label
+                        key={option.key}
+                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${
+                          isSelected
+                            ? "border-[#002147] bg-[#002147]/5"
+                            : "border-slate-200 bg-slate-50 hover:border-slate-300"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="rejectReason"
+                          value={option.key}
+                          checked={isSelected}
+                          onChange={() => setSelectedRejectReason(option.key)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-slate-900">{option.label}</p>
+                          {option.note && <p className="mt-1 text-xs leading-5 text-slate-500">{option.note}</p>}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {selectedRejectReason === "OTHER" && (
+                  <textarea
+                    rows={4}
+                    value={otherRejectReason}
+                    onChange={(e) => setOtherRejectReason(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                    placeholder="Write the custom rejection note"
+                    required
+                  />
+                )}
+
+                {selectedRejectReason && (
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-slate-700">
+                    <span className="font-semibold uppercase tracking-widest text-sky-700">Preview note</span>
+                    <p className="mt-2 leading-6">
+                      {selectedRejectReason === "OTHER"
+                        ? otherRejectReason.trim()
+                          ? `Your booking request was rejected because ${otherRejectReason.trim()}.`
+                          : "Your booking request was rejected because ..."
+                        : REJECT_REASON_OPTIONS.find((option) => option.key === selectedRejectReason)?.note}
+                    </p>
+                  </div>
+                )}
+              </div>
 
               <div className="mt-5 flex justify-end gap-3">
                 <button
@@ -862,20 +1119,33 @@ const BookingDashboard = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={!rejectReason.trim()}
+                  disabled={!selectedRejectReason || (selectedRejectReason === "OTHER" && !otherRejectReason.trim())}
                   className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                 >
                   Reject Booking
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
+      <AnimatePresence>
       {showProfileModal && (
-        <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+        <motion.div
+          className="fixed inset-0 z-[75] flex items-center justify-center bg-black/40 p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="w-full max-w-md rounded-2xl bg-white shadow-2xl"
+            initial={{ y: 18, opacity: 0, scale: 0.97 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 10, opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+          >
             <div className="border-b border-slate-200 px-6 py-4">
               <h3 className="text-lg font-bold text-slate-900">Manager Profile</h3>
               <p className="mt-1 text-sm text-slate-500">Update your profile details</p>
@@ -952,9 +1222,10 @@ const BookingDashboard = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       <footer className="mt-8 border-t border-white/10 bg-[#002147] px-6 py-4 text-white">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 md:flex-row">

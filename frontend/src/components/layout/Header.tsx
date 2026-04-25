@@ -32,8 +32,7 @@ const Header: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => {
-    // Check if user is logged in as STUDENT or LECTURER
+  const syncUserFromStorage = () => {
     const storedRole = localStorage.getItem("role");
     const storedStudentId = localStorage.getItem("studentId");
     const storedId = localStorage.getItem("id");
@@ -49,14 +48,20 @@ const Header: React.FC = () => {
         role: "STUDENT",
       });
       setIsLoggedIn(true);
-    } else if (storedRole === "LECTURER" && (storedEmail || storedLecturerName || storedId)) {
+      return;
+    }
+
+    if (storedRole === "LECTURER" && (storedEmail || storedLecturerName || storedId)) {
       setUser({
         name: storedLecturerName || "Lecturer",
         email: storedEmail || "lecturer@northbridge.edu",
         role: "LECTURER",
       });
       setIsLoggedIn(true);
-    } else if (
+      return;
+    }
+
+    if (
       (storedRole === "TECHNICIAN" || storedRole === "CLEANER" || storedRole === "SECURITY") &&
       (storedEmail || storedLecturerName || storedId)
     ) {
@@ -66,10 +71,16 @@ const Header: React.FC = () => {
         role: storedRole,
       });
       setIsLoggedIn(true);
-    } else {
-      setUser(null);
-      setIsLoggedIn(false);
+      return;
     }
+
+    setUser(null);
+    setIsLoggedIn(false);
+  };
+
+  useEffect(() => {
+    syncUserFromStorage();
+
     // Handle scroll effect with JavaScript animation
     const handleScroll = () => {
       const scrolled = window.scrollY > 10;
@@ -81,6 +92,19 @@ const Header: React.FC = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [location.pathname, isScrolled]);
+
+      useEffect(() => {
+        const handleProfileUpdate = () => syncUserFromStorage();
+        window.addEventListener("profile-updated", handleProfileUpdate);
+        window.addEventListener("student-profile-updated", handleProfileUpdate);
+        window.addEventListener("storage", handleProfileUpdate);
+
+        return () => {
+          window.removeEventListener("profile-updated", handleProfileUpdate);
+          window.removeEventListener("student-profile-updated", handleProfileUpdate);
+          window.removeEventListener("storage", handleProfileUpdate);
+        };
+      }, []);
 
   const handleLogout = () => {
     // Clear all student-related localStorage items
@@ -235,7 +259,7 @@ const Header: React.FC = () => {
                         </div>
                       </div>
                       <div className="py-2">
-                        <Link to="/profile" className="flex items-center gap-3 px-5 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                        <Link to="/client/profile" className="flex items-center gap-3 px-5 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                           <User size={16} /> My Profile
                         </Link>
                         <Link to="/my-bookings" className="flex items-center gap-3 px-5 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">

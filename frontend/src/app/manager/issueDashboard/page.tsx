@@ -65,18 +65,33 @@ const IssueDashboard = () => {
   };
 
   useEffect(() => {
+    const syncProfileFromStorage = () => {
+      const name = localStorage.getItem("name");
+      const email = localStorage.getItem("email");
+
+      if (name) {
+        setUserName(name);
+      }
+      setUserEmail(email || "");
+    };
+
     const name = localStorage.getItem("name");
-    const email = localStorage.getItem("email");
-    const image = localStorage.getItem("profileImageUrl");
     const role = localStorage.getItem("role");
     if (!name || role !== "ISSUE_MANAGER") {
       navigate("/manager/login");
       return;
     }
-    setUserName(name);
-    setUserEmail(email || "");
-    setProfileImageUrl(image || "");
-    loadData();
+
+    syncProfileFromStorage();
+
+    const handleProfileUpdated = () => syncProfileFromStorage();
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    window.addEventListener("storage", handleProfileUpdated);
+
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+      window.removeEventListener("storage", handleProfileUpdated);
+    };
   }, [navigate]);
 
   const stats = useMemo(() => {

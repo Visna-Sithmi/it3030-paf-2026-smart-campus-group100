@@ -23,8 +23,24 @@ export default function BookingHistoryPage() {
   const [analyticsResourceTypeFilter, setAnalyticsResourceTypeFilter] = useState("ALL");
   const [analyticsFromDate, setAnalyticsFromDate] = useState("");
   const [analyticsToDate, setAnalyticsToDate] = useState("");
+  const [userName, setUserName] = useState(localStorage.getItem("name") || "Booking Manager");
 
-  const userName = localStorage.getItem("name") || "Booking Manager";
+  useEffect(() => {
+    const syncProfileFromStorage = () => {
+      setUserName(localStorage.getItem("name") || "Booking Manager");
+    };
+
+    syncProfileFromStorage();
+
+    const handleProfileUpdated = () => syncProfileFromStorage();
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    window.addEventListener("storage", handleProfileUpdated);
+
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+      window.removeEventListener("storage", handleProfileUpdated);
+    };
+  }, []);
 
   const fetchBookings = async () => {
     try {

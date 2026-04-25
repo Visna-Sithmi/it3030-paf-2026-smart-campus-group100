@@ -33,15 +33,18 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final ResourceRepository resourceRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public BookingServiceImpl(
             BookingRepository bookingRepository,
             ResourceRepository resourceRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            NotificationService notificationService
     ) {
         this.bookingRepository = bookingRepository;
         this.resourceRepository = resourceRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -168,7 +171,15 @@ public class BookingServiceImpl implements BookingService {
         booking.setApprovedOrRejectedBy(bookingManager);
         booking.setDecisionAt(LocalDateTime.now());
 
-        return toResponse(bookingRepository.save(booking));
+        Booking savedBooking = bookingRepository.save(booking);
+        notificationService.createNotification(
+                savedBooking.getRequestedBy().getId(),
+                "Your booking request for " + savedBooking.getResource().getName() + " on "
+                        + savedBooking.getBookingDate() + " has been approved.",
+                "BOOKING",
+                savedBooking.getBookingId()
+        );
+        return toResponse(savedBooking);
     }
 
     @Override
@@ -191,7 +202,15 @@ public class BookingServiceImpl implements BookingService {
         booking.setApprovedOrRejectedBy(bookingManager);
         booking.setDecisionAt(LocalDateTime.now());
 
-        return toResponse(bookingRepository.save(booking));
+        Booking savedBooking = bookingRepository.save(booking);
+        notificationService.createNotification(
+                savedBooking.getRequestedBy().getId(),
+                "Your booking request for " + savedBooking.getResource().getName() + " on "
+                        + savedBooking.getBookingDate() + " was rejected. Reason: " + savedBooking.getAdminReason(),
+                "BOOKING",
+                savedBooking.getBookingId()
+        );
+        return toResponse(savedBooking);
     }
 
     @Override

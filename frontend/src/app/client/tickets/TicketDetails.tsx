@@ -66,15 +66,15 @@ export default function TicketDetails() {
 
   const loadTicket = useCallback(async () => {
     const res = await getTicketById(Number(id));
-    const ticketData = res.data;
+    const ticketData = (res.data || {}) as any;
     setTicket({
       ...ticketData,
       resourceId:
         ticketData.resourceId != null && ticketData.resourceId !== ""
           ? String(ticketData.resourceId)
           : undefined,
-      preferredContact: ticketData.preferredContact || "",
-      createdAt: ticketData.createdAt || "",
+      preferredContact: String(ticketData.preferredContact || ""),
+      createdAt: String(ticketData.createdAt || ""),
     });
   }, [id]);
 
@@ -263,6 +263,8 @@ export default function TicketDetails() {
         return <CheckCircle2 className="w-5 h-5" />;
       case "CLOSED":
         return <CheckCircle2 className="w-5 h-5" />;
+      case "REJECTED":
+        return <AlertCircle className="w-5 h-5" />;
       default:
         return <AlertCircle className="w-5 h-5" />;
     }

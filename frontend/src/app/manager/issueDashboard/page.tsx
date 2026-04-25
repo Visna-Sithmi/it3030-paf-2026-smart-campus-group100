@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../../../assets/logo.jpeg";
 import { issueManagerProfileService } from "../../../services/issueManagerProfileService";
+import RejectTicketModal from "../../../components/modals/RejectTicketModal";
 import {
   addResolutionNotes,
   assignStaff,
+  downloadTicketReport,
   getAllTickets,
   getAssignableStaff,
   updateTicketStatus,
@@ -32,6 +34,22 @@ type Staff = {
   email: string;
 };
 
+function toErrorMessage(err: unknown): string {
+  const e = err as { response?: { data?: unknown }; message?: string } | null;
+  const data = e?.response?.data;
+  if (!data) return e?.message || "Request failed";
+  if (typeof data === "string") return data;
+  if (typeof data === "object" && data && "message" in data) {
+    const msg = (data as { message?: unknown }).message;
+    if (typeof msg === "string") return msg;
+  }
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return "Request failed";
+  }
+}
+
 const IssueDashboard = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
@@ -44,11 +62,45 @@ const IssueDashboard = () => {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [priorityFilter, setPriorityFilter] = useState("ALL");
+  const [assignedToFilter, setAssignedToFilter] = useState("ALL");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState("");
   const [assignments, setAssignments] = useState<Record<number, string>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
-  const [rejectReasons, setRejectReasons] = useState<Record<number, string>>({});
+
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectTicketId, setRejectTicketId] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectError, setRejectError] = useState("");
+  const [rejectSubmitting, setRejectSubmitting] = useState(false);
+
+  const currentRole = (localStorage.getItem("role") || "").toUpperCase();
+  const isIssueManager = currentRole === "ISSUE_MANAGER";
+  const currentUserId = Number(localStorage.getItem("id") || "0");
+
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    window.setTimeout(() => setToast(null), 3000);
+  };
+
+  const getNextManagerStatus = (current: string): string | null => {
+    switch (current) {
+      case "OPEN":
+        return "IN_PROGRESS";
+      case "IN_PROGRESS":
+        return "RESOLVED";
+      case "RESOLVED":
+        return "CLOSED";
+      default:
+        return null;
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -57,8 +109,8 @@ const IssueDashboard = () => {
       const [ticketsRes, staffRes] = await Promise.all([getAllTickets(), getAssignableStaff()]);
       setTickets(ticketsRes.data || []);
       setStaff(staffRes.data || []);
-    } catch (e: any) {
-      setError(e?.response?.data || "Failed to load issue dashboard data");
+    } catch (e: unknown) {
+      setError(toErrorMessage(e) || "Failed to load issue dashboard data");
     } finally {
       setLoading(false);
     }
@@ -95,9 +147,16 @@ const IssueDashboard = () => {
       const text = `${ticket.id} ${ticket.category} ${ticket.description} ${ticket.createdByName}`.toLowerCase();
       const searchOk = text.includes(query.toLowerCase());
       const statusOk = statusFilter === "ALL" || ticket.status === statusFilter;
-      return searchOk && statusOk;
+      const priorityOk = priorityFilter === "ALL" || String(ticket.priority || "").toUpperCase() === priorityFilter;
+      const assignedOk =
+        assignedToFilter === "ALL" || String(ticket.assignedToId || "") === String(assignedToFilter || "");
+      const created = ticket.createdAt ? new Date(ticket.createdAt) : null;
+      const fromOk = !fromDate || (created ? created >= new Date(`${fromDate}T00:00:00`) : true);
+      const toOk = !toDate || (created ? created <= new Date(`${toDate}T23:59:59`) : true);
+
+      return searchOk && statusOk && priorityOk && assignedOk && fromOk && toOk;
     });
-  }, [tickets, query, statusFilter]);
+  }, [tickets, query, statusFilter, priorityFilter, assignedToFilter, fromDate, toDate]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -120,8 +179,8 @@ const IssueDashboard = () => {
       localStorage.setItem("name", latestProfile.name || "");
       localStorage.setItem("email", latestProfile.email || "");
       localStorage.setItem("profileImageUrl", latestProfile.profileImageUrl || "");
-    } catch (e: any) {
-      setProfileError(e?.response?.data?.message || e?.message || "Failed to load profile");
+    } catch (e: unknown) {
+      setProfileError(toErrorMessage(e) || "Failed to load profile");
     }
   };
 
@@ -157,24 +216,70 @@ const IssueDashboard = () => {
       localStorage.setItem("email", updated.email || "");
       localStorage.setItem("profileImageUrl", updated.profileImageUrl || "");
       setShowProfileModal(false);
-    } catch (e: any) {
-      setProfileError(e?.response?.data?.message || e?.message || "Failed to update profile");
+    } catch (e: unknown) {
+      setProfileError(toErrorMessage(e) || "Failed to update profile");
     } finally {
       setProfileSaving(false);
     }
   };
 
   const updateStatusForTicket = async (ticketId: number, status: string) => {
-    const reason = rejectReasons[ticketId]?.trim();
-    if (status === "REJECTED" && !reason) {
-      setError("Rejection reason is required to reject a ticket.");
+    try {
+      await updateTicketStatus(ticketId, status);
+      await loadData();
+    } catch (e: unknown) {
+      setError(toErrorMessage(e) || "Failed to update ticket status");
+    }
+  };
+
+  const openRejectModal = (ticketId: number) => {
+    if (!isIssueManager) return;
+    setRejectOpen(true);
+    setRejectTicketId(ticketId);
+    setRejectReason("");
+    setRejectError("");
+  };
+
+  const closeRejectModal = () => {
+    setRejectOpen(false);
+    setRejectTicketId(null);
+    setRejectReason("");
+    setRejectError("");
+    setRejectSubmitting(false);
+  };
+
+  const submitReject = async () => {
+    if (!isIssueManager) return;
+    if (!rejectTicketId) return;
+
+    const reason = rejectReason.trim();
+    if (!reason) {
+      setRejectError("Reject reason is required.");
       return;
     }
+
+    if (!Number.isFinite(currentUserId) || currentUserId <= 0) {
+      setRejectError("Your session is missing userId. Please login again.");
+      return;
+    }
+
     try {
-      await updateTicketStatus(ticketId, status, reason);
-      await loadData();
-    } catch (e: any) {
-      setError(e?.response?.data || "Failed to update ticket status");
+      setRejectSubmitting(true);
+      setRejectError("");
+      await updateTicketStatus(rejectTicketId, "REJECTED", reason);
+
+      setTickets((prev) =>
+        prev.map((t) => (t.id === rejectTicketId ? { ...t, status: "REJECTED", rejectionReason: reason } : t))
+      );
+
+      showToast("success", "Ticket rejected.");
+      closeRejectModal();
+    } catch (e: unknown) {
+      const msg = toErrorMessage(e) || "Failed to reject ticket";
+      setRejectError(msg);
+      showToast("error", msg);
+    } finally {
+      setRejectSubmitting(false);
     }
   };
 
@@ -184,8 +289,8 @@ const IssueDashboard = () => {
     try {
       await assignStaff(ticketId, Number(selected));
       await loadData();
-    } catch (e: any) {
-      setError(e?.response?.data || "Failed to assign staff");
+    } catch (e: unknown) {
+      setError(toErrorMessage(e) || "Failed to assign staff");
     }
   };
 
@@ -198,8 +303,31 @@ const IssueDashboard = () => {
     try {
       await addResolutionNotes(ticketId, value);
       await loadData();
-    } catch (e: any) {
-      setError(e?.response?.data || "Failed to save resolution notes");
+    } catch (e: unknown) {
+      setError(toErrorMessage(e) || "Failed to save resolution notes");
+    }
+  };
+
+  const downloadReport = async () => {
+    if (!isIssueManager) return;
+    try {
+      setReportLoading(true);
+      setReportError("");
+      await downloadTicketReport({
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
+        status: statusFilter,
+        priority: priorityFilter,
+        assignedTo: assignedToFilter,
+        search: query,
+      });
+      showToast("success", "Report download started.");
+    } catch (e: unknown) {
+      const msg = toErrorMessage(e) || "Failed to download report";
+      setReportError(msg);
+      showToast("error", msg);
+    } finally {
+      setReportLoading(false);
     }
   };
 
@@ -239,13 +367,35 @@ const IssueDashboard = () => {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-6 grid gap-4 md:grid-cols-6">
+        {/* Toast */}
+        {toast && (
+          <div className="fixed right-4 top-6 z-80 w-[calc(100%-2rem)] max-w-sm">
+            <div
+              className={`rounded-xl border px-4 py-3 shadow-lg ${
+                toast.type === "success"
+                  ? "border-green-200 bg-green-50 text-green-800"
+                  : "border-red-200 bg-red-50 text-red-800"
+              }`}
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-semibold">{toast.message}</p>
+                <button className="rounded-md p-1 hover:bg-black/5" onClick={() => setToast(null)} aria-label="Close notification">
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mb-6 grid gap-4 md:grid-cols-7">
           <div className="rounded-xl bg-white p-4 shadow">Total: {stats.total}</div>
           <div className="rounded-xl bg-white p-4 shadow">Open: {stats.open}</div>
           <div className="rounded-xl bg-white p-4 shadow">In Progress: {stats.inProgress}</div>
           <div className="rounded-xl bg-white p-4 shadow">Resolved: {stats.resolved}</div>
-          <div className="rounded-xl bg-white p-4 shadow">Closed: {stats.closed}</div>
           <div className="rounded-xl bg-white p-4 shadow">Rejected: {stats.rejected}</div>
+          <div className="rounded-xl bg-white p-4 shadow">Closed: {stats.closed}</div>
         </div>
 
         <div className="mb-6 grid gap-3 md:grid-cols-3">
@@ -268,6 +418,75 @@ const IssueDashboard = () => {
           </button>
         </div>
 
+        <div className="mb-6 grid gap-3 md:grid-cols-6">
+          <div className="rounded-xl bg-white p-4 shadow">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">From</p>
+            <input value={fromDate} onChange={(e) => setFromDate(e.target.value)} type="date" className="w-full rounded-lg border px-3 py-2" />
+          </div>
+          <div className="rounded-xl bg-white p-4 shadow">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">To</p>
+            <input value={toDate} onChange={(e) => setToDate(e.target.value)} type="date" className="w-full rounded-lg border px-3 py-2" />
+          </div>
+          <div className="rounded-xl bg-white p-4 shadow">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">Priority</p>
+            <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="w-full rounded-lg border px-3 py-2">
+              <option value="ALL">All</option>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+            </select>
+          </div>
+          <div className="rounded-xl bg-white p-4 shadow">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">Assigned staff</p>
+            <select
+              value={assignedToFilter}
+              onChange={(e) => setAssignedToFilter(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2"
+            >
+              <option value="ALL">Any</option>
+              {staff.map((member) => (
+                <option key={member.id} value={String(member.id)}>
+                  {member.name} ({member.role})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="rounded-xl bg-white p-4 shadow md:col-span-2">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">Ticket History Report</p>
+            {!isIssueManager ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                Report download is available only for Issue Managers.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 md:flex-row">
+                <button
+                  onClick={downloadReport}
+                  disabled={reportLoading}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {reportLoading ? "Generating..." : "Download Report (PDF)"}
+                </button>
+                <button
+                  onClick={() => {
+                    setFromDate("");
+                    setToDate("");
+                    setPriorityFilter("ALL");
+                    setAssignedToFilter("ALL");
+                    setStatusFilter("ALL");
+                    setQuery("");
+                    setReportError("");
+                  }}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
+            {reportError && <div className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{reportError}</div>}
+          </div>
+        </div>
+
         {error && <div className="mb-4 rounded-lg bg-red-100 p-3 text-red-700">{error}</div>}
         {loading ? (
           <div className="rounded-xl bg-white p-6 shadow">Loading tickets...</div>
@@ -275,6 +494,11 @@ const IssueDashboard = () => {
           <div className="space-y-4">
             {filteredTickets.map((ticket) => (
               <div key={ticket.id} className="rounded-xl bg-white p-5 shadow">
+                {ticket.status === "REJECTED" && (
+                  <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    This ticket has been rejected. Further actions are disabled.
+                  </div>
+                )}
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="font-semibold text-[#002147]">
@@ -290,29 +514,44 @@ const IssueDashboard = () => {
                 <p className="mb-3 text-sm text-slate-700">{ticket.description}</p>
                 <p className="mb-3 text-xs text-slate-500">Created: {new Date(ticket.createdAt).toLocaleString()}</p>
 
-                <div className="mb-3 grid gap-2 md:grid-cols-3">
-                  <button onClick={() => updateStatusForTicket(ticket.id, "IN_PROGRESS")} className="rounded border px-3 py-2">
-                    Set In Progress
-                  </button>
-                  <button onClick={() => updateStatusForTicket(ticket.id, "RESOLVED")} className="rounded border px-3 py-2">
-                    Set Resolved
-                  </button>
-                  <button onClick={() => updateStatusForTicket(ticket.id, "CLOSED")} className="rounded border px-3 py-2">
-                    Set Closed
-                  </button>
+                <div className="mb-3">
+                  {(() => {
+                    if (ticket.status === "REJECTED" || ticket.status === "CLOSED") {
+                      return (
+                        <div className="rounded border bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                          No further status action available.
+                        </div>
+                      );
+                    }
+                    const next = getNextManagerStatus(ticket.status);
+                    if (!next) {
+                      return <div className="rounded border bg-slate-50 px-3 py-2 text-sm text-slate-600">No further status action available.</div>;
+                    }
+                    const label =
+                      next === "IN_PROGRESS" ? "Set In Progress" : next === "RESOLVED" ? "Set Resolved" : "Set Closed";
+                    return (
+                      <button
+                        onClick={() => updateStatusForTicket(ticket.id, next)}
+                        className="w-full rounded border px-3 py-2"
+                        disabled={ticket.status === "REJECTED"}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })()}
                 </div>
 
-                <div className="mb-3 grid gap-2 md:grid-cols-2">
-                  <input
-                    placeholder="Rejection reason (required for reject)"
-                    value={rejectReasons[ticket.id] || ""}
-                    onChange={(e) => setRejectReasons((prev) => ({ ...prev, [ticket.id]: e.target.value }))}
-                    className="rounded border px-3 py-2"
-                  />
-                  <button onClick={() => updateStatusForTicket(ticket.id, "REJECTED")} className="rounded bg-yellow-500 px-3 py-2 text-white">
-                    Reject Ticket
-                  </button>
-                </div>
+                {/* Reject action (Issue Manager only) */}
+                {isIssueManager && ticket.status !== "REJECTED" && ticket.status !== "CLOSED" && (
+                  <div className="mb-3">
+                    <button
+                      onClick={() => openRejectModal(ticket.id)}
+                      className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+                    >
+                      Reject Ticket
+                    </button>
+                  </div>
+                )}
 
                 <div className="mb-3 grid gap-2 md:grid-cols-2">
                   <textarea
@@ -320,8 +559,13 @@ const IssueDashboard = () => {
                     value={notes[ticket.id] || ticket.resolutionNotes || ""}
                     onChange={(e) => setNotes((prev) => ({ ...prev, [ticket.id]: e.target.value }))}
                     className="min-h-[80px] rounded border px-3 py-2"
+                    disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
                   />
-                  <button onClick={() => saveResolutionNotes(ticket.id)} className="rounded bg-green-600 px-3 py-2 text-white">
+                  <button
+                    onClick={() => saveResolutionNotes(ticket.id)}
+                    className="rounded bg-green-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
+                  >
                     Save Resolution Notes
                   </button>
                 </div>
@@ -331,6 +575,7 @@ const IssueDashboard = () => {
                     value={assignments[ticket.id] || ""}
                     onChange={(e) => setAssignments((prev) => ({ ...prev, [ticket.id]: e.target.value }))}
                     className="rounded border px-3 py-2"
+                    disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
                   >
                     <option value="">Assign staff member</option>
                     {staff.map((member) => (
@@ -339,7 +584,11 @@ const IssueDashboard = () => {
                       </option>
                     ))}
                   </select>
-                  <button onClick={() => assignStaffForTicket(ticket.id)} className="rounded bg-[#002147] px-3 py-2 text-white">
+                  <button
+                    onClick={() => assignStaffForTicket(ticket.id)}
+                    className="rounded bg-[#002147] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
+                  >
                     Assign
                   </button>
                   <div className="rounded border px-3 py-2 text-sm">
@@ -365,6 +614,21 @@ const IssueDashboard = () => {
           </div>
         )}
       </main>
+
+      {/* Reject Modal */}
+      <RejectTicketModal
+        open={rejectOpen}
+        ticketId={rejectTicketId}
+        reason={rejectReason}
+        error={rejectError}
+        submitting={rejectSubmitting}
+        onClose={closeRejectModal}
+        onSubmit={submitReject}
+        onReasonChange={(value) => {
+          setRejectReason(value);
+          setRejectError("");
+        }}
+      />
 
       {showProfileModal && (
         <div className="fixed inset-0 z-75 flex items-center justify-center bg-black/40 p-4">

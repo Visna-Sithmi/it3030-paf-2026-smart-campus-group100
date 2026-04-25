@@ -41,13 +41,6 @@ public class ResourceService {
             "OTHER"
     );
 
-<<<<<<< HEAD
-            private static final List<String> VALID_TARGET_AUDIENCES = Arrays.asList(
-                "STUDENT",
-                "LECTURER",
-                "BOTH"
-            );
-=======
     private static final List<String> VALID_TARGET_AUDIENCES = Arrays.asList(
             "STUDENT",
             "LECTURER",
@@ -61,7 +54,6 @@ public class ResourceService {
     }
 
     // ==================== RESOURCE CRUD METHODS ====================
->>>>>>> feature/resource-management
 
     public Resource addResource(ResourceDTO resourceDTO) {
         if (resourceRepository.existsByResourceCode(resourceDTO.getResourceCode())) {
@@ -141,10 +133,6 @@ public class ResourceService {
     public List<ResourceDTO> getResourcesForAudience(String audience) {
         String normalizedAudience = normalizeClientAudience(audience);
         List<Resource> resources = resourceRepository.findByTargetAudienceIn(Arrays.asList(normalizedAudience, "BOTH"));
-<<<<<<< HEAD
-
-=======
->>>>>>> feature/resource-management
         return resources.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());

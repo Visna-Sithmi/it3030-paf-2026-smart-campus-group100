@@ -14,6 +14,9 @@ import ClientLoginPage from "./app/client/login/page";
 import ResourceBookingPage from "./app/client/resourceBooking/page";
 import MyBookingsPage from "./app/client/myBookings/page";
 import StudentProfilePage from "./app/client/profile/page";
+import CreateTicket from "./app/client/tickets/CreateTicket";
+import MyTickets from "./app/client/tickets/MyTickets";
+import TicketDetails from "./app/client/tickets/TicketDetails";
 
 const HomeRedirect = () => {
   const role = localStorage.getItem("role");
@@ -244,9 +247,9 @@ function App() {
         <Route
           path="/ticket/:id"
           element={
-            <TicketViewerRoute>
+            <ClientUserRoute>
               <TicketDetails />
-            </TicketViewerRoute>
+            </ClientUserRoute>
           }
         />
 

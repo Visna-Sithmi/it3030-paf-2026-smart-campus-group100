@@ -103,25 +103,6 @@ public class ResourceController {
         }
     }
 
-<<<<<<< HEAD
-    @GetMapping("/client/{audience}")
-    public ResponseEntity<ApiResponse> getResourcesForAudience(@PathVariable String audience) {
-        try {
-            List<ResourceDTO> resources = resourceService.getResourcesForAudience(audience);
-            ApiResponse response = new ApiResponse(true, "Audience resources retrieved successfully", resources);
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            ApiResponse response = new ApiResponse(false, e.getMessage());
-            return ResponseEntity.badRequest().body(response);
-        } catch (Exception e) {
-            ApiResponse response = new ApiResponse(false, "Error fetching resources: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-        }
-    }
-
-    // 7. GET ALL RESOURCE TYPES - GET
-    @GetMapping("/types")
-=======
     @GetMapping("/resources/client/{audience}")
     public ResponseEntity<ApiResponse> getResourcesForAudience(@PathVariable String audience) {
         try {
@@ -133,7 +114,6 @@ public class ResourceController {
     }
 
     @GetMapping("/resources/types")
->>>>>>> feature/resource-management
     public ResponseEntity<ApiResponse> getAllResourceTypes() {
         try {
             List<String> types = resourceService.getAllResourceTypes();

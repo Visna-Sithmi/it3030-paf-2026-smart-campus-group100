@@ -23,8 +23,11 @@ public class TicketService {
 
     private static final Logger log = LoggerFactory.getLogger(TicketService.class);
     private static final Set<String> STAFF_ROLES = Set.of("TECHNICIAN", "CLEANER", "SECURITY");
+    private static final Set<String> STATUS_STAFF_ROLES = Set.of("STAFF", "TECHNICIAN", "CLEANER", "SECURITY");
     private static final Set<String> MODERATOR_ROLES = Set.of("ADMIN", "ISSUE_MANAGER");
     private static final Set<String> COMMENTER_ROLES = Set.of("STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY");
+    private static final List<TicketStatus> MANAGER_STATUS_FLOW =
+            List.of(TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED, TicketStatus.CLOSED);
 
     private final TicketRepository ticketRepository;
     private final StudentRepository studentRepository;
@@ -32,6 +35,7 @@ public class TicketService {
     private final ResourceRepository resourceRepository;
     private final TicketAttachmentRepository attachmentRepository;
     private final TicketCommentRepository commentRepository;
+    private final NotificationService notificationService;
 
     private final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/tickets/";
 
@@ -41,13 +45,15 @@ public class TicketService {
                          UserRepository userRepository,
                          ResourceRepository resourceRepository,
                          TicketAttachmentRepository attachmentRepository,
-                         TicketCommentRepository commentRepository) {
+                         TicketCommentRepository commentRepository,
+                         NotificationService notificationService) {
         this.ticketRepository = ticketRepository;
         this.studentRepository = studentRepository;
         this.userRepository = userRepository;
         this.resourceRepository = resourceRepository;
         this.attachmentRepository = attachmentRepository;
         this.commentRepository = commentRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -66,7 +72,7 @@ public class TicketService {
             ticket.setDescription(request.getDescription());
             ticket.setPriority(request.getPriority());
             ticket.setPreferredContact(request.getPreferredContact() != null ? request.getPreferredContact() : "");
-            ticket.setStatus("OPEN");
+            ticket.setStatus(TicketStatus.OPEN.name());
             ticket.setCreatedById(userId);
             ticket.setCreatedByUserId(userId);
             ticket.setCreatedByRole(role);
@@ -100,28 +106,57 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponseDTO updateTicketStatus(Long ticketId, String status, String rejectionReason) {
+    public TicketResponseDTO updateTicketStatus(
+            Long ticketId,
+            String status,
+            Long actorUserId,
+            String actorRole,
+            String rejectReason,
+            String resolutionNotes
+    ) {
         IncidentTicket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
+        TicketStatus nextStatus = parseStatus(status);
+        String normalizedRole = normalizeRole(actorRole);
+        enforceStatusUpdateAuthorization(ticket, actorUserId, normalizedRole, nextStatus, rejectReason);
 
-        String normalizedStatus = status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
-        if (!Set.of("OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED", "REJECTED").contains(normalizedStatus)) {
-            throw new RuntimeException("Invalid status. Allowed values: OPEN, IN_PROGRESS, RESOLVED, CLOSED, REJECTED");
-        }
+        String previousStatus = ticket.getStatus();
+        ticket.setStatus(nextStatus.name());
 
-        ticket.setStatus(normalizedStatus);
-
-        if ("REJECTED".equals(normalizedStatus)) {
-            ticket.setRejectionReason(rejectionReason);
+        if (nextStatus == TicketStatus.REJECTED) {
+            ticket.setRejectionReason(rejectReason.trim());
+            ticket.setResolutionNotes(null);
+        } else if (nextStatus == TicketStatus.CLOSED) {
+            ticket.setRejectionReason(null);
+            if (resolutionNotes != null && !resolutionNotes.trim().isEmpty()) {
+                ticket.setResolutionNotes(resolutionNotes.trim());
+            }
         } else {
+            // Moving through the normal flow clears any prior rejection reason.
             ticket.setRejectionReason(null);
         }
 
-        return convertToDTO(ticketRepository.save(ticket));
+        IncidentTicket savedTicket = ticketRepository.save(ticket);
+        if (!nextStatus.name().equalsIgnoreCase(previousStatus)) {
+            notificationService.createNotification(
+                    savedTicket.getCreatedByUserId(),
+                    "Ticket #" + savedTicket.getId() + " status changed to " + nextStatus.name() + ".",
+                    "TICKET",
+                    savedTicket.getId()
+            );
+        }
+        return convertToDTO(savedTicket);
     }
 
     @Transactional
     public TicketResponseDTO assignStaff(Long ticketId, Long staffId) {
+        if (ticketId == null) {
+            throw new RuntimeException("ticketId is required");
+        }
+        if (staffId == null) {
+            throw new RuntimeException("staffId is required");
+        }
+
         IncidentTicket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
 
@@ -136,11 +171,26 @@ public class TicketService {
         ticket.setAssignedStaffName(staff.getName());
         ticket.setAssignedStaffRole(staff.getRole());
 
-        if ("OPEN".equalsIgnoreCase(ticket.getStatus())) {
-            ticket.setStatus("IN_PROGRESS");
+        IncidentTicket savedTicket = ticketRepository.save(ticket);
+
+        notificationService.createNotification(
+                staff.getId(),
+                "You have been assigned to ticket #" + savedTicket.getId() + ".",
+                "TICKET",
+                savedTicket.getId()
+        );
+
+        Long ticketOwnerId = savedTicket.getCreatedByUserId();
+        if (ticketOwnerId != null && !Objects.equals(ticketOwnerId, staff.getId())) {
+            notificationService.createNotification(
+                    ticketOwnerId,
+                    "Your ticket #" + savedTicket.getId() + " has been assigned to " + savedTicket.getAssignedStaffName() + ".",
+                    "TICKET",
+                    savedTicket.getId()
+            );
         }
 
-        return convertToDTO(ticketRepository.save(ticket));
+        return convertToDTO(savedTicket);
     }
 
     @Transactional
@@ -148,10 +198,13 @@ public class TicketService {
         IncidentTicket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
 
-        ticket.setResolutionNotes(notes);
-        ticket.setStatus("RESOLVED");
+        if (notes == null || notes.trim().isEmpty()) {
+            throw new IllegalArgumentException("notes is required");
+        }
+        ticket.setResolutionNotes(notes.trim());
 
-        return convertToDTO(ticketRepository.save(ticket));
+        IncidentTicket savedTicket = ticketRepository.save(ticket);
+        return convertToDTO(savedTicket);
     }
 
     @Transactional
@@ -173,6 +226,7 @@ public class TicketService {
         comment.setCommentText(text);
 
         TicketComment saved = commentRepository.save(comment);
+        notifyCommentOnTicket(ticket, userId, userName);
 
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("id", saved.getId());
@@ -293,7 +347,7 @@ public class TicketService {
                     .stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
-        } else if (STAFF_ROLES.contains(normalizedRole)) {
+        } else if (STATUS_STAFF_ROLES.contains(normalizedRole)) {
             return ticketRepository.findByAssignedStaffId(userId)
                     .stream()
                     .map(this::convertToDTO)
@@ -381,9 +435,74 @@ public class TicketService {
 
     private String normalizeRole(String role) {
         if (role == null || role.trim().isEmpty()) {
-            throw new RuntimeException("role is required");
+            throw new IllegalArgumentException("role is required");
         }
         return role.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private TicketStatus parseStatus(String status) {
+        if (status == null || status.trim().isEmpty()) {
+            throw new IllegalArgumentException("status is required");
+        }
+        try {
+            return TicketStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Invalid status. Allowed values: OPEN, IN_PROGRESS, RESOLVED, CLOSED, REJECTED");
+        }
+    }
+
+    private void enforceStatusUpdateAuthorization(
+            IncidentTicket ticket,
+            Long actorUserId,
+            String actorRole,
+            TicketStatus nextStatus,
+            String rejectReason
+    ) {
+        if (actorUserId == null || actorUserId <= 0) {
+            throw new SecurityException("Invalid user session.");
+        }
+
+        // Admin can reject (with a reason). Everything else is managed by Issue Manager in strict order.
+        if ("ADMIN".equals(actorRole)) {
+            if (nextStatus != TicketStatus.REJECTED) {
+                throw new SecurityException("ADMIN can only change status to REJECTED.");
+            }
+            if (rejectReason == null || rejectReason.trim().isEmpty()) {
+                throw new IllegalArgumentException("rejectReason is required when rejecting a ticket.");
+            }
+            return;
+        }
+
+        if (!"ISSUE_MANAGER".equals(actorRole)) {
+            throw new SecurityException("Only ISSUE_MANAGER can update ticket status.");
+        }
+
+        if (nextStatus == TicketStatus.REJECTED) {
+            throw new SecurityException("Only ADMIN can reject a ticket.");
+        }
+
+        TicketStatus currentStatus = parseTicketCurrentStatus(ticket.getStatus());
+        if (!isValidManagerTransition(currentStatus, nextStatus)) {
+            throw new IllegalArgumentException("Invalid status transition. Allowed flow: OPEN → IN_PROGRESS → RESOLVED → CLOSED");
+        }
+    }
+
+    private TicketStatus parseTicketCurrentStatus(String status) {
+        if (status == null || status.trim().isEmpty()) {
+            return TicketStatus.OPEN;
+        }
+        try {
+            return TicketStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return TicketStatus.OPEN;
+        }
+    }
+
+    private boolean isValidManagerTransition(TicketStatus current, TicketStatus next) {
+        int currentIdx = MANAGER_STATUS_FLOW.indexOf(current);
+        int nextIdx = MANAGER_STATUS_FLOW.indexOf(next);
+        if (currentIdx < 0 || nextIdx < 0) return false;
+        return nextIdx == currentIdx + 1;
     }
 
     private String resolveCommentAuthorName(Long userId, String role) {
@@ -406,5 +525,19 @@ public class TicketService {
         if (!isOwner && !isModerator) {
             throw new RuntimeException("You can only modify your own comments");
         }
+    }
+
+    private void notifyCommentOnTicket(IncidentTicket ticket, Long commenterUserId, String commenterName) {
+        Long ticketOwnerId = ticket.getCreatedByUserId();
+        if (ticketOwnerId == null || Objects.equals(ticketOwnerId, commenterUserId)) {
+            return;
+        }
+
+        notificationService.createNotification(
+                ticketOwnerId,
+                "New comment from " + commenterName + " on Ticket #" + ticket.getId() + ".",
+                "COMMENT",
+                ticket.getId()
+        );
     }
 }

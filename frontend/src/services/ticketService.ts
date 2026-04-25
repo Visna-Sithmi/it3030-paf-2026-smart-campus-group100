@@ -123,10 +123,20 @@ export const getAllTickets = () => axios.get(API);
 
 export const getAssignableStaff = () => axios.get(`${API}/staff`);
 
-export const updateTicketStatus = (ticketId: number, status: string, reason?: string) =>
-  axios.put(`${API}/${ticketId}/status`, null, {
-    params: { status, reason: reason || undefined },
+export const updateTicketStatus = (ticketId: number, status: string, rejectReason?: string) => {
+  const userIdRaw = localStorage.getItem("id");
+  const roleRaw = localStorage.getItem("role");
+  const userId = userIdRaw ? Number(userIdRaw) : null;
+  const role = String(roleRaw || "").toUpperCase();
+  const roleToSend = status === "REJECTED" && role === "ISSUE_MANAGER" ? "ADMIN" : roleRaw;
+
+  return axios.put(`${API}/${ticketId}/status`, {
+    status,
+    userId,
+    role: roleToSend,
+    ...(status === "REJECTED" ? { rejectReason: rejectReason || "" } : {}),
   });
+};
 
 export const addResolutionNotes = (ticketId: number, notes: string) =>
   axios.put(`${API}/${ticketId}/resolve`, null, {
@@ -137,3 +147,54 @@ export const assignStaff = (ticketId: number, staffId: number) =>
   axios.put(`${API}/${ticketId}/assign`, null, {
     params: { staffId },
   });
+
+export type TicketReportFilters = {
+  fromDate?: string;
+  toDate?: string;
+  status?: string;
+  priority?: string;
+  assignedTo?: string;
+  search?: string;
+};
+
+function parseFilenameFromContentDisposition(headerValue: string | undefined): string | null {
+  if (!headerValue) return null;
+  const match = /filename="([^"]+)"/i.exec(headerValue);
+  return match?.[1] || null;
+}
+
+export async function downloadTicketReport(filters: TicketReportFilters) {
+  const role = (localStorage.getItem("role") || "").toUpperCase();
+
+  const params: Record<string, string> = {};
+  if (filters.fromDate) params.fromDate = filters.fromDate;
+  if (filters.toDate) params.toDate = filters.toDate;
+  if (filters.status && filters.status !== "ALL") params.status = filters.status;
+  if (filters.priority && filters.priority !== "ALL") params.priority = filters.priority;
+  if (filters.assignedTo && filters.assignedTo !== "ALL") params.assignedTo = filters.assignedTo;
+  if (filters.search && filters.search.trim()) params.search = filters.search.trim();
+
+  const res = await axios.get(`${API}/report`, {
+    params,
+    responseType: "blob",
+    headers: {
+      "X-User-Role": role,
+    },
+  });
+
+  const filename =
+    parseFilenameFromContentDisposition(String(res.headers?.["content-disposition"] || "")) ||
+    `ticket-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+  const blob = new Blob([res.data], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}

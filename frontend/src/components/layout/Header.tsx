@@ -19,6 +19,14 @@ import {
   Sparkles
 } from 'lucide-react';
 import logo from '../../assets/logo.jpeg';
+import NotificationBell from '../notifications/NotificationBell';
+import NotificationPanel from '../notifications/NotificationPanel';
+import {
+  getNotifications,
+  markAsRead,
+  type NotificationItem,
+} from '../../services/notificationService';
+
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -28,6 +36,11 @@ const Header: React.FC = () => {
   const [user, setUser] = useState<{ name: string; studentId?: string; email: string; role: string; profileImageUrl?: string } | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeHover, setActiveHover] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+
+  const currentUserId = Number(localStorage.getItem("id") || localStorage.getItem("studentId") || "0");
+  const canViewNotifications = Number.isFinite(currentUserId) && currentUserId > 0;
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -113,6 +126,54 @@ const Header: React.FC = () => {
           window.removeEventListener("storage", handleProfileUpdate);
         };
       }, []);
+
+      useEffect(() => {
+        if (!canViewNotifications) {
+          setNotifications([]);
+          return;
+        }
+
+        let isMounted = true;
+
+        const loadNotifications = async () => {
+          try {
+            setNotificationsLoading(true);
+            const data = await getNotifications(currentUserId);
+            if (isMounted) {
+              setNotifications(data);
+            }
+          } catch (error) {
+            console.error("Failed to fetch notifications:", error);
+          } finally {
+            if (isMounted) {
+              setNotificationsLoading(false);
+            }
+          }
+        };
+
+        loadNotifications();
+        const intervalId = window.setInterval(loadNotifications, 10000);
+
+        return () => {
+          isMounted = false;
+          window.clearInterval(intervalId);
+        };
+      }, [canViewNotifications, currentUserId]);
+
+  const handleMarkNotificationRead = async (notificationId: number) => {
+    try {
+      await markAsRead(notificationId);
+      setNotifications((prev) =>
+        prev.map((item) =>
+          item.id === notificationId ? { ...item, read: true } : item
+        )
+      );
+    } catch (error) {
+      console.error("Failed to mark as read:", error);
+    }
+  };
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleLogout = () => {
     // Clear all student-related localStorage items
@@ -214,13 +275,23 @@ const Header: React.FC = () => {
             {/* Right Section - User Actions */}
             <div className="flex items-center gap-3">
               {/* Notifications Icon Only with pulse animation */}
-              <button
-                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className="relative p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300 group"
-              >
-                <Bell size={20} className="group-hover:scale-110 transition-transform" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-              </button>
+                {canViewNotifications && (
+                  <div className="relative">
+                    <NotificationBell
+                      unreadCount={unreadCount}
+                      isOpen={isNotificationsOpen}
+                      onToggle={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                    />
+                    {isNotificationsOpen && (
+                      <NotificationPanel
+                        notifications={notifications}
+                        loading={notificationsLoading}
+                        onMarkAsRead={handleMarkNotificationRead}
+                        onClose={() => setIsNotificationsOpen(false)}
+                      />
+                    )}
+                  </div>
+                )}
 
               {/* User Section */}
               {isLoggedIn && user ? (

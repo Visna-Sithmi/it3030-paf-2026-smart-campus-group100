@@ -18,6 +18,9 @@ import {
   Shield,
   Lock,
   Unlock,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import logo from '../../../assets/logo.jpeg';
 import './resourceDashboard.css';
@@ -286,12 +289,15 @@ const ResourceDashboard: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
-  const [showAvailabilityId, setShowAvailabilityId] = useState<number | null>(null);
   const [availabilityViewDate, setAvailabilityViewDate] = useState<string>(getTodayDateString());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [holidayValidationErrors, setHolidayValidationErrors] = useState<ValidationErrors>({});
+
+  // Availability Modal State
+  const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
+  const [availabilityResource, setAvailabilityResource] = useState<Resource | null>(null);
 
   const [globalLock, setGlobalLock] = useState(false);
   const [isHoliday, setIsHoliday] = useState(false);
@@ -892,9 +898,10 @@ const ResourceDashboard: React.FC = () => {
     setShowDetailsModal(true);
   };
 
-  const toggleAvailabilityView = (resourceId: number) => {
-    setShowAvailabilityId(showAvailabilityId === resourceId ? null : resourceId);
+  const openAvailabilityModal = (resource: Resource) => {
+    setAvailabilityResource(resource);
     setAvailabilityViewDate(getTodayDateString());
+    setShowAvailabilityModal(true);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1178,38 +1185,156 @@ const ResourceDashboard: React.FC = () => {
     </div>
   );
 
-  const AvailabilityViewer = ({ resource }: { resource: Resource }) => {
+  // Professional Availability Modal Component
+  const AvailabilityViewerModal = ({ resource, onClose }: { resource: Resource; onClose: () => void }) => {
     const config = parseAvailabilityConfig(resource.availabilityWindows);
     const slots = generateTimeSlots(config);
+    const [viewDate, setViewDate] = useState<string>(getTodayDateString());
+    const [currentPage, setCurrentPage] = useState(0);
+    const slotsPerPage = 6;
+    const totalPages = Math.ceil(slots.length / slotsPerPage);
+    const displayedSlots = slots.slice(currentPage * slotsPerPage, (currentPage + 1) * slotsPerPage);
+
+    const goToPreviousPage = () => setCurrentPage((prev) => Math.max(0, prev - 1));
+    const goToNextPage = () => setCurrentPage((prev) => Math.min(totalPages - 1, prev + 1));
 
     return (
-      <div className="availability-viewer">
-        <div className="availability-viewer-top">
-          <label className="mini-label">Choose Date</label>
-          <input
-            type="date"
-            value={availabilityViewDate}
-            min={getTodayDateString()}
-            onChange={(e) => setAvailabilityViewDate(e.target.value)}
-            className="input-field"
-          />
-          <p className="availability-view-date">{formatDateForDisplay(availabilityViewDate)}</p>
-        </div>
-
-        <div className="availability-header-row">
-          <p className="availability-title">All Available Time Slots</p>
-          <span className="availability-count">{slots.length} slots</span>
-        </div>
-
-        <div className="slot-grid slot-grid-two">
-          {slots.map((slot, index) => (
-            <div
-              key={`${slot.start}-${slot.end}-${index}`}
-              className="slot-badge"
-            >
-              {slot.label}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all duration-300" onClick={onClose}>
+        <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
+          <div className="bg-gradient-to-r from-[#002147] to-[#003366] px-6 py-5">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-xl">
+                  <CalendarIcon className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Availability Schedule</h2>
+                  <p className="text-xs text-white/70 mt-0.5">{resource.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-white/70 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
+              >
+                <X size={20} />
+              </button>
             </div>
-          ))}
+          </div>
+
+          {/* Body */}
+          <div className="p-6 space-y-5">
+            {/* Resource Info Card */}
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Resource Code</p>
+                  <p className="text-sm font-semibold text-slate-800 mt-1 font-mono">{resource.resourceCode}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Resource Type</p>
+                  <p className="text-sm font-semibold text-slate-800 mt-1">{formatTypeLabel(resource.type)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Date Selector */}
+            <div>
+              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider flex items-center gap-2 mb-3">
+                <CalendarIcon size={14} /> Select Date
+              </label>
+              <input
+                type="date"
+                value={viewDate}
+                min={getTodayDateString()}
+                onChange={(e) => setViewDate(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white text-sm focus:ring-2 focus:ring-[#002147]/20 focus:border-[#002147] outline-none transition-all"
+              />
+              <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                {formatDateForDisplay(viewDate)}
+              </p>
+            </div>
+
+            {/* Time Slots Section */}
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2">
+                  <Clock size={14} className="text-slate-400" />
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Available Time Slots</p>
+                </div>
+                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {slots.length} slots
+                </span>
+              </div>
+
+              {slots.length === 0 ? (
+                <div className="text-center py-8 bg-slate-50 rounded-xl">
+                  <p className="text-slate-400 text-sm">No time slots available</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pr-1">
+                    {displayedSlots.map((slot, index) => (
+                      <div
+                        key={`${slot.start}-${slot.end}-${index}`}
+                        className="group relative overflow-hidden bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-3 text-center hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-400 opacity-0 group-hover:opacity-5 transition-opacity"></div>
+                        <p className="text-sm font-medium text-green-800">{slot.label}</p>
+                        <div className="flex items-center justify-center gap-1 mt-1">
+                          <div className="w-1 h-1 rounded-full bg-green-400"></div>
+                          <p className="text-[10px] text-green-600">Available</p>
+                          <div className="w-1 h-1 rounded-full bg-green-400"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex justify-between items-center mt-4 pt-2 border-t border-slate-100">
+                      <button
+                        onClick={goToPreviousPage}
+                        disabled={currentPage === 0}
+                        className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                          currentPage === 0
+                            ? 'text-slate-300 cursor-not-allowed'
+                            : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        <ChevronLeft size={14} /> Previous
+                      </button>
+                      <span className="text-xs text-slate-500">
+                        Page {currentPage + 1} of {totalPages}
+                      </span>
+                      <button
+                        onClick={goToNextPage}
+                        disabled={currentPage === totalPages - 1}
+                        className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                          currentPage === totalPages - 1
+                            ? 'text-slate-300 cursor-not-allowed'
+                            : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        Next <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-slate-100 px-6 py-4 bg-slate-50/50">
+            <button
+              onClick={onClose}
+              className="w-full py-2.5 bg-[#002147] text-white font-medium rounded-xl hover:bg-[#001a3a] transition-colors shadow-lg shadow-[#002147]/20"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1217,8 +1342,8 @@ const ResourceDashboard: React.FC = () => {
 
   return (
     <div className="resource-dashboard">
-      {(showAddModal || showEditModal || showDetailsModal || showHolidayModal || selectedHoliday || showNoHolidayPopup) && (
-        <div className="modal-backdrop" onClick={selectedHoliday ? closeHolidayPopup : showNoHolidayPopup ? closeNoHolidayPopup : undefined} />
+      {(showAddModal || showEditModal || showDetailsModal || showHolidayModal || selectedHoliday || showNoHolidayPopup || showAvailabilityModal) && (
+        <div className="modal-backdrop" onClick={selectedHoliday ? closeHolidayPopup : showNoHolidayPopup ? closeNoHolidayPopup : showAvailabilityModal ? () => setShowAvailabilityModal(false) : undefined} />
       )}
 
       <header className="dashboard-header">
@@ -1338,7 +1463,7 @@ const ResourceDashboard: React.FC = () => {
 
         {(globalLock || isHoliday) && (
           <div className="system-alert">
-            <Shield size={18} />
+            {globalLock ? <Lock size={18} /> : <CalendarIcon size={18} />}
             {globalLock
               ? '🔒 SYSTEM LOCKED - All resources are currently unavailable due to emergency lock'
               : '🎉 HOLIDAY TODAY - All facilities are closed'}
@@ -1452,25 +1577,12 @@ const ResourceDashboard: React.FC = () => {
                     </div>
 
                     <button
-                      onClick={() => toggleAvailabilityView(resource.id)}
+                      onClick={() => openAvailabilityModal(resource)}
                       className="calendar-btn"
                       disabled={isUnavailableDueToLock}
                     >
-                      <CalendarIcon size={16} /> View Availability Calendar
+                      <CalendarIcon size={16} /> View Availability
                     </button>
-
-                    {showAvailabilityId === resource.id && !isUnavailableDueToLock && (
-                      <AvailabilityViewer resource={resource} />
-                    )}
-
-                    {showAvailabilityId === resource.id && isUnavailableDueToLock && (
-                      <div className="availability-disabled">
-                        <p>
-                          Availability calendar is disabled due to{' '}
-                          {globalLock ? 'emergency lock' : 'holiday closure'}.
-                        </p>
-                      </div>
-                    )}
 
                     <div className="resource-footer">
                       <div className="resource-footer-actions">
@@ -1507,6 +1619,11 @@ const ResourceDashboard: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Enhanced Professional Availability Modal */}
+      {showAvailabilityModal && availabilityResource && (
+        <AvailabilityViewerModal resource={availabilityResource} onClose={() => setShowAvailabilityModal(false)} />
+      )}
 
       {showAddModal && (
         <div className="modal-center">
@@ -2169,7 +2286,6 @@ const ResourceDashboard: React.FC = () => {
                 </button>
               </form>
 
-              {/* react-calendar */}
               <div>
                 <h3 className="holiday-section-title">Holidays Calendar</h3>
                 <div className="calendar-wrapper">
@@ -2192,7 +2308,6 @@ const ResourceDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Holiday Details Popup */}
       {selectedHoliday && (
         <div className="modal-center holiday-popup" onClick={(e) => e.stopPropagation()}>
           <div className="modal-card modal-small">
@@ -2214,7 +2329,6 @@ const ResourceDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* No Holiday Popup */}
       {showNoHolidayPopup && noHolidayDate && (
         <div className="modal-center no-holiday-popup" onClick={(e) => e.stopPropagation()}>
           <div className="modal-card modal-small">

@@ -10,6 +10,8 @@ export default function StudentProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [selectedProfileImageFile, setSelectedProfileImageFile] = useState<File | null>(null);
+  const [profileImagePreview, setProfileImagePreview] = useState<string>("");
 
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -32,6 +34,30 @@ export default function StudentProfilePage() {
     return `http://localhost:8081${imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`}`;
   };
 
+  const resolveEffectiveProfileImageSrc = (imageUrl?: string | null) => {
+    const fromProfile = resolveProfileImageSrc(imageUrl);
+    if (fromProfile) return fromProfile;
+
+    const storedProfileImage = localStorage.getItem("profileImageUrl");
+    return resolveProfileImageSrc(storedProfileImage);
+  };
+
+  const dataUrlToFile = (dataUrl: string, filename: string) => {
+    const parts = dataUrl.split(",");
+    if (parts.length !== 2) return null;
+
+    const mimeMatch = parts[0].match(/data:(.*?);base64/);
+    const mime = mimeMatch?.[1] || "image/png";
+    const binary = atob(parts[1]);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    return new File([bytes], filename, { type: mime });
+  };
+
   const loadProfile = async () => {
     if (!studentId) {
       setError("Student not logged in");
@@ -45,6 +71,7 @@ export default function StudentProfilePage() {
       const data = await studentProfileService.getProfile(studentId);
       setProfile({
         ...data,
+        profileImageUrl: data.profileImageUrl || localStorage.getItem("profileImageUrl") || "",
         gender: normalizeGender(data.gender),
       });
     } catch (err: any) {
@@ -62,9 +89,11 @@ export default function StudentProfilePage() {
     const file = e.target.files?.[0];
     if (!file || !profile) return;
 
+    setSelectedProfileImageFile(file);
+
     const reader = new FileReader();
     reader.onloadend = () => {
-      setProfile({ ...profile, profileImageUrl: String(reader.result || "") });
+      setProfileImagePreview(String(reader.result || ""));
       setSuccess("Image selected. Click Save Profile to confirm.");
     };
     reader.readAsDataURL(file);
@@ -103,9 +132,25 @@ export default function StudentProfilePage() {
       setError("");
       setSuccess("");
 
-      const isDataUrl = (payload.profileImageUrl || "").startsWith("data:");
-      if (isDataUrl) {
-        payload.profileImageUrl = "";
+      const hasPreviewDataUrl = (profileImagePreview || "").startsWith("data:");
+      let imageFileToUpload: File | null = selectedProfileImageFile;
+
+      if (!imageFileToUpload && hasPreviewDataUrl) {
+        imageFileToUpload = dataUrlToFile(profileImagePreview || "", `student-${studentId}-profile.png`);
+      }
+
+      if (imageFileToUpload) {
+        const uploadedProfile = await studentProfileService.uploadProfileImage(studentId, imageFileToUpload);
+        setSelectedProfileImageFile(null);
+        setProfileImagePreview("");
+
+        if (uploadedProfile.profileImageUrl) {
+          payload.profileImageUrl = uploadedProfile.profileImageUrl;
+        } else {
+          delete payload.profileImageUrl;
+        }
+      } else if (hasPreviewDataUrl) {
+        delete payload.profileImageUrl;
       }
 
       await studentProfileService.updateProfile(studentId, payload);
@@ -122,11 +167,7 @@ export default function StudentProfilePage() {
       window.dispatchEvent(new Event("student-profile-updated"));
       window.dispatchEvent(new Event("profile-updated"));
 
-      if (isDataUrl) {
-        setSuccess("Profile updated. Profile picture upload requires backend file support.");
-      } else {
-        setSuccess("Profile updated successfully.");
-      }
+      setSuccess("Profile updated successfully.");
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || "Failed to update profile");
     } finally {
@@ -323,9 +364,9 @@ export default function StudentProfilePage() {
                 <h3 className="text-base font-bold text-slate-900">Profile Preview</h3>
                 <div className="mt-4 flex flex-col items-center text-center">
                   <div className="h-24 w-24 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
-                    {resolveProfileImageSrc(profile.profileImageUrl) ? (
+                    {(profileImagePreview || resolveEffectiveProfileImageSrc(profile.profileImageUrl)) ? (
                       <img
-                        src={resolveProfileImageSrc(profile.profileImageUrl)}
+                        src={profileImagePreview || resolveEffectiveProfileImageSrc(profile.profileImageUrl)}
                         alt="Profile"
                         className="h-full w-full object-cover"
                       />

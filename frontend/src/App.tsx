@@ -7,7 +7,7 @@ import StudentPage from "./app/admin/student/page";
 import ManagerLoginPage from "./app/manager/login/page";
 import BookingDashboard from "./app/manager/bookingDashboard/page";
 import BookingHistoryPage from "./app/manager/bookingHistory/page";
-import ResourceDashboard from "./app/manager/resourceDashboard/page";
+import ResourceDashboard from "./app/manager/resourceDashboard/ResourceDashboard";
 import IssueDashboard from "./app/manager/issueDashboard/page";
 import ResourceCataloguePage from "./app/client/resources/page";
 import ClientLoginPage from "./app/client/login/page";

@@ -7,6 +7,7 @@ import {
   Package, 
   AlertTriangle, 
   User, 
+  Bell, 
   LogOut, 
   LogIn,
   Menu,
@@ -14,7 +15,8 @@ import {
   ChevronDown,
   Calendar,
   MessageSquare,
-  Settings
+  Settings,
+  Sparkles
 } from 'lucide-react';
 import logo from '../../assets/logo.jpeg';
 import NotificationBell from '../notifications/NotificationBell';
@@ -25,30 +27,37 @@ import {
   type NotificationItem,
 } from '../../services/notificationService';
 
+
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [user, setUser] = useState<{ name: string; studentId?: string; email: string; role: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; studentId?: string; email: string; role: string; profileImageUrl?: string } | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeHover, setActiveHover] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+
+  const currentUserId = Number(localStorage.getItem("id") || localStorage.getItem("studentId") || "0");
+  const canViewNotifications = Number.isFinite(currentUserId) && currentUserId > 0;
   
   const navigate = useNavigate();
   const location = useLocation();
-  const currentUserId = Number(localStorage.getItem("id") || localStorage.getItem("studentId") || "0");
-  const canViewNotifications = Number.isFinite(currentUserId) && currentUserId > 0;
 
-  useEffect(() => {
-    // Check if user is logged in as STUDENT or LECTURER
+  const syncUserFromStorage = () => {
     const storedRole = localStorage.getItem("role");
     const storedStudentId = localStorage.getItem("studentId");
     const storedId = localStorage.getItem("id");
     const storedName = localStorage.getItem("studentName") || localStorage.getItem("user");
     const storedLecturerName = localStorage.getItem("name") || storedName;
     const storedEmail = localStorage.getItem("email");
+    const storedProfileImage = localStorage.getItem("profileImageUrl");
+    const resolvedProfileImage = storedProfileImage
+      ? (storedProfileImage.startsWith("http")
+          ? storedProfileImage
+          : `http://localhost:8081${storedProfileImage.startsWith("/") ? storedProfileImage : `/${storedProfileImage}`}`)
+      : "";
 
     if (storedRole === "STUDENT" && (storedStudentId || storedId)) {
       setUser({
@@ -56,16 +65,24 @@ const Header: React.FC = () => {
         studentId: storedStudentId || storedId || "",
         email: storedEmail || `${storedStudentId || storedId}@northbridge.edu`,
         role: "STUDENT",
+        profileImageUrl: resolvedProfileImage,
       });
       setIsLoggedIn(true);
-    } else if (storedRole === "LECTURER" && (storedEmail || storedLecturerName || storedId)) {
+      return;
+    }
+
+    if (storedRole === "LECTURER" && (storedEmail || storedLecturerName || storedId)) {
       setUser({
         name: storedLecturerName || "Lecturer",
         email: storedEmail || "lecturer@northbridge.edu",
         role: "LECTURER",
+        profileImageUrl: resolvedProfileImage,
       });
       setIsLoggedIn(true);
-    } else if (
+      return;
+    }
+
+    if (
       (storedRole === "TECHNICIAN" || storedRole === "CLEANER" || storedRole === "SECURITY") &&
       (storedEmail || storedLecturerName || storedId)
     ) {
@@ -75,10 +92,16 @@ const Header: React.FC = () => {
         role: storedRole,
       });
       setIsLoggedIn(true);
-    } else {
-      setUser(null);
-      setIsLoggedIn(false);
+      return;
     }
+
+    setUser(null);
+    setIsLoggedIn(false);
+  };
+
+  useEffect(() => {
+    syncUserFromStorage();
+
     // Handle scroll effect with JavaScript animation
     const handleScroll = () => {
       const scrolled = window.scrollY > 10;
@@ -91,51 +114,66 @@ const Header: React.FC = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [location.pathname, isScrolled]);
 
-  useEffect(() => {
-    if (!canViewNotifications) {
-      setNotifications([]);
-      return;
-    }
+      useEffect(() => {
+        const handleProfileUpdate = () => syncUserFromStorage();
+        window.addEventListener("profile-updated", handleProfileUpdate);
+        window.addEventListener("student-profile-updated", handleProfileUpdate);
+        window.addEventListener("storage", handleProfileUpdate);
 
-    let isMounted = true;
+        return () => {
+          window.removeEventListener("profile-updated", handleProfileUpdate);
+          window.removeEventListener("student-profile-updated", handleProfileUpdate);
+          window.removeEventListener("storage", handleProfileUpdate);
+        };
+      }, []);
 
-    const loadNotifications = async () => {
-      try {
-        setNotificationsLoading(true);
-        const data = await getNotifications(currentUserId);
-        if (isMounted) {
-          setNotifications(data);
+      useEffect(() => {
+        if (!canViewNotifications) {
+          setNotifications([]);
+          return;
         }
-      } catch (error) {
-        console.error("Failed to fetch notifications:", error);
-      } finally {
-        if (isMounted) {
-          setNotificationsLoading(false);
-        }
-      }
-    };
 
-    loadNotifications();
-    const intervalId = window.setInterval(loadNotifications, 10000);
+        let isMounted = true;
 
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-    };
-  }, [canViewNotifications, currentUserId]);
+        const loadNotifications = async () => {
+          try {
+            setNotificationsLoading(true);
+            const data = await getNotifications(currentUserId);
+            if (isMounted) {
+              setNotifications(data);
+            }
+          } catch (error) {
+            console.error("Failed to fetch notifications:", error);
+          } finally {
+            if (isMounted) {
+              setNotificationsLoading(false);
+            }
+          }
+        };
+
+        loadNotifications();
+        const intervalId = window.setInterval(loadNotifications, 10000);
+
+        return () => {
+          isMounted = false;
+          window.clearInterval(intervalId);
+        };
+      }, [canViewNotifications, currentUserId]);
 
   const handleMarkNotificationRead = async (notificationId: number) => {
     try {
       await markAsRead(notificationId);
       setNotifications((prev) =>
-        prev.map((item) => (item.id === notificationId ? { ...item, read: true } : item))
+        prev.map((item) =>
+          item.id === notificationId ? { ...item, read: true } : item
+        )
       );
     } catch (error) {
-      console.error("Failed to mark notification as read:", error);
+      console.error("Failed to mark as read:", error);
     }
   };
 
-  const unreadCount = notifications.filter((notification) => !notification.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleLogout = () => {
     // Clear all student-related localStorage items
@@ -146,6 +184,7 @@ const Header: React.FC = () => {
     localStorage.removeItem("name");
     localStorage.removeItem("email");
     localStorage.removeItem("id");
+    localStorage.removeItem("profileImageUrl");
     
     setUser(null);
     setIsLoggedIn(false);
@@ -235,23 +274,24 @@ const Header: React.FC = () => {
 
             {/* Right Section - User Actions */}
             <div className="flex items-center gap-3">
-              {canViewNotifications && (
-                <div className="relative">
-                  <NotificationBell
-                    unreadCount={unreadCount}
-                    isOpen={isNotificationsOpen}
-                    onToggle={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                  />
-                  {isNotificationsOpen && (
-                    <NotificationPanel
-                      notifications={notifications}
-                      loading={notificationsLoading}
-                      onMarkAsRead={handleMarkNotificationRead}
-                      onClose={() => setIsNotificationsOpen(false)}
+              {/* Notifications Icon Only with pulse animation */}
+                {canViewNotifications && (
+                  <div className="relative">
+                    <NotificationBell
+                      unreadCount={unreadCount}
+                      isOpen={isNotificationsOpen}
+                      onToggle={() => setIsNotificationsOpen(!isNotificationsOpen)}
                     />
-                  )}
-                </div>
-              )}
+                    {isNotificationsOpen && (
+                      <NotificationPanel
+                        notifications={notifications}
+                        loading={notificationsLoading}
+                        onMarkAsRead={handleMarkNotificationRead}
+                        onClose={() => setIsNotificationsOpen(false)}
+                      />
+                    )}
+                  </div>
+                )}
 
               {/* User Section */}
               {isLoggedIn && user ? (
@@ -261,9 +301,17 @@ const Header: React.FC = () => {
                     className="flex items-center gap-3 px-3 py-2 rounded-full hover:bg-white/10 transition-all duration-300 group"
                   >
                     <div className="w-9 h-9 bg-gradient-to-br from-white/20 to-white/10 rounded-full flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 border border-white/20">
-                      <span className="text-white text-sm font-bold">
-                        {user.name.charAt(0).toUpperCase()}
-                      </span>
+                      {user.profileImageUrl ? (
+                        <img
+                          src={user.profileImageUrl}
+                          alt={user.name}
+                          className="h-full w-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-white text-sm font-bold">
+                          {user.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
                     </div>
                     <div className="hidden lg:block text-left">
                       <p className="text-sm font-semibold text-white">{user.name}</p>
@@ -283,9 +331,17 @@ const Header: React.FC = () => {
                       <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-gradient-to-br from-[#002147] to-[#004080] rounded-full flex items-center justify-center shadow-md">
-                            <span className="text-white text-lg font-bold">
-                              {user.name.charAt(0).toUpperCase()}
-                            </span>
+                            {user.profileImageUrl ? (
+                              <img
+                                src={user.profileImageUrl}
+                                alt={user.name}
+                                className="h-full w-full rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-white text-lg font-bold">
+                                {user.name.charAt(0).toUpperCase()}
+                              </span>
+                            )}
                           </div>
                           <div>
                             <p className="font-semibold text-slate-800">{user.name}</p>
@@ -299,7 +355,7 @@ const Header: React.FC = () => {
                         </div>
                       </div>
                       <div className="py-2">
-                        <Link to="/profile" className="flex items-center gap-3 px-5 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                        <Link to="/client/profile" className="flex items-center gap-3 px-5 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                           <User size={16} /> My Profile
                         </Link>
                         <Link to="/my-bookings" className="flex items-center gap-3 px-5 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">

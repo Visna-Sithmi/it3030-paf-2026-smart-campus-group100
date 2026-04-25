@@ -101,6 +101,9 @@ export default function MyBookingsPage() {
   const [activeStatus, setActiveStatus] = useState<"ALL" | DisplayBookingStatus>("ALL");
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [showBookingPopup, setShowBookingPopup] = useState(Boolean(locationState.bookingSuccessMessage));
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const itemsPerPage = 10;
 
   useEffect(() => {
     setShowBookingPopup(Boolean(locationState.bookingSuccessMessage));
@@ -189,6 +192,10 @@ export default function MyBookingsPage() {
     });
   }, [displayBookings, activeStatus]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeStatus, bookings.length]);
+
   const counts = useMemo(() => {
     const base = { ALL: displayBookings.length, PENDING: 0, APPROVED: 0, REJECTED: 0, CANCELLED: 0, COMPLETED: 0 };
     displayBookings.forEach(({ displayStatus }) => {
@@ -204,6 +211,24 @@ export default function MyBookingsPage() {
       resource: resourceMap[booking.resourceId],
     }));
   }, [filteredBookings, resourceMap]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleBookings.length / itemsPerPage));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedBookings = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return visibleBookings.slice(startIndex, endIndex);
+  }, [visibleBookings, currentPage]);
+
+  const pageNumbers = useMemo(() => {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }, [totalPages]);
 
   const cancelBooking = async (bookingId: number) => {
     const confirmed = window.confirm("Cancel this booking?");
@@ -335,7 +360,7 @@ export default function MyBookingsPage() {
             <div className="p-6 text-sm text-slate-500">No bookings found for selected status.</div>
           ) : (
             <div className="grid gap-5 p-4 sm:p-6">
-              {visibleBookings.map(({ booking, displayStatus, resource }) => {
+              {paginatedBookings.map(({ booking, displayStatus, resource }) => {
                 const imageUrl = getResourceImageUrl(resource);
 
                 return (
@@ -443,6 +468,43 @@ export default function MyBookingsPage() {
                   </article>
                 );
               })}
+
+              {visibleBookings.length > itemsPerPage && (
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-2 border-t border-slate-200 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+
+                  {pageNumbers.map((pageNumber) => (
+                    <button
+                      key={pageNumber}
+                      type="button"
+                      onClick={() => setCurrentPage(pageNumber)}
+                      className={`min-w-9 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                        currentPage === pageNumber
+                          ? "border-[#002147] bg-[#002147] text-white"
+                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {pageNumber}
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

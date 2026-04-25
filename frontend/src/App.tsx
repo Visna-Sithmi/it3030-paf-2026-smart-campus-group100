@@ -102,6 +102,22 @@ const ClientUserRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const TicketViewerRoute = ({ children }: { children: React.ReactNode }) => {
+  const role = (localStorage.getItem("role") || "").toUpperCase();
+  const userId = localStorage.getItem("id") || localStorage.getItem("studentId");
+  const managerUser = localStorage.getItem("user");
+
+  if (role === "ISSUE_MANAGER" && managerUser) {
+    return <>{children}</>;
+  }
+
+  if (!role || !userId || !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY"].includes(role)) {
+    return <Navigate to="/client/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 function App() {
   return (
     <BrowserRouter>
@@ -230,9 +246,9 @@ function App() {
         <Route
           path="/ticket/:id"
           element={
-            <ClientUserRoute>
+            <TicketViewerRoute>
               <TicketDetails />
-            </ClientUserRoute>
+            </TicketViewerRoute>
           }
         />
 

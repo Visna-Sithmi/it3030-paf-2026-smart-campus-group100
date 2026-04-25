@@ -15,9 +15,14 @@ public class TicketComment {
     @JoinColumn(name = "ticket_id", nullable = false)
     private IncidentTicket ticket;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private Student user;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    @Column(name = "user_role", nullable = false, length = 50)
+    private String userRole;
+
+    @Column(name = "user_name", nullable = false, length = 100)
+    private String userName;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String commentText;
@@ -31,10 +36,12 @@ public class TicketComment {
     public TicketComment() {
     }
 
-    public TicketComment(Long id, IncidentTicket ticket, Student user, String commentText, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public TicketComment(Long id, IncidentTicket ticket, Long userId, String userRole, String userName, String commentText, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.ticket = ticket;
-        this.user = user;
+        this.userId = userId;
+        this.userRole = userRole;
+        this.userName = userName;
         this.commentText = commentText;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -63,12 +70,28 @@ public class TicketComment {
         this.ticket = ticket;
     }
 
-    public Student getUser() {
-        return user;
+    public Long getUserId() {
+        return userId;
     }
 
-    public void setUser(Student user) {
-        this.user = user;
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public String getUserRole() {
+        return userRole;
+    }
+
+    public void setUserRole(String userRole) {
+        this.userRole = userRole;
+    }
+
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
     }
 
     public String getCommentText() {

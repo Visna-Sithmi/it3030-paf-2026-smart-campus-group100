@@ -161,6 +161,43 @@ public class AuthController {
         }
     }
 
+    @GetMapping("/issue-manager/profile/{id}")
+    public ResponseEntity<?> getIssueManagerProfile(@PathVariable Long id) {
+        try {
+            ManagerProfileResponseDTO profile = userService.getIssueManagerProfile(id);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Issue manager profile fetched successfully",
+                    "data", profile
+            ));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", ex.getMessage()
+            ));
+        }
+    }
+
+    @PutMapping("/issue-manager/profile/{id}")
+    public ResponseEntity<?> updateIssueManagerProfile(
+            @PathVariable Long id,
+            @Valid @RequestBody ManagerProfileUpdateRequestDTO request
+    ) {
+        try {
+            ManagerProfileResponseDTO profile = userService.updateIssueManagerProfile(id, request);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Issue manager profile updated successfully",
+                    "data", profile
+            ));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", ex.getMessage()
+            ));
+        }
+    }
+
 
     // REMOVE THIS - Student login is handled by StudentAuthController
     // @PostMapping("/student/login")

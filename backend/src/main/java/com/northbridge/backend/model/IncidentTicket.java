@@ -17,13 +17,26 @@ public class IncidentTicket {
     @JoinColumn(name = "resource_id", nullable = false)
     private Resource resource;
 
-    @ManyToOne
-    @JoinColumn(name = "created_by_id", nullable = false)
-    private Student createdBy;
+    @Column(name = "created_by_id", nullable = false)
+    private Long createdById;
 
-    @ManyToOne
-    @JoinColumn(name = "assigned_to_id")
-    private Student assignedTo;
+    @Column(name = "created_by_user_id")
+    private Long createdByUserId;
+
+    @Column(name = "created_by_role", length = 50)
+    private String createdByRole;
+
+    @Column(name = "created_by_name", length = 100)
+    private String createdByName;
+
+    @Column(name = "assigned_staff_id")
+    private Long assignedStaffId;
+
+    @Column(name = "assigned_staff_name", length = 100)
+    private String assignedStaffName;
+
+    @Column(name = "assigned_staff_role", length = 50)
+    private String assignedStaffRole;
 
     @Column(nullable = false)
     private String category;
@@ -60,27 +73,6 @@ public class IncidentTicket {
     public IncidentTicket() {
     }
 
-    public IncidentTicket(Long id, Resource resource, Student createdBy, Student assignedTo, String category,
-                          String description, String priority, String preferredContact, String status,
-                          String rejectionReason, String resolutionNotes, LocalDateTime createdAt,
-                          LocalDateTime updatedAt, List<TicketAttachment> attachments, List<TicketComment> comments) {
-        this.id = id;
-        this.resource = resource;
-        this.createdBy = createdBy;
-        this.assignedTo = assignedTo;
-        this.category = category;
-        this.description = description;
-        this.priority = priority;
-        this.preferredContact = preferredContact;
-        this.status = status;
-        this.rejectionReason = rejectionReason;
-        this.resolutionNotes = resolutionNotes;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-        this.attachments = attachments;
-        this.comments = comments;
-    }
-
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -100,12 +92,32 @@ public class IncidentTicket {
         return resource;
     }
 
-    public Student getCreatedBy() {
-        return createdBy;
+    public Long getCreatedById() {
+        return createdById;
     }
 
-    public Student getAssignedTo() {
-        return assignedTo;
+    public Long getCreatedByUserId() {
+        return createdByUserId;
+    }
+
+    public String getCreatedByRole() {
+        return createdByRole;
+    }
+
+    public String getCreatedByName() {
+        return createdByName;
+    }
+
+    public Long getAssignedStaffId() {
+        return assignedStaffId;
+    }
+
+    public String getAssignedStaffName() {
+        return assignedStaffName;
+    }
+
+    public String getAssignedStaffRole() {
+        return assignedStaffRole;
     }
 
     public String getCategory() {
@@ -160,12 +172,32 @@ public class IncidentTicket {
         this.resource = resource;
     }
 
-    public void setCreatedBy(Student createdBy) {
-        this.createdBy = createdBy;
+    public void setCreatedById(Long createdById) {
+        this.createdById = createdById;
     }
 
-    public void setAssignedTo(Student assignedTo) {
-        this.assignedTo = assignedTo;
+    public void setCreatedByUserId(Long createdByUserId) {
+        this.createdByUserId = createdByUserId;
+    }
+
+    public void setCreatedByRole(String createdByRole) {
+        this.createdByRole = createdByRole;
+    }
+
+    public void setCreatedByName(String createdByName) {
+        this.createdByName = createdByName;
+    }
+
+    public void setAssignedStaffId(Long assignedStaffId) {
+        this.assignedStaffId = assignedStaffId;
+    }
+
+    public void setAssignedStaffName(String assignedStaffName) {
+        this.assignedStaffName = assignedStaffName;
+    }
+
+    public void setAssignedStaffRole(String assignedStaffRole) {
+        this.assignedStaffRole = assignedStaffRole;
     }
 
     public void setCategory(String category) {

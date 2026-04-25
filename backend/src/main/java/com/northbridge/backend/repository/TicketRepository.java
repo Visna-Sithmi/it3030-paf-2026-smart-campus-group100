@@ -8,6 +8,7 @@ import java.util.List;
 @Repository
 public interface TicketRepository extends JpaRepository<IncidentTicket, Long> {
     List<IncidentTicket> findByCreatedById(Long userId);
-    List<IncidentTicket> findByAssignedToId(Long userId);
+    List<IncidentTicket> findByCreatedByUserId(Long userId);
+    List<IncidentTicket> findByAssignedStaffId(Long userId);
     List<IncidentTicket> findByStatus(String status);
 }

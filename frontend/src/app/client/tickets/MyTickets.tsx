@@ -14,6 +14,8 @@ interface Ticket {
   resourceId: string;
   preferredContact: string;
   createdAt: string;
+  assignedToName?: string;
+  assignedToRole?: string;
 }
 
 export default function MyTickets() {
@@ -29,7 +31,7 @@ export default function MyTickets() {
     const role = localStorage.getItem("role");
     const id = localStorage.getItem("id");
 
-    if (!role || !["STUDENT", "LECTURER"].includes(role) || !id) {
+    if (!role || !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY"].includes(role) || !id) {
       navigate("/client/login");
       return;
     }
@@ -131,6 +133,9 @@ export default function MyTickets() {
     }
   };
 
+  const role = (localStorage.getItem("role") || "").toUpperCase();
+  const isStaffRole = ["TECHNICIAN", "CLEANER", "SECURITY"].includes(role);
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col">
       <Header />
@@ -140,7 +145,9 @@ export default function MyTickets() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-[#002147] mb-2">Issue Reporting & Tracking</h1>
           <p className="text-slate-600">
-            Create incident tickets, track their status, and manage maintenance requests for campus resources.
+            {isStaffRole
+              ? "View and track tickets assigned to you by the issue manager."
+              : "Create incident tickets, track their status, and manage maintenance requests for campus resources."}
           </p>
         </div>
 
@@ -167,13 +174,15 @@ export default function MyTickets() {
         {/* Action Button and Filters */}
         <div className="mb-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <button
-              onClick={() => navigate("/create-ticket")}
-              className="flex items-center justify-center gap-2 rounded-lg bg-[#002147] px-6 py-3 text-white font-semibold hover:bg-[#001733] transition-colors shadow-md hover:shadow-lg"
-            >
-              <Plus size={20} />
-              Create New Ticket
-            </button>
+            {!isStaffRole && (
+              <button
+                onClick={() => navigate("/create-ticket")}
+                className="flex items-center justify-center gap-2 rounded-lg bg-[#002147] px-6 py-3 text-white font-semibold hover:bg-[#001733] transition-colors shadow-md hover:shadow-lg"
+              >
+                <Plus size={20} />
+                Create New Ticket
+              </button>
+            )}
 
             {/* Filters */}
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -270,6 +279,14 @@ export default function MyTickets() {
                       <p className="text-sm text-slate-600 line-clamp-2">{ticket.description}</p>
                       <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
                         <span>Resource ID: {ticket.resourceId}</span>
+                        {ticket.assignedToName && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              Assigned: {ticket.assignedToName} ({ticket.assignedToRole || "STAFF"})
+                            </span>
+                          </>
+                        )}
                         <span>•</span>
                         <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
                       </div>

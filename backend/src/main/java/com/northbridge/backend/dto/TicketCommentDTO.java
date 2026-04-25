@@ -1,11 +1,17 @@
 package com.northbridge.backend.dto;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+
 import java.time.LocalDateTime;
 
+@JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
 public class TicketCommentDTO {
 
     private Long id;
     private Long ticketId;
+    private Long userId;
+    private String userRole;
     private String userName;
     private String commentText;
     private LocalDateTime createdAt;
@@ -14,9 +20,19 @@ public class TicketCommentDTO {
     public TicketCommentDTO() {
     }
 
-    public TicketCommentDTO(Long id, Long ticketId, String userName, String commentText, LocalDateTime createdAt) {
+    public TicketCommentDTO(
+            Long id,
+            Long ticketId,
+            Long userId,
+            String userRole,
+            String userName,
+            String commentText,
+            LocalDateTime createdAt
+    ) {
         this.id = id;
         this.ticketId = ticketId;
+        this.userId = userId;
+        this.userRole = userRole;
         this.userName = userName;
         this.commentText = commentText;
         this.createdAt = createdAt;
@@ -33,6 +49,14 @@ public class TicketCommentDTO {
 
     public String getUserName() {
         return userName;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public String getUserRole() {
+        return userRole;
     }
 
     public String getCommentText() {
@@ -54,6 +78,14 @@ public class TicketCommentDTO {
 
     public void setUserName(String userName) {
         this.userName = userName;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public void setUserRole(String userRole) {
+        this.userRole = userRole;
     }
 
     public void setCommentText(String commentText) {

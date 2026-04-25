@@ -257,6 +257,45 @@ public class UserService {
         );
     }
 
+    public ManagerProfileResponseDTO getIssueManagerProfile(Long managerId) {
+        User manager = userRepository.findById(Objects.requireNonNull(managerId, "managerId"))
+                .orElseThrow(() -> new RuntimeException("Issue manager not found"));
+
+        if (!"ISSUE_MANAGER".equals(manager.getRole())) {
+            throw new RuntimeException("Access denied. Issue manager only.");
+        }
+
+        return new ManagerProfileResponseDTO(
+                manager.getId(),
+                manager.getName(),
+                manager.getEmail(),
+                manager.getRole(),
+                manager.getProfileImageUrl()
+        );
+    }
+
+    public ManagerProfileResponseDTO updateIssueManagerProfile(Long managerId, ManagerProfileUpdateRequestDTO request) {
+        User manager = userRepository.findById(Objects.requireNonNull(managerId, "managerId"))
+                .orElseThrow(() -> new RuntimeException("Issue manager not found"));
+
+        if (!"ISSUE_MANAGER".equals(manager.getRole())) {
+            throw new RuntimeException("Access denied. Issue manager only.");
+        }
+
+        manager.setName(request.getName().trim());
+        manager.setProfileImageUrl(request.getProfileImageUrl());
+
+        User updated = userRepository.save(manager);
+
+        return new ManagerProfileResponseDTO(
+                updated.getId(),
+                updated.getName(),
+                updated.getEmail(),
+                updated.getRole(),
+                updated.getProfileImageUrl()
+        );
+    }
+
     // Lecturer specific login
     public LoginResponse lecturerLogin(LoginRequest loginRequest) {
         logger.info("Lecturer login attempt for email: {}", loginRequest.getEmail());

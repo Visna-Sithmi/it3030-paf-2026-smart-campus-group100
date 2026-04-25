@@ -1,8 +1,15 @@
 package com.northbridge.backend.dto;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Uses camelCase JSON property names; global Jackson config is SNAKE_CASE for other endpoints.
+ */
+@JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
 public class TicketResponseDTO {
 
     private Long id;
@@ -10,6 +17,8 @@ public class TicketResponseDTO {
     private String resourceName;
     private String createdByName;
     private String assignedToName;
+    private Long assignedToId;
+    private String assignedToRole;
     private String category;
     private String description;
     private String priority;
@@ -64,6 +73,14 @@ public class TicketResponseDTO {
         return assignedToName;
     }
 
+    public Long getAssignedToId() {
+        return assignedToId;
+    }
+
+    public String getAssignedToRole() {
+        return assignedToRole;
+    }
+
     public String getCategory() {
         return category;
     }
@@ -114,6 +131,14 @@ public class TicketResponseDTO {
 
     public void setAssignedToName(String assignedToName) {
         this.assignedToName = assignedToName;
+    }
+
+    public void setAssignedToId(Long assignedToId) {
+        this.assignedToId = assignedToId;
+    }
+
+    public void setAssignedToRole(String assignedToRole) {
+        this.assignedToRole = assignedToRole;
     }
 
     public void setCategory(String category) {

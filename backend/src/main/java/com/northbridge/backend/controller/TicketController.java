@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/tickets")
 public class TicketController {
@@ -23,10 +24,13 @@ public class TicketController {
         this.ticketService = ticketService;
     }
 
-    @GetMapping
-    public ResponseEntity<?> getTickets() {
+
+    @GetMapping("/my")
+    public ResponseEntity<?> getMyTickets(
+            @RequestParam Long userId,
+            @RequestParam String role) {
         try {
-            List<TicketResponseDTO> tickets = ticketService.getAllTickets();
+            List<TicketResponseDTO> tickets = ticketService.getTicketsByUserAndRole(userId, role);
             return ResponseEntity.ok(tickets);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -34,15 +38,23 @@ public class TicketController {
         }
     }
 
-    @GetMapping("/my")
-    public ResponseEntity<?> getMyTickets() {
+    @GetMapping
+    public ResponseEntity<?> getAllTickets() {
         try {
-            Long fakeStudentId = 1L;
-            List<TicketResponseDTO> tickets = ticketService.getTicketsByStudent(fakeStudentId);
-            return ResponseEntity.ok(tickets);
+            return ResponseEntity.ok(ticketService.getAllTickets());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error fetching tickets: " + e.getMessage());
+                    .body("Error fetching all tickets: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/staff")
+    public ResponseEntity<?> getAssignableStaff() {
+        try {
+            return ResponseEntity.ok(ticketService.getAssignableStaff());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error fetching assignable staff: " + e.getMessage());
         }
     }
 
@@ -64,11 +76,11 @@ public class TicketController {
             @RequestParam String description,
             @RequestParam String priority,
             @RequestParam(required = false) String preferredContact,
+            @RequestParam Long userId,
+            @RequestParam String role,
             @RequestParam(required = false) List<MultipartFile> files) {
 
         try {
-            Long fakeStudentId = 1L;
-
             TicketRequestDTO request = new TicketRequestDTO();
             request.setResourceId(resourceId);
             request.setCategory(category);
@@ -76,7 +88,7 @@ public class TicketController {
             request.setPriority(priority);
             request.setPreferredContact(preferredContact);
 
-            TicketResponseDTO response = ticketService.createTicket(request, fakeStudentId, files);
+            TicketResponseDTO response = ticketService.createTicket(request, userId, role, files);
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
@@ -102,12 +114,12 @@ public class TicketController {
     }
 
     @PutMapping("/{ticketId}/assign")
-    public ResponseEntity<?> assignTechnician(
+    public ResponseEntity<?> assignStaff(
             @PathVariable Long ticketId,
-            @RequestParam Long technicianId) {
+            @RequestParam Long staffId) {
 
         try {
-            TicketResponseDTO response = ticketService.assignTechnician(ticketId, technicianId);
+            TicketResponseDTO response = ticketService.assignStaff(ticketId, staffId);
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
@@ -119,11 +131,12 @@ public class TicketController {
     @PostMapping("/{ticketId}/comments")
     public ResponseEntity<?> addComment(
             @PathVariable Long ticketId,
-            @RequestParam String commentText) {
+            @RequestParam String commentText,
+            @RequestParam Long userId,
+            @RequestParam String role) {
 
         try {
-            Long fakeUserId = 1L;
-            Map<String, Object> response = ticketService.addComment(ticketId, fakeUserId, commentText);
+            Map<String, Object> response = ticketService.addComment(ticketId, userId, role, commentText);
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {

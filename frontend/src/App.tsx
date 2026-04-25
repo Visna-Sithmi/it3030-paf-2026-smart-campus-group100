@@ -13,6 +13,9 @@ import ResourceCataloguePage from "./app/client/resources/page";
 import ClientLoginPage from "./app/client/login/page";
 import ResourceBookingPage from "./app/client/resourceBooking/page";
 import MyBookingsPage from "./app/client/myBookings/page";
+import CreateTicket from "./app/client/tickets/CreateTicket";
+import MyTickets from "./app/client/tickets/MyTickets";
+import TicketDetails from "./app/client/tickets/TicketDetails";
 
 const HomeRedirect = () => {
   const role = localStorage.getItem("role");
@@ -91,6 +94,22 @@ const IssueManagerRoute = ({ children }: { children: React.ReactNode }) => {
 const ClientUserRoute = ({ children }: { children: React.ReactNode }) => {
   const role = (localStorage.getItem("role") || "").toUpperCase();
   const userId = localStorage.getItem("id") || localStorage.getItem("studentId");
+
+  if (!role || !userId || !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY"].includes(role)) {
+    return <Navigate to="/client/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const TicketViewerRoute = ({ children }: { children: React.ReactNode }) => {
+  const role = (localStorage.getItem("role") || "").toUpperCase();
+  const userId = localStorage.getItem("id") || localStorage.getItem("studentId");
+  const managerUser = localStorage.getItem("user");
+
+  if (role === "ISSUE_MANAGER" && managerUser) {
+    return <>{children}</>;
+  }
 
   if (!role || !userId || !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY"].includes(role)) {
     return <Navigate to="/client/login" replace />;
@@ -206,6 +225,33 @@ function App() {
 
         {/* Redirect unknown routes */}
         <Route path="*" element={<HomeRedirect />} />
+
+        {/* Tickets Routes - Protected */}
+        <Route
+          path="/create-ticket"
+          element={
+            <ClientUserRoute>
+              <CreateTicket />
+            </ClientUserRoute>
+          }
+        />
+        <Route
+          path="/my-tickets"
+          element={
+            <ClientUserRoute>
+              <MyTickets />
+            </ClientUserRoute>
+          }
+        />
+        <Route
+          path="/ticket/:id"
+          element={
+            <TicketViewerRoute>
+              <TicketDetails />
+            </TicketViewerRoute>
+          }
+        />
+
       </Routes>
     </BrowserRouter>
   );

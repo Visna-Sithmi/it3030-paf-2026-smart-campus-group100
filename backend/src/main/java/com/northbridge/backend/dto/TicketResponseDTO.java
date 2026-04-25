@@ -1,13 +1,24 @@
 package com.northbridge.backend.dto;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Uses camelCase JSON property names; global Jackson config is SNAKE_CASE for other endpoints.
+ */
+@JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
 public class TicketResponseDTO {
 
     private Long id;
+    private Long resourceId;
     private String resourceName;
     private String createdByName;
     private String assignedToName;
+    private Long assignedToId;
+    private String assignedToRole;
     private String category;
     private String description;
     private String priority;
@@ -15,6 +26,9 @@ public class TicketResponseDTO {
     private String rejectionReason;
     private String resolutionNotes;
     private List<String> attachmentUrls;
+    private String preferredContact;
+    private LocalDateTime createdAt;
+    private List<TicketCommentDTO> comments;
 
     // 🔹 Default Constructor
     public TicketResponseDTO() {
@@ -43,6 +57,10 @@ public class TicketResponseDTO {
         return id;
     }
 
+    public Long getResourceId() {
+        return resourceId;
+    }
+
     public String getResourceName() {
         return resourceName;
     }
@@ -53,6 +71,14 @@ public class TicketResponseDTO {
 
     public String getAssignedToName() {
         return assignedToName;
+    }
+
+    public Long getAssignedToId() {
+        return assignedToId;
+    }
+
+    public String getAssignedToRole() {
+        return assignedToRole;
     }
 
     public String getCategory() {
@@ -83,11 +109,17 @@ public class TicketResponseDTO {
         return attachmentUrls;
     }
 
+    public String getPreferredContact() { return preferredContact; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+
     // 🔹 Setters
 
     public void setId(Long id) {
         this.id = id;
     }
+
+    public void setResourceId(Long resourceId) { this.resourceId = resourceId; }
 
     public void setResourceName(String resourceName) {
         this.resourceName = resourceName;
@@ -99,6 +131,14 @@ public class TicketResponseDTO {
 
     public void setAssignedToName(String assignedToName) {
         this.assignedToName = assignedToName;
+    }
+
+    public void setAssignedToId(Long assignedToId) {
+        this.assignedToId = assignedToId;
+    }
+
+    public void setAssignedToRole(String assignedToRole) {
+        this.assignedToRole = assignedToRole;
     }
 
     public void setCategory(String category) {
@@ -127,5 +167,17 @@ public class TicketResponseDTO {
 
     public void setAttachmentUrls(List<String> attachmentUrls) {
         this.attachmentUrls = attachmentUrls;
+    }
+
+    public void setPreferredContact(String preferredContact) { this.preferredContact = preferredContact; }
+
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public List<TicketCommentDTO> getComments() {
+        return comments;
+    }
+
+    public void setComments(List<TicketCommentDTO> comments) {
+        this.comments = comments;
     }
 }

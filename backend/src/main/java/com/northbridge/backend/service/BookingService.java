@@ -12,7 +12,7 @@ public interface BookingService {
 
     BookingResponseDTO createBooking(BookingRequestDTO requestDTO, Long requesterId, String requesterRole);
 
-    List<BookingResponseDTO> getMyBookings(Long requesterId);
+    List<BookingResponseDTO> getMyBookings(Long requesterId, String requesterRole);
 
     List<BookingResponseDTO> getAllBookings(String requesterRole);
 

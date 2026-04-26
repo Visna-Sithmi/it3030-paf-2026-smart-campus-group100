@@ -46,24 +46,6 @@ const REJECT_REASON_OPTIONS: Array<{
 
 const APPROVAL_NOTE_TEMPLATE = "Your booking request is confirmed.";
 
-const getStoredManagerId = () => {
-  const directId = localStorage.getItem("id");
-  if (directId && Number(directId) > 0) {
-    return Number(directId);
-  }
-
-  const rawUser = localStorage.getItem("user");
-  if (!rawUser) return 0;
-
-  try {
-    const parsed = JSON.parse(rawUser);
-    const fromUser = Number(parsed?.id || 0);
-    return fromUser > 0 ? fromUser : 0;
-  } catch {
-    return 0;
-  }
-};
-
 const BookingDashboard = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
@@ -90,6 +72,7 @@ const BookingDashboard = () => {
   const [heroIndex, setHeroIndex] = useState(0);
   const [resourceSlotsDate, setResourceSlotsDate] = useState(new Date().toISOString().split("T")[0]);
   const [showResourceSlotsId, setShowResourceSlotsId] = useState<number | null>(null);
+  const [selectedRequesterBooking, setSelectedRequesterBooking] = useState<BookingResponseDTO | null>(null);
 
   const fetchBookings = async (isBackground = false) => {
     if (!isBackground) {
@@ -468,6 +451,25 @@ const BookingDashboard = () => {
     });
   };
 
+  const formatDateTime = (dateInput?: string | null) => {
+    if (!dateInput) return "N/A";
+    const parsed = new Date(dateInput);
+    if (!Number.isFinite(parsed.getTime())) return dateInput;
+    return parsed.toLocaleString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
+  const resolveRequesterImageUrl = (imageUrl?: string | null) => {
+    if (!imageUrl) return "";
+    return imageUrl.startsWith("http") ? imageUrl : `http://localhost:8081${imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`}`;
+  };
+
   const parseAvailabilityConfig = (availabilityWindows?: string) => {
     try {
       if (availabilityWindows) {
@@ -836,9 +838,29 @@ const BookingDashboard = () => {
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
                                 <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">Booking details</p>
-                                <p className="mt-2 text-sm text-slate-600">
-                                  Requested by <span className="font-semibold text-slate-800">{booking.requestedByName}</span> · {booking.requestedByRole}
-                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedRequesterBooking(booking)}
+                                  className="mt-2 inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-left transition hover:border-[#002147] hover:bg-[#002147]/5"
+                                >
+                                  <div className="h-10 w-10 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+                                    {resolveRequesterImageUrl(booking.requestedByProfileImageUrl) ? (
+                                      <img
+                                        src={resolveRequesterImageUrl(booking.requestedByProfileImageUrl)}
+                                        alt={booking.requestedByName}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="flex h-full w-full items-center justify-center text-sm font-bold text-slate-500">
+                                        {(booking.requestedByName || "U").charAt(0).toUpperCase()}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-900">{booking.requestedByName}</p>
+                                    <p className="text-xs text-slate-500">{booking.requestedByRole} · Requested {formatDateTime(booking.createdAt)}</p>
+                                  </div>
+                                </button>
                               </div>
                               <span
                                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
@@ -1222,6 +1244,87 @@ const BookingDashboard = () => {
                 </button>
               </div>
             </form>
+          </motion.div>
+        </motion.div>
+      )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+      {selectedRequesterBooking && (
+        <motion.div
+          className="fixed inset-0 z-[78] flex items-center justify-center bg-black/45 p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="w-full max-w-lg rounded-2xl bg-white shadow-2xl"
+            initial={{ y: 18, opacity: 0, scale: 0.97 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 10, opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+          >
+            <div className="border-b border-slate-200 px-6 py-4">
+              <h3 className="text-lg font-bold text-slate-900">Requester Details</h3>
+              <p className="mt-1 text-sm text-slate-500">Full information for the booking requester</p>
+            </div>
+
+            <div className="space-y-4 px-6 py-5">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+                  {resolveRequesterImageUrl(selectedRequesterBooking.requestedByProfileImageUrl) ? (
+                    <img
+                      src={resolveRequesterImageUrl(selectedRequesterBooking.requestedByProfileImageUrl)}
+                      alt={selectedRequesterBooking.requestedByName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-lg font-bold text-slate-500">
+                      {(selectedRequesterBooking.requestedByName || "U").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">{selectedRequesterBooking.requestedByName}</p>
+                  <p className="text-sm text-slate-500">{selectedRequesterBooking.requestedByRole}</p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">Requester ID</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">#{selectedRequesterBooking.requestedById}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">Email</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedRequesterBooking.requestedByEmail || "N/A"}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">Requested At</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{formatDateTime(selectedRequesterBooking.createdAt)}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">Booking Time</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedRequesterBooking.startTime} - {selectedRequesterBooking.endTime}</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">Purpose</p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{selectedRequesterBooking.purpose || "No purpose provided."}</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t border-slate-200 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setSelectedRequesterBooking(null)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
           </motion.div>
         </motion.div>
       )}

@@ -53,6 +53,10 @@ interface BookingResponseApiModel {
   requested_by_name?: string;
   requestedByRole?: string;
   requested_by_role?: string;
+  requestedByEmail?: string | null;
+  requested_by_email?: string | null;
+  requestedByProfileImageUrl?: string | null;
+  requested_by_profile_image_url?: string | null;
   bookingDate?: string;
   booking_date?: string;
   startTime?: string;
@@ -94,6 +98,8 @@ const normalizeBooking = (raw: BookingResponseApiModel): BookingResponseDTO => (
   requestedById: raw.requestedById ?? raw.requested_by_id ?? 0,
   requestedByName: raw.requestedByName ?? raw.requested_by_name ?? "",
   requestedByRole: raw.requestedByRole ?? raw.requested_by_role ?? "",
+  requestedByEmail: raw.requestedByEmail ?? raw.requested_by_email ?? null,
+  requestedByProfileImageUrl: raw.requestedByProfileImageUrl ?? raw.requested_by_profile_image_url ?? null,
   bookingDate: raw.bookingDate ?? raw.booking_date ?? "",
   startTime: raw.startTime ?? raw.start_time ?? "",
   endTime: raw.endTime ?? raw.end_time ?? "",

@@ -1,7 +1,16 @@
 import axios from "axios";
 import type { AxiosResponse } from "axios";
 
+
 const API = "http://localhost:8081/api/tickets";
+const MANAGER_API = "http://localhost:8081/api/manager";
+
+function getAuthHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    "X-User-Role": "ISSUE_MANAGER"
+  };
+}
 
 /** Merges snake_case into camelCase for ticket + comments (defensive; global API may be SNAKE_CASE). */
 function pick<T extends Record<string, unknown>>(o: T, camel: string, snake: string): unknown {
@@ -47,6 +56,13 @@ export function normalizeTicketResponse(raw: unknown): Record<string, unknown> |
     attachmentUrls: pick(t, "attachmentUrls", "attachment_urls") ?? t.attachmentUrls,
     preferredContact: pick(t, "preferredContact", "preferred_contact") ?? t.preferredContact,
     createdAt: pick(t, "createdAt", "created_at") ?? t.createdAt,
+    assignedAt: pick(t, "assignedAt", "assigned_at") ?? t.assignedAt,
+    resolvedAt: pick(t, "resolvedAt", "resolved_at") ?? t.resolvedAt,
+    completedAt: pick(t, "completedAt", "completed_at") ?? t.completedAt,
+    closedAt: pick(t, "closedAt", "closed_at") ?? t.closedAt,
+    resolvedBy: pick(t, "resolvedBy", "resolved_by") ?? t.resolvedBy,
+    responseBreached: pick(t, "responseBreached", "response_breached") ?? t.responseBreached,
+    resolutionBreached: pick(t, "resolutionBreached", "resolution_breached") ?? t.resolutionBreached,
     comments,
   };
 }
@@ -148,6 +164,34 @@ export const assignStaff = (ticketId: number, staffId: number) =>
     params: { staffId },
   });
 
+export const completeTicket = (ticketId: number) => {
+  const userId = localStorage.getItem("id");
+  const role = localStorage.getItem("role");
+  return axios.patch(`${API}/${ticketId}/complete`, null, {
+    params: {
+      userId,
+      role,
+    },
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+};
+
+export const closeTicket = (ticketId: number) => {
+  const userId = localStorage.getItem("id");
+  const role = localStorage.getItem("role");
+  return axios.patch(`${API}/${ticketId}/close`, null, {
+    params: {
+      userId,
+      role,
+    },
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+};
+
 export type TicketReportFilters = {
   fromDate?: string;
   toDate?: string;
@@ -198,3 +242,41 @@ export async function downloadTicketReport(filters: TicketReportFilters) {
 
   URL.revokeObjectURL(url);
 }
+
+export type TopTechnician = {
+  name: string;
+  count: number;
+};
+
+export interface ManagerAnalytics {
+  totalTickets: number;
+  activeTickets: number;
+  avgResolutionTime: number;
+  slaBreachPercentage: number;
+  categoryStats: Record<string, number>;
+  ticketsPerDay: Record<string, number>;
+  topTechnicians: Array<{ name: string; count: number }>;
+}
+
+export const getManagerAnalytics = async () => {
+  const res = await axios.get("http://localhost:8081/api/manager/analytics", {
+    headers: {
+      "X-User-Role": "ISSUE_MANAGER",
+    },
+  });
+
+  const d = res.data;
+
+  // 🔥 FIX: snake_case → camelCase
+  return {
+    data: {
+      totalTickets: d.total_tickets,
+      activeTickets: d.active_tickets,
+      avgResolutionTime: d.avg_resolution_time,
+      slaBreachPercentage: d.sla_breach_percentage,
+      categoryStats: d.category_stats,
+      ticketsPerDay: d.tickets_per_day,
+      topTechnicians: d.top_technicians,
+    },
+  };
+};

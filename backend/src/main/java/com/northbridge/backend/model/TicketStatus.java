@@ -1,9 +1,18 @@
 package com.northbridge.backend.model;
 
 public enum TicketStatus {
-    OPEN,
+    /**
+     * New workflow (staff completes, manager closes).
+     */
+    PENDING,
     IN_PROGRESS,
-    RESOLVED,
+    COMPLETED_BY_STAFF,
     CLOSED,
+
+    /**
+     * Legacy statuses (kept for backward compatibility with existing UI/service flow).
+     */
+    OPEN,
+    RESOLVED,
     REJECTED
 }

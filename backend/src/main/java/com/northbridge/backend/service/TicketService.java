@@ -39,6 +39,7 @@ public class TicketService {
 
     private final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/tickets/";
 
+
     // 🔹 Constructor (Lombok replace)
     public TicketService(TicketRepository ticketRepository,
                          StudentRepository studentRepository,
@@ -72,6 +73,7 @@ public class TicketService {
             ticket.setDescription(request.getDescription());
             ticket.setPriority(request.getPriority());
             ticket.setPreferredContact(request.getPreferredContact() != null ? request.getPreferredContact() : "");
+            // Keep legacy default as OPEN to avoid breaking existing UI.
             ticket.setStatus(TicketStatus.OPEN.name());
             ticket.setCreatedById(userId);
             ticket.setCreatedByUserId(userId);
@@ -295,7 +297,7 @@ public class TicketService {
             saveAttachments(ticket, files);
 
             return ticket.getAttachments().stream()
-                    .map(att -> "/api/uploads/tickets/" + att.getId())
+                    .map(a -> "/api/tickets/uploads/" + a.getId())
                     .collect(Collectors.toList());
 
         } catch (IOException e) {
@@ -309,6 +311,105 @@ public class TicketService {
                 .stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public TicketResponseDTO completeTicket(Long ticketId, Long staffId, String staffRole) {
+        log.info("Completing ticket {} by staffId={} role={}", ticketId, staffId, staffRole);
+        IncidentTicket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+        if (staffId == null || staffId <= 0) {
+            throw new SecurityException("Invalid user session.");
+        }
+        String normalizedRole = normalizeRole(staffRole);
+        if (!STAFF_ROLES.contains(normalizedRole) && !"STAFF".equals(normalizedRole)) {
+            throw new SecurityException("Only STAFF can complete a ticket.");
+        }
+
+        if (ticket.getAssignedStaffId() == null) {
+            throw new IllegalArgumentException("Ticket is not assigned to a staff member.");
+        }
+        if (!Objects.equals(ticket.getAssignedStaffId(), staffId)) {
+            throw new SecurityException("Only the assigned staff member can complete this ticket.");
+        }
+
+        TicketStatus current = parseTicketCurrentStatus(ticket.getStatus());
+        if (current == TicketStatus.CLOSED) {
+            throw new IllegalArgumentException("Ticket is already closed.");
+        }
+        if (current == TicketStatus.COMPLETED_BY_STAFF) {
+            return convertToDTO(ticket);
+        }
+
+        // Allow completion from IN_PROGRESS (new flow) or RESOLVED (legacy already-resolved).
+        if (current != TicketStatus.IN_PROGRESS && current != TicketStatus.RESOLVED) {
+            throw new IllegalArgumentException("Ticket must be IN_PROGRESS before it can be completed by staff.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        ticket.setStatus(TicketStatus.COMPLETED_BY_STAFF.name());
+        ticket.setCompletedAt(now);
+        ticket.setResolvedBy(staffId);
+
+        // Keep legacy resolvedAt updated for existing SLA/ticket details UI.
+        if (ticket.getResolvedAt() == null) {
+            ticket.setResolvedAt(now);
+        }
+
+        IncidentTicket saved = ticketRepository.save(ticket);
+
+        Long ticketOwnerId = saved.getCreatedByUserId();
+        if (ticketOwnerId != null && !Objects.equals(ticketOwnerId, staffId)) {
+            notificationService.createNotification(
+                    ticketOwnerId,
+                    "Ticket #" + saved.getId() + " was marked completed by staff and is pending review.",
+                    "TICKET",
+                    saved.getId()
+            );
+        }
+
+        return convertToDTO(saved);
+    }
+
+    @Transactional
+    public TicketResponseDTO closeTicket(Long ticketId, Long managerId, String managerRole) {
+        IncidentTicket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+        if (managerId == null || managerId <= 0) {
+            throw new SecurityException("Invalid user session.");
+        }
+        String normalizedRole = normalizeRole(managerRole);
+        if (!"ISSUE_MANAGER".equals(normalizedRole)) {
+            throw new SecurityException("Only ISSUE_MANAGER can close a ticket.");
+        }
+
+        TicketStatus current = parseTicketCurrentStatus(ticket.getStatus());
+        if (current == TicketStatus.CLOSED) {
+            return convertToDTO(ticket);
+        }
+        if (current != TicketStatus.COMPLETED_BY_STAFF) {
+            throw new IllegalArgumentException("Ticket must be COMPLETED_BY_STAFF before it can be closed.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        ticket.setStatus(TicketStatus.CLOSED.name());
+        ticket.setClosedAt(now);
+
+        IncidentTicket saved = ticketRepository.save(ticket);
+
+        Long ticketOwnerId = saved.getCreatedByUserId();
+        if (ticketOwnerId != null) {
+            notificationService.createNotification(
+                    ticketOwnerId,
+                    "Ticket #" + saved.getId() + " has been closed by the Issue Manager.",
+                    "TICKET",
+                    saved.getId()
+            );
+        }
+
+        return convertToDTO(saved);
     }
 
     public List<Map<String, Object>> getAssignableStaff() {
@@ -403,14 +504,17 @@ public class TicketService {
         dto.setStatus(ticket.getStatus());
         dto.setRejectionReason(ticket.getRejectionReason());
         dto.setResolutionNotes(ticket.getResolutionNotes());
+        dto.setCompletedAt(ticket.getCompletedAt());
+        dto.setClosedAt(ticket.getClosedAt());
+        dto.setResolvedBy(ticket.getResolvedBy());
 
         // Add attachments
-        List<String> urls = new ArrayList<>();
-        if (ticket.getAttachments() != null) {
-            urls = ticket.getAttachments().stream()
-                    .map(a -> "/api/uploads/tickets/" + a.getId())
-                    .collect(Collectors.toList());
-        }
+        List<TicketAttachment> attachments = attachmentRepository.findByTicketId(ticket.getId());
+
+        List<String> urls = attachments.stream()
+                .map(a -> "/api/tickets/uploads/" + a.getId())
+                .collect(Collectors.toList());
+
         dto.setAttachmentUrls(urls);
 
         // Add comments
@@ -447,7 +551,7 @@ public class TicketService {
         try {
             return TicketStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("Invalid status. Allowed values: OPEN, IN_PROGRESS, RESOLVED, CLOSED, REJECTED");
+            throw new IllegalArgumentException("Invalid status.");
         }
     }
 

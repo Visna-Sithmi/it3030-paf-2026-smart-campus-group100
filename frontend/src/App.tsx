@@ -9,6 +9,7 @@ import BookingDashboard from "./app/manager/bookingDashboard/page";
 import BookingHistoryPage from "./app/manager/bookingHistory/page";
 import ResourceDashboard from "./app/manager/resourceDashboard/ResourceDashboard";
 import IssueDashboard from "./app/manager/issueDashboard/page";
+import IssueAnalyticsPage from "./app/manager/issueAnalytics/page";
 import ResourceCataloguePage from "./app/client/resources/page";
 import ClientLoginPage from "./app/client/login/page";
 import ResourceBookingPage from "./app/client/resourceBooking/page";
@@ -184,6 +185,24 @@ function App() {
           element={
             <IssueManagerRoute>
               <IssueDashboard />
+            </IssueManagerRoute>
+          }
+        />
+
+        <Route
+          path="/manager/issue/analytics"
+          element={
+            <IssueManagerRoute>
+              <IssueAnalyticsPage />
+            </IssueManagerRoute>
+          }
+        />
+
+        <Route
+          path="/manager/analytics"
+          element={
+            <IssueManagerRoute>
+              <IssueAnalyticsPage />
             </IssueManagerRoute>
           }
         />

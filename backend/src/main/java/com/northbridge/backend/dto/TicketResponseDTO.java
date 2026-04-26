@@ -28,6 +28,9 @@ public class TicketResponseDTO {
     private List<String> attachmentUrls;
     private String preferredContact;
     private LocalDateTime createdAt;
+    private LocalDateTime completedAt;
+    private LocalDateTime closedAt;
+    private Long resolvedBy;
     private List<TicketCommentDTO> comments;
 
     // 🔹 Default Constructor
@@ -113,6 +116,12 @@ public class TicketResponseDTO {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 
+    public LocalDateTime getCompletedAt() { return completedAt; }
+
+    public LocalDateTime getClosedAt() { return closedAt; }
+
+    public Long getResolvedBy() { return resolvedBy; }
+
     // 🔹 Setters
 
     public void setId(Long id) {
@@ -172,6 +181,12 @@ public class TicketResponseDTO {
     public void setPreferredContact(String preferredContact) { this.preferredContact = preferredContact; }
 
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }
+
+    public void setClosedAt(LocalDateTime closedAt) { this.closedAt = closedAt; }
+
+    public void setResolvedBy(Long resolvedBy) { this.resolvedBy = resolvedBy; }
 
     public List<TicketCommentDTO> getComments() {
         return comments;

@@ -11,7 +11,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { CalendarDays, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import logo from "../../../assets/logo.jpeg";
 import { bookingService } from "../../../services/bookingService";
 import { resourceService } from "../../../services/resource.service";
@@ -44,6 +44,10 @@ export default function BookingHistoryPage() {
   const [selectedCalendarDate, setSelectedCalendarDate] = useState("");
 
   const userName = getAuthItem("name") || "Booking Manager";
+  const selectClassName =
+    "w-full appearance-none rounded-2xl border border-[#c9d8ea] bg-[#f8fbff] px-4 py-3 pr-10 text-sm font-semibold text-[#09203d] shadow-[0_8px_22px_rgba(0,33,71,0.06)] outline-none transition hover:border-[#7aa3cf] hover:bg-white focus:border-[#002147] focus:bg-white focus:ring-4 focus:ring-[#002147]/10";
+  const inputClassName =
+    "w-full rounded-2xl border border-[#c9d8ea] bg-[#f8fbff] px-4 py-3 text-sm font-semibold text-[#09203d] shadow-[0_8px_22px_rgba(0,33,71,0.06)] outline-none transition hover:border-[#7aa3cf] hover:bg-white focus:border-[#002147] focus:bg-white focus:ring-4 focus:ring-[#002147]/10";
 
   const fetchBookings = async () => {
     try {
@@ -439,58 +443,70 @@ export default function BookingHistoryPage() {
           <div className="mb-5 grid gap-3 md:grid-cols-3 lg:grid-cols-6">
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year</label>
-              <select
-                value={analyticsYearFilter}
-                onChange={(e) => setAnalyticsYearFilter(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
-              >
-                <option value="ALL">All Years</option>
-                {availableAnalyticsYears.map((year) => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={analyticsYearFilter}
+                  onChange={(e) => setAnalyticsYearFilter(e.target.value)}
+                  className={selectClassName}
+                >
+                  <option value="ALL">All Years</option>
+                  {availableAnalyticsYears.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1b4f7d]" />
+              </div>
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Month</label>
-              <select
-                value={analyticsMonthFilter}
-                onChange={(e) => setAnalyticsMonthFilter(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
-              >
-                <option value="ALL">All Months</option>
-                {monthLabels.map((month, index) => (
-                  <option key={month} value={`${index + 1}`.padStart(2, "0")}>{month}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={analyticsMonthFilter}
+                  onChange={(e) => setAnalyticsMonthFilter(e.target.value)}
+                  className={selectClassName}
+                >
+                  <option value="ALL">All Months</option>
+                  {monthLabels.map((month, index) => (
+                    <option key={month} value={`${index + 1}`.padStart(2, "0")}>{month}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1b4f7d]" />
+              </div>
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Status</label>
-              <select
-                value={analyticsStatusFilter}
-                onChange={(e) => setAnalyticsStatusFilter(e.target.value as "ALL" | "APPROVED" | "REJECTED" | "CANCELLED")}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={analyticsStatusFilter}
+                  onChange={(e) => setAnalyticsStatusFilter(e.target.value as "ALL" | "APPROVED" | "REJECTED" | "CANCELLED")}
+                  className={selectClassName}
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1b4f7d]" />
+              </div>
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Resource Type</label>
-              <select
-                value={analyticsResourceTypeFilter}
-                onChange={(e) => setAnalyticsResourceTypeFilter(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
-              >
-                <option value="ALL">All Types</option>
-                {historyResourceTypeOptions.map((type) => (
-                  <option key={type} value={type}>{type.replaceAll("_", " ")}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={analyticsResourceTypeFilter}
+                  onChange={(e) => setAnalyticsResourceTypeFilter(e.target.value)}
+                  className={selectClassName}
+                >
+                  <option value="ALL">All Types</option>
+                  {historyResourceTypeOptions.map((type) => (
+                    <option key={type} value={type}>{type.replaceAll("_", " ")}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1b4f7d]" />
+              </div>
             </div>
 
             <div>
@@ -499,7 +515,7 @@ export default function BookingHistoryPage() {
                 type="date"
                 value={analyticsFromDate}
                 onChange={(e) => setAnalyticsFromDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                className={inputClassName}
               />
             </div>
 
@@ -509,7 +525,7 @@ export default function BookingHistoryPage() {
                 type="date"
                 value={analyticsToDate}
                 onChange={(e) => setAnalyticsToDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                className={inputClassName}
               />
             </div>
           </div>
@@ -733,22 +749,25 @@ export default function BookingHistoryPage() {
                 value={historySearch}
                 onChange={(e) => setHistorySearch(e.target.value)}
                 placeholder="Resource, requester, purpose"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                className={inputClassName}
               />
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Status Filter</label>
-              <select
-                value={historyStatusFilter}
-                onChange={(e) => setHistoryStatusFilter(e.target.value as "ALL" | "APPROVED" | "REJECTED" | "CANCELLED")}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
-              >
-                <option value="ALL">All History Statuses</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={historyStatusFilter}
+                  onChange={(e) => setHistoryStatusFilter(e.target.value as "ALL" | "APPROVED" | "REJECTED" | "CANCELLED")}
+                  className={selectClassName}
+                >
+                  <option value="ALL">All History Statuses</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1b4f7d]" />
+              </div>
             </div>
 
             <div>
@@ -757,24 +776,27 @@ export default function BookingHistoryPage() {
                 type="date"
                 value={historyDateFilter}
                 onChange={(e) => setHistoryDateFilter(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                className={inputClassName}
               />
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Resource Type</label>
-              <select
-                value={historyResourceTypeFilter}
-                onChange={(e) => setHistoryResourceTypeFilter(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
-              >
-                <option value="ALL">All Resource Types</option>
-                {historyResourceTypeOptions.map((type) => (
-                  <option key={type} value={type}>
-                    {type.replaceAll("_", " ")}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={historyResourceTypeFilter}
+                  onChange={(e) => setHistoryResourceTypeFilter(e.target.value)}
+                  className={selectClassName}
+                >
+                  <option value="ALL">All Resource Types</option>
+                  {historyResourceTypeOptions.map((type) => (
+                    <option key={type} value={type}>
+                      {type.replaceAll("_", " ")}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1b4f7d]" />
+              </div>
             </div>
           </div>
 

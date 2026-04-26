@@ -58,26 +58,43 @@ const focusAreas = [
 export default function AboutPage() {
   return (
     <Layout>
-      <section className="relative overflow-hidden bg-[#071426] text-white">
+      <section className="relative min-h-[calc(100vh-5rem)] overflow-hidden bg-[#071426] text-white">
+        <div className="absolute inset-0 bg-[linear-gradient(120deg,#071426_0%,#0c2744_58%,#123b67_100%)]" />
         <img
           src={logo}
           alt="Northbridge University identity"
-          className="northbridge-slow-turn absolute -right-32 top-8 h-[420px] w-[420px] object-cover opacity-10 sm:h-[560px] sm:w-[560px]"
+          className="northbridge-slow-turn absolute right-[-18%] top-1/2 h-[620px] w-[620px] -translate-y-1/2 object-cover opacity-20 sm:right-[-8%] sm:h-[760px] sm:w-[760px] lg:right-[-4%]"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(120deg,#071426_0%,#0c2744_58%,#123b67_100%)] opacity-95" />
+        <div className="absolute inset-0 bg-[#071426]/35" />
+        <div className="absolute inset-y-0 left-0 w-full bg-[linear-gradient(90deg,#071426_0%,#071426_44%,rgba(7,20,38,0.72)_66%,rgba(7,20,38,0.12)_100%)]" />
 
-        <div className="relative mx-auto max-w-7xl px-6 pb-24 pt-36 sm:px-8 lg:px-12">
+        <div className="relative mx-auto flex min-h-[calc(100vh-5rem)] max-w-7xl flex-col justify-center px-6 pb-20 pt-32 sm:px-8 lg:px-12">
           <div className="max-w-3xl">
             <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/85">
               <Building2 className="h-4 w-4" />
               About Northbridge University
             </p>
-            <h1 className="mt-8 text-5xl font-bold leading-tight sm:text-6xl">
+            <h1 className="mt-8 text-5xl font-bold leading-tight sm:text-6xl lg:text-7xl">
               A modern university built for learning, service, and progress.
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-200">
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-200 sm:text-xl">
               Northbridge University brings academic programs, campus facilities, student support, and operational management into one connected environment for a stronger university experience.
             </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                to="/client/resources"
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-[#09203d] shadow-lg transition hover:bg-slate-100"
+              >
+                Browse campus resources
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                to="/"
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-white/25 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                Back to home
+              </Link>
+            </div>
           </div>
         </div>
       </section>

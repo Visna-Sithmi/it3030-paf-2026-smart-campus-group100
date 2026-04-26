@@ -5,7 +5,7 @@ type SidebarProps = {
 };
 
 const navItems = [
-  { label: "Dashboard", path: "/admin/dashboard", icon: "▣" },
+  { label: "Dashboard", path: "/admin/dashboard", icon: "📊" },
   { label: "Manager Administration", path: "/admin/manager", icon: "▤" },
   { label: "Student Administration", path: "/admin/student", icon: "🎓" },
   { label: "Lecturer Management", path: "/admin/lecturers", icon: "👨‍🏫" },
@@ -13,7 +13,7 @@ const navItems = [
 ];
 
 export default function Sidebar({
-  activeItem = "Manager Administration",
+  activeItem = "Dashboard",  // Change default to Dashboard
 }: SidebarProps) {
   const navigate = useNavigate();
 

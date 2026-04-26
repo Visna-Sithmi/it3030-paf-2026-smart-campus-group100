@@ -26,6 +26,7 @@ import {
   markAsRead,
   type NotificationItem,
 } from '../../services/notificationService';
+import { clearAuthSession, getAuthItem } from '../../services/authSession';
 
 
 const Header: React.FC = () => {
@@ -39,20 +40,20 @@ const Header: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
 
-  const currentUserId = Number(localStorage.getItem("id") || localStorage.getItem("studentId") || "0");
+  const currentUserId = Number(getAuthItem("id") || getAuthItem("studentId") || "0");
   const canViewNotifications = Number.isFinite(currentUserId) && currentUserId > 0;
   
   const navigate = useNavigate();
   const location = useLocation();
 
   const syncUserFromStorage = () => {
-    const storedRole = localStorage.getItem("role");
-    const storedStudentId = localStorage.getItem("studentId");
-    const storedId = localStorage.getItem("id");
-    const storedName = localStorage.getItem("studentName") || localStorage.getItem("user");
-    const storedLecturerName = localStorage.getItem("name") || storedName;
-    const storedEmail = localStorage.getItem("email");
-    const storedProfileImage = localStorage.getItem("profileImageUrl");
+    const storedRole = getAuthItem("role");
+    const storedStudentId = getAuthItem("studentId");
+    const storedId = getAuthItem("id");
+    const storedName = getAuthItem("studentName") || getAuthItem("user");
+    const storedLecturerName = getAuthItem("name") || storedName;
+    const storedEmail = getAuthItem("email");
+    const storedProfileImage = getAuthItem("profileImageUrl");
     const resolvedProfileImage = storedProfileImage
       ? (storedProfileImage.startsWith("http")
           ? storedProfileImage
@@ -188,15 +189,7 @@ const Header: React.FC = () => {
   const unreadCount = notifications.length;
 
   const handleLogout = () => {
-    // Clear all student-related localStorage items
-    localStorage.removeItem("user");
-    localStorage.removeItem("role");
-    localStorage.removeItem("studentId");
-    localStorage.removeItem("studentName");
-    localStorage.removeItem("name");
-    localStorage.removeItem("email");
-    localStorage.removeItem("id");
-    localStorage.removeItem("profileImageUrl");
+    clearAuthSession();
     
     setUser(null);
     setIsLoggedIn(false);

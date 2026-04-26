@@ -23,9 +23,10 @@ import ProtectedRoute from "./components/ProtectedRoute"; // IMPORT THE PROTECTE
 import HomePage from "./app/home/page";
 import AboutPage from "./app/about/page";
 import OAuthCallbackPage from "./app/oauth/callback/page";
+import { getAuthItem } from "./services/authSession";
 
 const HomeRedirect = () => {
-  const role = localStorage.getItem("role");
+  const role = getAuthItem("role");
 
   if (role === "STUDENT" || role === "LECTURER" || role === "TECHNICIAN" || role === "CLEANER" || role === "SECURITY") {
     return <Navigate to="/client/resources" replace />;
@@ -52,8 +53,8 @@ const HomeRedirect = () => {
 
 // Protected Route for Booking Manager
 const BookingManagerRoute = ({ children }: { children: React.ReactNode }) => {
-  const user = localStorage.getItem("user");
-  const role = localStorage.getItem("role");
+  const user = getAuthItem("user");
+  const role = getAuthItem("role");
 
   if (!user || role !== "BOOKING_MANAGER") {
     return <Navigate to="/manager/login" replace />;
@@ -64,8 +65,8 @@ const BookingManagerRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Protected Route for Resource Manager
 const ResourceManagerRoute = ({ children }: { children: React.ReactNode }) => {
-  const user = localStorage.getItem("user");
-  const role = localStorage.getItem("role");
+  const user = getAuthItem("user");
+  const role = getAuthItem("role");
 
   if (!user || role !== "RESOURCE_MANAGER") {
     return <Navigate to="/manager/login" replace />;
@@ -76,8 +77,8 @@ const ResourceManagerRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Protected Route for Issue Manager
 const IssueManagerRoute = ({ children }: { children: React.ReactNode }) => {
-  const user = localStorage.getItem("user");
-  const role = localStorage.getItem("role");
+  const user = getAuthItem("user");
+  const role = getAuthItem("role");
 
   if (!user || role !== "ISSUE_MANAGER") {
     return <Navigate to="/manager/login" replace />;
@@ -87,8 +88,8 @@ const IssueManagerRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const ClientUserRoute = ({ children }: { children: React.ReactNode }) => {
-  const role = (localStorage.getItem("role") || "").toUpperCase();
-  const userId = localStorage.getItem("id") || localStorage.getItem("studentId");
+  const role = (getAuthItem("role") || "").toUpperCase();
+  const userId = getAuthItem("id") || getAuthItem("studentId");
 
   if (!role || !userId || !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY"].includes(role)) {
     return <Navigate to="/client/login" replace />;

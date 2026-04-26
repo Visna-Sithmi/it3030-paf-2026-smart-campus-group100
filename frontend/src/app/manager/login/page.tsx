@@ -8,6 +8,7 @@ import {
   loginIssueManager 
 } from "../../../services/authService";
 import SpinnerMorph from "@/components/ui/spinner-morph";
+import { setAuthItem } from "../../../services/authSession";
 
 type ManagerType = "BOOKING" | "RESOURCE" | "ISSUE";
 
@@ -113,13 +114,13 @@ const ManagerLoginPage = () => {
 
       if (data.success) {
         // Store user data in localStorage
-        localStorage.setItem("user", JSON.stringify(data));
-        localStorage.setItem("role", data.role || "");
-        localStorage.setItem("name", data.name || "");
-        localStorage.setItem("email", data.email || "");
-        localStorage.setItem("id", data.id?.toString() || "");
-        localStorage.setItem("profileImageUrl", data.profileImageUrl || "");
-        localStorage.setItem("managerType", managerType);
+        setAuthItem("user", JSON.stringify(data));
+        setAuthItem("role", data.role || "");
+        setAuthItem("name", data.name || "");
+        setAuthItem("email", data.email || "");
+        setAuthItem("id", data.id?.toString() || "");
+        setAuthItem("profileImageUrl", data.profileImageUrl || "");
+        setAuthItem("managerType", managerType);
 
         setSuccessMessage(data.message || "Login successful");
 

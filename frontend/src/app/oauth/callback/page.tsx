@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import SpinnerMorph from "@/components/ui/spinner-morph";
+import { setAuthItem } from "@/services/authSession";
 
 const roleDestinations: Record<string, string> = {
   ADMIN: "/admin/dashboard",
@@ -42,31 +43,31 @@ export default function OAuthCallbackPage() {
     const studentId = searchParams.get("studentId") || "";
     const profileImageUrl = searchParams.get("profileImageUrl") || "";
 
-    localStorage.setItem("user", name || email || role);
-    localStorage.setItem("role", role);
-    localStorage.setItem("name", name);
-    localStorage.setItem("email", email);
-    localStorage.setItem("id", id);
-    localStorage.setItem("profileImageUrl", profileImageUrl);
+    setAuthItem("user", name || email || role);
+    setAuthItem("role", role);
+    setAuthItem("name", name);
+    setAuthItem("email", email);
+    setAuthItem("id", id);
+    setAuthItem("profileImageUrl", profileImageUrl);
 
     if (role === "STUDENT") {
-      localStorage.setItem("studentId", studentId);
-      localStorage.setItem("studentName", name || "Student");
+      setAuthItem("studentId", studentId);
+      setAuthItem("studentName", name || "Student");
     }
 
     if (role === "ADMIN") {
-      localStorage.setItem("isAdminLoggedIn", "true");
-      localStorage.setItem("adminName", name || "Admin User");
-      localStorage.setItem("adminEmail", email);
-      localStorage.setItem("adminRole", "Chancellor Administrator");
+      setAuthItem("isAdminLoggedIn", "true");
+      setAuthItem("adminName", name || "Admin User");
+      setAuthItem("adminEmail", email);
+      setAuthItem("adminRole", "Chancellor Administrator");
     }
 
     if (role === "BOOKING_MANAGER") {
-      localStorage.setItem("managerType", "BOOKING");
+      setAuthItem("managerType", "BOOKING");
     } else if (role === "RESOURCE_MANAGER") {
-      localStorage.setItem("managerType", "RESOURCE");
+      setAuthItem("managerType", "RESOURCE");
     } else if (role === "ISSUE_MANAGER") {
-      localStorage.setItem("managerType", "ISSUE");
+      setAuthItem("managerType", "ISSUE");
     }
 
     sessionStorage.removeItem("oauthExpectedRole");

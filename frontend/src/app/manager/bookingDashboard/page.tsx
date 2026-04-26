@@ -9,6 +9,7 @@ import { managerProfileService } from "../../../services/managerProfileService";
 import type { ManagerProfile } from "../../../types/managerProfile";
 import { resourceService } from "../../../services/resource.service";
 import type { Resource } from "../../../types/resource.types";
+import { clearAuthSession, getAuthItem, setAuthItem } from "../../../services/authSession";
 
 type RejectReasonKey = "RESOURCE_ALREADY_BOOKED" | "TIME_NOT_SUITABLE" | "CAPACITY_LIMIT" | "INCOMPLETE_DETAILS" | "OTHER";
 
@@ -47,12 +48,12 @@ const REJECT_REASON_OPTIONS: Array<{
 const APPROVAL_NOTE_TEMPLATE = "Your booking request is confirmed.";
 
 const getStoredManagerId = (): number => {
-  const directId = localStorage.getItem("id");
+  const directId = getAuthItem("id");
   if (directId && Number.isFinite(Number(directId))) {
     return Number(directId);
   }
 
-  const rawUser = localStorage.getItem("user");
+  const rawUser = getAuthItem("user");
   if (!rawUser) return 0;
 
   try {
@@ -143,9 +144,9 @@ const BookingDashboard = () => {
   };
 
   useEffect(() => {
-    const name = localStorage.getItem("name");
-    const email = localStorage.getItem("email");
-    const role = localStorage.getItem("role");
+    const name = getAuthItem("name");
+    const email = getAuthItem("email");
+    const role = getAuthItem("role");
 
     if (!name || role !== "BOOKING_MANAGER") {
       navigate("/manager/login");
@@ -155,7 +156,7 @@ const BookingDashboard = () => {
     setUserName(name);
     setUserEmail(email || "");
 
-    const profileImageUrl = localStorage.getItem("profileImageUrl");
+    const profileImageUrl = getAuthItem("profileImageUrl");
     const id = getStoredManagerId();
     setProfile({
       id,
@@ -178,7 +179,7 @@ const BookingDashboard = () => {
   }, [navigate]);
 
   const handleLogout = () => {
-    localStorage.clear();
+    clearAuthSession();
     navigate("/manager/login");
   };
 
@@ -194,10 +195,10 @@ const BookingDashboard = () => {
     // Prefill modal from locally available values first for fast UX.
     setProfile((prev) => ({
       id: prev?.id || getStoredManagerId(),
-      name: prev?.name || localStorage.getItem("name") || "",
-      email: prev?.email || localStorage.getItem("email") || "",
-      role: prev?.role || localStorage.getItem("role") || "BOOKING_MANAGER",
-      profileImageUrl: prev?.profileImageUrl || localStorage.getItem("profileImageUrl") || null,
+      name: prev?.name || getAuthItem("name") || "",
+      email: prev?.email || getAuthItem("email") || "",
+      role: prev?.role || getAuthItem("role") || "BOOKING_MANAGER",
+      profileImageUrl: prev?.profileImageUrl || getAuthItem("profileImageUrl") || null,
     }));
 
     const managerId = getStoredManagerId();
@@ -212,9 +213,9 @@ const BookingDashboard = () => {
       setProfile(latestProfile);
       setUserName(latestProfile.name || "");
       setUserEmail(latestProfile.email || "");
-      localStorage.setItem("name", latestProfile.name || "");
-      localStorage.setItem("email", latestProfile.email || "");
-      localStorage.setItem("profileImageUrl", latestProfile.profileImageUrl || "");
+      setAuthItem("name", latestProfile.name || "");
+      setAuthItem("email", latestProfile.email || "");
+      setAuthItem("profileImageUrl", latestProfile.profileImageUrl || "");
     } catch (err: any) {
       setProfileError(err?.response?.data?.message || err.message || "Failed to load profile");
     }
@@ -264,12 +265,12 @@ const BookingDashboard = () => {
       setProfile(updated);
       setUserName(updated.name || "");
       setUserEmail(updated.email || "");
-      localStorage.setItem("name", updated.name || "");
-      localStorage.setItem("email", updated.email || "");
-      localStorage.setItem("id", String(updated.id || managerId));
-      localStorage.setItem("profileImageUrl", updated.profileImageUrl || "");
-      localStorage.setItem("user", JSON.stringify({
-        ...(JSON.parse(localStorage.getItem("user") || "{}")),
+      setAuthItem("name", updated.name || "");
+      setAuthItem("email", updated.email || "");
+      setAuthItem("id", String(updated.id || managerId));
+      setAuthItem("profileImageUrl", updated.profileImageUrl || "");
+      setAuthItem("user", JSON.stringify({
+        ...(JSON.parse(getAuthItem("user") || "{}")),
         name: updated.name,
         email: updated.email,
         profileImageUrl: updated.profileImageUrl || null,

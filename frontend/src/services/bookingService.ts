@@ -5,6 +5,7 @@ import type {
   BookingResponseDTO,
   BookingSlotDTO,
 } from "../types/booking";
+import { getAuthItem } from "./authSession";
 
 const API_BASE_URL = "http://localhost:8081/api/bookings";
 
@@ -16,13 +17,13 @@ const api = axios.create({
 });
 
 const getStoredUserId = (): string => {
-  const directId = localStorage.getItem("id");
+  const directId = getAuthItem("id");
   if (directId) return directId;
 
-  const studentId = localStorage.getItem("studentId");
+  const studentId = getAuthItem("studentId");
   if (studentId) return studentId;
 
-  const rawUser = localStorage.getItem("user");
+  const rawUser = getAuthItem("user");
   if (!rawUser) return "";
 
   try {
@@ -136,7 +137,7 @@ const normalizeBookingSlot = (raw: BookingSlotApiModel): BookingSlotDTO => ({
 
 const buildAuthHeaders = () => {
   const userId = getStoredUserId();
-  const role = localStorage.getItem("role") || "";
+  const role = getAuthItem("role") || "";
 
   return {
     "X-User-Id": userId,

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import SpinnerMorph from '@/components/ui/spinner-morph';
+import { getAuthItem } from '@/services/authSession';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -19,9 +20,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   useEffect(() => {
     // Check multiple authentication sources
-    const isAdminLoggedIn = localStorage.getItem('isAdminLoggedIn') === 'true';
-    const user = localStorage.getItem('user');
-    const role = localStorage.getItem('role');
+    const isAdminLoggedIn = getAuthItem('isAdminLoggedIn') === 'true';
+    const user = getAuthItem('user');
+    const role = getAuthItem('role');
     
     // Check if user object exists and has admin role
     let hasUserObject = false;

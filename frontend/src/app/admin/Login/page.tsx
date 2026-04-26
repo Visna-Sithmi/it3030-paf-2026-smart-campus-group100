@@ -4,6 +4,7 @@ import { loginAdmin } from "../../../services/authService";
 import type { LoginResponse } from "../../../types/auth";
 import logo from "../../../assets/logo.jpeg";
 import SpinnerMorph from "@/components/ui/spinner-morph";
+import { getAuthItem, setAuthItem } from "../../../services/authSession";
 
 const GOOGLE_AUTH_URL = "http://localhost:8081/oauth2/authorization/google";
 
@@ -26,8 +27,8 @@ const LoginPage = () => {
 
   // Check if already logged in
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem("isAdminLoggedIn") === "true";
-    const role = localStorage.getItem("role");
+    const isLoggedIn = getAuthItem("isAdminLoggedIn") === "true";
+    const role = getAuthItem("role");
     
     if (isLoggedIn && role === "ADMIN") {
       // Redirect to dashboard if already logged in
@@ -56,17 +57,17 @@ const LoginPage = () => {
       if (data.success) {
         if (data.role === "ADMIN") {
           // Store complete user info in localStorage
-          localStorage.setItem("user", JSON.stringify(data));
-          localStorage.setItem("role", data.role || "");
-          localStorage.setItem("name", data.name || "");
-          localStorage.setItem("email", data.email || "");
-          localStorage.setItem("id", data.id?.toString() || "");
-          localStorage.setItem("adminName", data.name || "Admin User");
-          localStorage.setItem("adminEmail", data.email || "");
-          localStorage.setItem("adminRole", "Chancellor Administrator");
+          setAuthItem("user", JSON.stringify(data));
+          setAuthItem("role", data.role || "");
+          setAuthItem("name", data.name || "");
+          setAuthItem("email", data.email || "");
+          setAuthItem("id", data.id?.toString() || "");
+          setAuthItem("adminName", data.name || "Admin User");
+          setAuthItem("adminEmail", data.email || "");
+          setAuthItem("adminRole", "Chancellor Administrator");
           
           // Store admin authentication (without token since backend doesn't send it)
-          localStorage.setItem("isAdminLoggedIn", "true");
+          setAuthItem("isAdminLoggedIn", "true");
 
           setSuccessMessage(data.message || "Login successful");
           

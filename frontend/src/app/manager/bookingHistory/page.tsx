@@ -17,6 +17,7 @@ import { bookingService } from "../../../services/bookingService";
 import { resourceService } from "../../../services/resource.service";
 import type { BookingResponseDTO } from "../../../types/booking";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { getAuthItem } from "../../../services/authSession";
 
 export default function BookingHistoryPage() {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ export default function BookingHistoryPage() {
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(startOfMonth(new Date()));
   const [selectedCalendarDate, setSelectedCalendarDate] = useState("");
 
-  const userName = localStorage.getItem("name") || "Booking Manager";
+  const userName = getAuthItem("name") || "Booking Manager";
 
   const fetchBookings = async () => {
     try {
@@ -75,7 +76,7 @@ export default function BookingHistoryPage() {
   };
 
   useEffect(() => {
-    const role = localStorage.getItem("role");
+    const role = getAuthItem("role");
     if (role !== "BOOKING_MANAGER") {
       navigate("/manager/login");
       return;

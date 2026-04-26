@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SpinnerMorph from "@/components/ui/spinner-morph";
+import { setAuthItem } from "../../../services/authSession";
 
 type PortalType = "STUDENT" | "LECTURER" | "HELPER";
 type HelperRole = "TECHNICIAN" | "CLEANER" | "SECURITY";
@@ -100,14 +101,14 @@ export default function ClientLoginPage() {
       }
 
       const studentRole = (response.role || "STUDENT").trim().toUpperCase();
-      localStorage.setItem("user", response.name || "Student");
-      localStorage.setItem("role", studentRole);
-      localStorage.setItem("studentId", response.studentId || "");
-      localStorage.setItem("studentName", response.name || "Student");
-      localStorage.setItem("name", response.name || "Student");
-      localStorage.setItem("id", response.id ? String(response.id) : (response.studentId || ""));
-      localStorage.setItem("email", response.email || "");
-      localStorage.setItem("profileImageUrl", response.profileImageUrl || "");
+      setAuthItem("user", response.name || "Student");
+      setAuthItem("role", studentRole);
+      setAuthItem("studentId", response.studentId || "");
+      setAuthItem("studentName", response.name || "Student");
+      setAuthItem("name", response.name || "Student");
+      setAuthItem("id", response.id ? String(response.id) : (response.studentId || ""));
+      setAuthItem("email", response.email || "");
+      setAuthItem("profileImageUrl", response.profileImageUrl || "");
 
       setSuccessMessage("Student login successful");
       navigate("/client/resources");
@@ -148,11 +149,11 @@ export default function ClientLoginPage() {
         return;
       }
 
-      localStorage.setItem("user", response.name || "Lecturer");
-      localStorage.setItem("role", "LECTURER");
-      localStorage.setItem("name", response.name || "Lecturer");
-      localStorage.setItem("email", response.email || trimmedEmail);
-      localStorage.setItem("id", response.id ? String(response.id) : "");
+      setAuthItem("user", response.name || "Lecturer");
+      setAuthItem("role", "LECTURER");
+      setAuthItem("name", response.name || "Lecturer");
+      setAuthItem("email", response.email || trimmedEmail);
+      setAuthItem("id", response.id ? String(response.id) : "");
 
       setSuccessMessage("Lecturer login successful");
       navigate("/client/resources");
@@ -200,11 +201,11 @@ export default function ClientLoginPage() {
         return;
       }
 
-      localStorage.setItem("user", response.name || "Helper Staff");
-      localStorage.setItem("role", helperRole);
-      localStorage.setItem("name", response.name || "Helper Staff");
-      localStorage.setItem("email", response.email || trimmedEmail);
-      localStorage.setItem("id", response.id ? String(response.id) : "");
+      setAuthItem("user", response.name || "Helper Staff");
+      setAuthItem("role", helperRole);
+      setAuthItem("name", response.name || "Helper Staff");
+      setAuthItem("email", response.email || trimmedEmail);
+      setAuthItem("id", response.id ? String(response.id) : "");
 
       setSuccessMessage(`${helperRole.replace("_", " ")} login successful`);
       navigate("/client/resources");

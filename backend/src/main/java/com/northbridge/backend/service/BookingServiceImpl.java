@@ -43,7 +43,8 @@ public class BookingServiceImpl implements BookingService {
             BookingRepository bookingRepository,
             ResourceRepository resourceRepository,
             StudentRepository studentRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            NotificationService notificationService
     ) {
         this.bookingRepository = bookingRepository;
         this.resourceRepository = resourceRepository;

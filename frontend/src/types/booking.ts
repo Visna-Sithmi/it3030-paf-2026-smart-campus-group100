@@ -18,6 +18,8 @@ export interface BookingResponseDTO {
   requestedById: number;
   requestedByName: string;
   requestedByRole: string;
+  requestedByEmail?: string | null;
+  requestedByProfileImageUrl?: string | null;
   bookingDate: string;
   startTime: string;
   endTime: string;

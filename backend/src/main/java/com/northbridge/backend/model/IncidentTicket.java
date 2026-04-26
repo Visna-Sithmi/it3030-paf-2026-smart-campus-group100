@@ -64,6 +64,49 @@ public class IncidentTicket {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    // SLA tracking
+    @Column
+    private LocalDateTime assignedAt;
+
+    @Column
+    private LocalDateTime resolvedAt;
+
+    /**
+     * Staff completion timestamp (staff marks done; manager reviews later).
+     */
+    @Column
+    private LocalDateTime completedAt;
+
+    /**
+     * Manager final close timestamp.
+     */
+    @Column
+    private LocalDateTime closedAt;
+
+    /**
+     * Staff user id who completed the ticket.
+     */
+    @Column
+    private Long resolvedBy;
+
+    @Column(nullable = false)
+    private boolean responseBreached = false;
+
+    @Column(nullable = false)
+    private boolean resolutionBreached = false;
+
+    /**
+     * Used to dedupe "about to breach" notifications from the scheduled checker.
+     */
+    @Column(nullable = false)
+    private boolean responseWarningSent = false;
+
+    /**
+     * Used to dedupe "about to breach" notifications from the scheduled checker.
+     */
+    @Column(nullable = false)
+    private boolean resolutionWarningSent = false;
+
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TicketAttachment> attachments = new ArrayList<>();
 
@@ -156,6 +199,42 @@ public class IncidentTicket {
         return updatedAt;
     }
 
+    public LocalDateTime getAssignedAt() {
+        return assignedAt;
+    }
+
+    public LocalDateTime getResolvedAt() {
+        return resolvedAt;
+    }
+
+    public LocalDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public LocalDateTime getClosedAt() {
+        return closedAt;
+    }
+
+    public Long getResolvedBy() {
+        return resolvedBy;
+    }
+
+    public boolean isResponseBreached() {
+        return responseBreached;
+    }
+
+    public boolean isResolutionBreached() {
+        return resolutionBreached;
+    }
+
+    public boolean isResponseWarningSent() {
+        return responseWarningSent;
+    }
+
+    public boolean isResolutionWarningSent() {
+        return resolutionWarningSent;
+    }
+
     public List<TicketAttachment> getAttachments() {
         return attachments;
     }
@@ -234,6 +313,42 @@ public class IncidentTicket {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public void setAssignedAt(LocalDateTime assignedAt) {
+        this.assignedAt = assignedAt;
+    }
+
+    public void setResolvedAt(LocalDateTime resolvedAt) {
+        this.resolvedAt = resolvedAt;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    public void setClosedAt(LocalDateTime closedAt) {
+        this.closedAt = closedAt;
+    }
+
+    public void setResolvedBy(Long resolvedBy) {
+        this.resolvedBy = resolvedBy;
+    }
+
+    public void setResponseBreached(boolean responseBreached) {
+        this.responseBreached = responseBreached;
+    }
+
+    public void setResolutionBreached(boolean resolutionBreached) {
+        this.resolutionBreached = resolutionBreached;
+    }
+
+    public void setResponseWarningSent(boolean responseWarningSent) {
+        this.responseWarningSent = responseWarningSent;
+    }
+
+    public void setResolutionWarningSent(boolean resolutionWarningSent) {
+        this.resolutionWarningSent = resolutionWarningSent;
     }
 
     public void setAttachments(List<TicketAttachment> attachments) {

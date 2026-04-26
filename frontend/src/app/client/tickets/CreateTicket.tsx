@@ -6,6 +6,8 @@ import { createTicket } from "../../../services/ticketService";
 import { resourceService } from "../../../services/resource.service";
 import { Upload, X, AlertCircle, CheckCircle } from "lucide-react";
 import type { Resource } from "../../../types/resource.types";
+import toast, { Toaster } from "react-hot-toast";
+import { ArrowLeft } from "lucide-react";
 
 type TicketFormState = {
   resourceId: string;
@@ -21,6 +23,8 @@ const CATEGORY_OPTIONS = [
   "ELECTRICAL",
   "NETWORK",
   "MAINTENANCE",
+  "CLEANING",
+  "SECURITY",
 ];
 
 const PRIORITY_OPTIONS = ["LOW", "MEDIUM", "HIGH"];
@@ -191,7 +195,7 @@ export default function CreateTicket() {
       console.log("Ticket created:", response.data);
 
       const ticketId = response.data?.data?.id || response.data?.id;
-      setSuccessMessage(`Ticket created successfully! (Ticket ID: ${ticketId || "N/A"})`);
+      toast.success(`Ticket created! ID: ${ticketId || "N/A"}`);
       resetForm();
       
       setTimeout(() => {
@@ -216,8 +220,16 @@ export default function CreateTicket() {
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col">
       <Header />
 
+      <Toaster position="top-right" reverseOrder={false} />
+
       <main className="flex-grow mx-auto w-full max-w-3xl px-4 pb-16 pt-32 sm:px-6 lg:px-8">
         {/* Page Header */}
+        <button
+          onClick={() => navigate("/my-tickets")}
+          className="flex items-center gap-2 text-sm text-slate-600 hover:text-[#002147] mb-4">
+          <ArrowLeft className="w-4 h-4" />
+          Back to My Tickets
+        </button>
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-[#002147] mb-2">Create Incident Ticket</h1>
           <p className="text-slate-600">

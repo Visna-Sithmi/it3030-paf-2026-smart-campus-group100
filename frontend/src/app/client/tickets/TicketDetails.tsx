@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
-import { getTicketById, addComment, updateComment, deleteComment } from "../../../services/ticketService";
+import { completeTicket, getTicketById, addComment, updateComment, deleteComment } from "../../../services/ticketService";
 import { ArrowLeft, MessageCircle, AlertCircle, CheckCircle2, Clock, Send } from "lucide-react";
 
 interface Ticket {
@@ -15,8 +15,17 @@ interface Ticket {
   resourceName?: string;
   createdByName?: string;
   assignedToName?: string;
+  assignedToId?: number;
+  assignedToRole?: string;
   preferredContact?: string;
-  createdAt?: string;
+  createdAt: string;
+  assignedAt?: string;
+  resolvedAt?: string;
+  completedAt?: string;
+  closedAt?: string;
+  resolvedBy?: number;
+  responseBreached: boolean;
+  resolutionBreached: boolean;
   rejectionReason?: string;
   resolutionNotes?: string;
   attachmentUrls?: string[];
@@ -45,6 +54,48 @@ function formatDateTime(value: unknown): string {
   return "";
 }
 
+function parseApiDate(value: unknown): Date | null {
+  if (value == null) return null;
+  if (typeof value === "string") {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (Array.isArray(value) && value.length >= 3) {
+    const [y, m, d, h = 0, min = 0, s = 0] = value as number[];
+    const date = new Date(y, m - 1, d, h, min, s);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  return null;
+}
+
+function formatDurationShort(ms: number): string {
+  const safeMs = Math.max(0, ms);
+  const totalSeconds = Math.floor(safeMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function getSlaStatus(ticket: Pick<Ticket, "responseBreached" | "resolutionBreached">) {
+  if (ticket.resolutionBreached) return { label: "SLA Breached", tone: "red" as const };
+  if (ticket.responseBreached) return { label: "Near Breach", tone: "yellow" as const };
+  return { label: "Within SLA", tone: "green" as const };
+}
+
+function getSlaBadgeClasses(tone: "green" | "yellow" | "red") {
+  switch (tone) {
+    case "red":
+      return "bg-red-100 text-red-800 border-red-200";
+    case "yellow":
+      return "bg-amber-100 text-amber-800 border-amber-200";
+    default:
+      return "bg-green-100 text-green-800 border-green-200";
+  }
+}
 
 export default function TicketDetails() {
   const { id } = useParams();
@@ -52,6 +103,8 @@ export default function TicketDetails() {
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [completeLoading, setCompleteLoading] = useState(false);
   const [comment, setComment] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
@@ -59,10 +112,17 @@ export default function TicketDetails() {
   const [commentActionLoading, setCommentActionLoading] = useState<number | null>(null);
   const [commentError, setCommentError] = useState("");
   const [commentSuccess, setCommentSuccess] = useState("");
+  const [now, setNow] = useState(() => Date.now());
 
   const currentRole = (localStorage.getItem("role") || "").toUpperCase();
   const currentUserId = Number(localStorage.getItem("id") || "0");
   const isIssueManager = currentRole === "ISSUE_MANAGER";
+  const isStaffRole = currentRole === "STAFF" || ["TECHNICIAN", "CLEANER", "SECURITY"].includes(currentRole);
+
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    window.setTimeout(() => setToast(null), 3000);
+  };
 
   const loadTicket = useCallback(async () => {
     const res = await getTicketById(Number(id));
@@ -75,6 +135,12 @@ export default function TicketDetails() {
           : undefined,
       preferredContact: String(ticketData.preferredContact || ""),
       createdAt: String(ticketData.createdAt || ""),
+      assignedAt: ticketData.assignedAt ? String(ticketData.assignedAt) : undefined,
+      resolvedAt: ticketData.resolvedAt ? String(ticketData.resolvedAt) : undefined,
+      completedAt: ticketData.completedAt ? String(ticketData.completedAt) : undefined,
+      closedAt: ticketData.closedAt ? String(ticketData.closedAt) : undefined,
+      responseBreached: Boolean(ticketData.responseBreached),
+      resolutionBreached: Boolean(ticketData.resolutionBreached),
     });
   }, [id]);
 
@@ -84,7 +150,7 @@ export default function TicketDetails() {
 
     if (
       !role ||
-      !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY", "ISSUE_MANAGER"].includes(role) ||
+      !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY", "STAFF", "ISSUE_MANAGER"].includes(role) ||
       !userIdLocal
     ) {
       navigate(role === "ISSUE_MANAGER" ? "/manager/login" : "/client/login");
@@ -115,6 +181,11 @@ export default function TicketDetails() {
 
     init();
   }, [id, navigate, loadTicket]);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const handleAddComment = useCallback(async () => {
     // Validation
@@ -238,27 +309,42 @@ export default function TicketDetails() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "PENDING":
+        return "bg-slate-100 text-slate-700 border border-slate-200";
+
       case "OPEN":
-        return "bg-red-100 text-red-800";
+        return "bg-red-50 text-red-600 border border-red-200";
+
       case "IN_PROGRESS":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-50 text-blue-600 border border-blue-200";
+
+      case "COMPLETED_BY_STAFF":
+        return "bg-orange-50 text-orange-600 border border-orange-200";
+
       case "RESOLVED":
-        return "bg-green-100 text-green-800";
+        return "bg-green-50 text-green-600 border border-green-200";
+
       case "CLOSED":
-        return "bg-gray-100 text-gray-800";
+        return "bg-emerald-50 text-emerald-600 border border-emerald-200";
+
       case "REJECTED":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-rose-50 text-rose-600 border border-rose-200";
+
       default:
-        return "bg-slate-100 text-slate-800";
+        return "bg-gray-100 text-gray-600 border border-gray-200";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case "PENDING":
+        return <Clock className="w-5 h-5" />;
       case "OPEN":
         return <AlertCircle className="w-5 h-5" />;
       case "IN_PROGRESS":
         return <Clock className="w-5 h-5" />;
+      case "COMPLETED_BY_STAFF":
+        return <CheckCircle2 className="w-5 h-5" />;
       case "RESOLVED":
         return <CheckCircle2 className="w-5 h-5" />;
       case "CLOSED":
@@ -280,6 +366,39 @@ export default function TicketDetails() {
         return "text-blue-600 bg-blue-50";
       default:
         return "text-slate-600 bg-slate-50";
+    }
+  };
+
+  const sla = ticket ? getSlaStatus(ticket) : { label: "Within SLA", tone: "green" as const };
+  const createdAtDate = ticket ? parseApiDate(ticket.createdAt) : null;
+  const resolvedAtDate = ticket?.resolvedAt ? parseApiDate(ticket.resolvedAt) : null;
+  const elapsedMs =
+    createdAtDate == null
+      ? null
+      : (resolvedAtDate ? resolvedAtDate.getTime() : now) - createdAtDate.getTime();
+
+  const canCompleteTicket = (t: Ticket | null) => {
+    if (!t) return false;
+    if (isIssueManager) return false;
+    if (!isStaffRole) return false;
+    if (!Number.isFinite(currentUserId) || currentUserId <= 0) return false;
+    if (t.assignedToId == null) return false;
+    if (Number(t.assignedToId) !== currentUserId) return false;
+    return t.status === "IN_PROGRESS" || t.status === "RESOLVED";
+  };
+
+  const handleComplete = async (ticketId: number) => {
+    try {
+      console.log("[TicketDetails] Mark as Completed clicked", { ticketId, currentRole, currentUserId });
+      setCompleteLoading(true);
+      await completeTicket(ticketId);
+      setTicket((prev) => (prev ? { ...prev, status: "COMPLETED_BY_STAFF" } : prev));
+      showToast("success", "Ticket marked as completed. Waiting for manager review.");
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.response?.data || e?.message || "Failed to complete ticket";
+      showToast("error", String(msg));
+    } finally {
+      setCompleteLoading(false);
     }
   };
 
@@ -318,262 +437,187 @@ export default function TicketDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 flex flex-col">
       <Header />
 
-      <main className="grow mx-auto w-full max-w-4xl px-4 pb-16 pt-32 sm:px-6 lg:px-8">
-        {/* Back Button */}
+      <main className="grow mx-auto w-full max-w-5xl px-4 pb-16 pt-32">
+
+        {/* Back */}
         <button
           onClick={() => navigate(isIssueManager ? "/manager/issue/dashboard" : "/my-tickets")}
-          className="mb-6 flex items-center gap-2 text-[#002147] font-semibold hover:text-[#001733] transition-colors"
+          className="mb-6 flex items-center gap-2 text-slate-600 hover:text-[#002147] transition font-medium"
         >
           <ArrowLeft className="w-5 h-5" />
-          {isIssueManager ? "Back to Issue Dashboard" : "Back to All Tickets"}
+          Back to Tickets
         </button>
 
-        {/* Ticket Header */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm mb-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="font-mono text-sm font-semibold text-slate-500">
-                  Ticket #{ticket.id}
+        {/* 🔥 HEADER CARD (PREMIUM) */}
+        <div className="relative rounded-3xl bg-gradient-to-br from-[#002147]/10 via-white/70 to-blue-100/40 backdrop-blur-xl border border-white/40 shadow-xl p-8 mb-8 overflow-hidden">
+
+          {/* Glow layers */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#002147]/20 via-transparent to-blue-300/20 pointer-events-none" />
+          <div className="absolute -top-20 -right-20 w-72 h-72 bg-blue-400/20 blur-3xl rounded-full pointer-events-none" />
+
+          <div className="relative flex flex-col md:flex-row justify-between gap-6">
+
+            {/* LEFT */}
+            <div>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+
+                <span className="text-xs px-3 py-1 bg-slate-200 rounded-full font-mono">
+                  #{ticket.id}
                 </span>
+
                 <span
-                  className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${getStatusColor(
-                    ticket.status
-                  )}`}
+                  className={`px-3 py-1 text-xs rounded-full font-semibold shadow-sm flex items-center gap-1 ${getStatusColor(ticket.status)}`}
                 >
                   {getStatusIcon(ticket.status)}
-                  {ticket.status.replace("_", " ")}
+                  {ticket.status.replace(/_/g, " ")}
                 </span>
+
+                <span className={`px-3 py-1 text-xs rounded-full border font-semibold ${getSlaBadgeClasses(sla.tone)}`}>
+                  {sla.label}
+                </span>
+
               </div>
-              <h1 className="text-3xl font-bold text-slate-900 mb-2">
+
+              {/* Gradient Title */}
+              <h1 className="text-3xl font-extrabold bg-gradient-to-r from-[#002147] to-blue-700 bg-clip-text text-transparent">
                 {ticket.category}
               </h1>
             </div>
-            <div className={`rounded-lg px-4 py-2 text-sm font-semibold ${getPriorityColor(ticket.priority)}`}>
-              {ticket.priority} Priority
-            </div>
-          </div>
 
-          {/* Ticket Details Grid */}
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 pt-6 border-t border-slate-200">
-            <div>
-              <p className="text-xs font-semibold uppercase text-slate-500 mb-1">
-                Resource ID
-              </p>
-              <p className="text-lg font-semibold text-slate-900">
-                {ticket.resourceId != null && String(ticket.resourceId).length > 0
-                  ? String(ticket.resourceId)
-                  : "N/A"}
-              </p>
-              {ticket.resourceName && (
-                <p className="text-sm text-slate-600 mt-0.5">{ticket.resourceName}</p>
+            {/* RIGHT */}
+            <div className="flex flex-col items-end gap-3">
+
+              <div className={`px-4 py-2 rounded-xl text-sm font-semibold shadow ${getPriorityColor(ticket.priority)}`}>
+                {ticket.priority} Priority
+              </div>
+
+              {canCompleteTicket(ticket) && (
+                <button
+                  onClick={() => void handleComplete(ticket.id)}
+                  disabled={completeLoading}
+                  className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-5 py-2 rounded-xl font-semibold shadow hover:scale-105 transition"
+                >
+                  {completeLoading ? "Marking..." : "Mark Completed"}
+                </button>
               )}
             </div>
+          </div>
+
+          {/* INFO GRID */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8 pt-6 border-t border-slate-200">
             <div>
-              <p className="text-xs font-semibold uppercase text-slate-500 mb-1">
-                Category
-              </p>
-              <p className="text-lg font-semibold text-slate-900">{ticket.category}</p>
+              <p className="text-xs text-slate-400">Resource</p>
+              <p className="font-semibold text-slate-800">{ticket.resourceId || "N/A"}</p>
             </div>
+
             <div>
-              <p className="text-xs font-semibold uppercase text-slate-500 mb-1">
-                Created Date
-              </p>
-              <p className="text-lg font-semibold text-slate-900">
-                {formatDateTime(ticket.createdAt) || "N/A"}
+              <p className="text-xs text-slate-400">Category</p>
+              <p className="font-semibold text-slate-800">{ticket.category}</p>
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-400">Created</p>
+              <p className="font-semibold text-slate-800">{formatDateTime(ticket.createdAt)}</p>
+              <p className="text-xs text-blue-500">
+                {elapsedMs ? `⏱ ${formatDurationShort(elapsedMs)}` : ""}
               </p>
             </div>
+
             <div>
-              <p className="text-xs font-semibold uppercase text-slate-500 mb-1">
-                Contact
-              </p>
-              <p className="text-lg font-semibold text-slate-900 truncate">
-                {ticket.preferredContact || "N/A"}
-              </p>
+              <p className="text-xs text-slate-400">Contact</p>
+              <p className="font-semibold text-slate-800">{ticket.preferredContact || "N/A"}</p>
             </div>
           </div>
         </div>
 
-        {/* Description Section */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm mb-8">
-          <h2 className="text-xl font-bold text-slate-900 mb-4">Description</h2>
-          <p className="text-slate-700 leading-relaxed">{ticket.description}</p>
+        {/* DESCRIPTION */}
+        <div className="rounded-3xl bg-white/80 backdrop-blur border shadow-md p-8 mb-8 hover:shadow-lg transition">
+          <h2 className="text-xl font-bold text-slate-800 mb-3">Description</h2>
+          <p className="text-slate-600 leading-relaxed">{ticket.description}</p>
         </div>
 
-        {ticket.resolutionNotes && String(ticket.resolutionNotes).trim().length > 0 && (
-          <div className="rounded-2xl border border-green-200 bg-green-50/80 p-8 shadow-sm mb-8">
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Resolution note</h2>
-            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">
-              {ticket.resolutionNotes}
-            </p>
+        {/* RESOLUTION */}
+        {ticket.resolutionNotes && (
+          <div className="rounded-3xl bg-gradient-to-r from-green-50 to-green-100 border border-green-200 p-8 mb-8 shadow-sm">
+            <h2 className="font-bold text-green-800 mb-2">Resolution</h2>
+            <p className="text-green-900">{ticket.resolutionNotes}</p>
           </div>
         )}
 
-        {(ticket.status === "REJECTED" || (ticket.rejectionReason && ticket.rejectionReason.trim().length > 0)) && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-8 shadow-sm mb-8">
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Rejection reason</h2>
-            <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">
-              {ticket.rejectionReason && ticket.rejectionReason.trim().length > 0
-                ? ticket.rejectionReason
-                : "No reason was recorded for this rejection."}
-            </p>
-          </div>
-        )}
+        {/* ATTACHMENTS */}
+        console.log("TICKET FULL:", ticket);
+        console.log("ATTACHMENTS:", ticket?.attachmentUrls);
+        {(ticket.attachmentUrls ?? []).map((url, i) => {
+          
+          console.log("IMAGE URL:", url); 
 
-        {/* Attachments Section */}
-        {ticket.attachmentUrls && ticket.attachmentUrls.length > 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm mb-8">
-            <h2 className="text-xl font-bold text-slate-900 mb-4">
-              Attachments ({ticket.attachmentUrls.length})
-            </h2>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-              {ticket.attachmentUrls.map((url, index) => (
-                <div
-                  key={index}
-                  className="rounded-lg border border-slate-200 overflow-hidden bg-slate-50 aspect-square"
-                >
-                  <img
-                    src={url}
-                    alt={`Attachment ${index + 1}`}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform"
-                  />
+          return (
+            <div key={i} className="relative group rounded-xl overflow-hidden border">
+
+              <img
+                src={
+                  url.startsWith("http")
+                    ? url
+                    : `http://localhost:8081${url}`
+                }
+                className="w-full h-40 object-cover rounded"
+              />
+
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition" />
+            </div>
+          );
+        })}
+
+        {/* COMMENTS */}
+        <div className="rounded-3xl bg-white p-8 shadow-md">
+
+          <h2 className="text-xl font-bold mb-6">
+            Comments ({ticket.comments?.length || 0})
+          </h2>
+
+          <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+            {ticket.comments?.map((c) => (
+              <div key={c.id} className="flex gap-3">
+
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white flex items-center justify-center font-bold">
+                  {c.userName?.charAt(0)}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Comments Section */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <MessageCircle className="w-5 h-5 text-slate-600" />
-            <h2 className="text-xl font-bold text-slate-900">
-              Comments ({ticket.comments?.length || 0})
-            </h2>
-          </div>
-
-          {/* Comments List */}
-          {ticket.comments && ticket.comments.length > 0 ? (
-            <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
-              {ticket.comments.map((com) => (
-                <div key={com.id} className="rounded-lg bg-slate-50 p-4 border border-slate-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-semibold text-slate-900">{com.userName}</p>
-                    <p className="text-xs text-slate-500">
-                      {formatDateTime(com.createdAt) || "—"}
-                    </p>
+                <div className="bg-slate-100 rounded-2xl px-4 py-3 shadow-sm w-full">
+                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span className="font-semibold text-slate-700">{c.userName}</span>
+                    <span>{formatDateTime(c.createdAt)}</span>
                   </div>
-                  {editingCommentId === com.id ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={editingText}
-                        onChange={(e) => setEditingText(e.target.value)}
-                        rows={3}
-                        maxLength={2000}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#002147]"
-                      />
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleUpdateComment(com.id)}
-                          disabled={commentActionLoading === com.id}
-                          className="rounded bg-[#002147] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={cancelEditComment}
-                          disabled={commentActionLoading === com.id}
-                          className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-slate-700 whitespace-pre-wrap">{com.commentText}</p>
-                  )}
-
-                  {canManageComment(com.userId, com.userRole) && editingCommentId !== com.id && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <button
-                        onClick={() => startEditComment(com.id, com.commentText)}
-                        disabled={commentActionLoading === com.id}
-                        className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 disabled:opacity-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteComment(com.id)}
-                        disabled={commentActionLoading === com.id}
-                        className="rounded border border-red-300 px-3 py-1 text-xs font-semibold text-red-700 disabled:opacity-50"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
+                  <p className="text-slate-700 text-sm">{c.commentText}</p>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-slate-500 text-center py-6 mb-6">No comments yet</p>
-          )}
 
-          {commentError && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 flex gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-sm text-red-600">{commentError}</p>
-            </div>
-          )}
-          {commentSuccess && (
-            <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 flex gap-2">
-              <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-              <p className="text-sm text-green-600">{commentSuccess}</p>
-            </div>
-          )}
-
-          {/* Add Comment Form */}
-          {!isIssueManager ? (
-            <div className="border-t border-slate-200 pt-6">
-              <label className="block text-sm font-semibold text-slate-900 mb-3">
-                Add a Comment
-              </label>
-              <div className="flex flex-col gap-3">
-                <textarea
-                  value={comment}
-                  onChange={(e) => {
-                    setComment(e.target.value);
-                    setCommentError("");
-                  }}
-                  placeholder="Share an update or question about this ticket... (min 2 characters)"
-                  rows={4}
-                  maxLength={2000}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#002147]"
-                />
-                <div className="flex justify-between">
-                  <div />
-                  <p className="text-xs text-slate-500">
-                    {comment.length}/2000 characters
-                  </p>
-                </div>
-                <button
-                  onClick={handleAddComment}
-                  disabled={commentLoading || !comment.trim() || comment.trim().length < 2}
-                  className="flex items-center justify-center gap-2 rounded-lg bg-[#002147] px-6 py-2.5 text-white font-semibold hover:bg-[#001733] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Send className="w-4 h-4" />
-                  {commentLoading ? "Posting..." : "Post Comment"}
-                </button>
               </div>
-            </div>
-          ) : (
-            <div className="border-t border-slate-200 pt-6 text-sm text-slate-600">
-              Issue Manager has read-only access to comments.
+            ))}
+          </div>
+
+          {!isIssueManager && (
+            <div className="mt-6 border-t pt-6">
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Write your comment..."
+                className="w-full p-3 rounded-xl border focus:ring-2 focus:ring-blue-400 outline-none"
+              />
+
+              <button
+                onClick={handleAddComment}
+                disabled={commentLoading}
+                className="mt-3 w-full bg-gradient-to-r from-[#002147] to-blue-900 text-white py-2 rounded-xl font-semibold shadow hover:scale-[1.02] transition"
+              >
+                {commentLoading ? "Posting..." : "Post Comment"}
+              </button>
             </div>
           )}
         </div>
+
       </main>
 
       <Footer />

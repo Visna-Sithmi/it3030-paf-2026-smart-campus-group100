@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FiBarChart2 } from "react-icons/fi";
 import logo from "../../../assets/logo.jpeg";
 import { issueManagerProfileService } from "../../../services/issueManagerProfileService";
 import RejectTicketModal from "../../../components/modals/RejectTicketModal";
 import {
   addResolutionNotes,
   assignStaff,
+  closeTicket,
   downloadTicketReport,
   getAllTickets,
   getAssignableStaff,
@@ -26,6 +28,9 @@ type Ticket = {
   rejectionReason?: string;
   resolutionNotes?: string;
   createdAt: string;
+  completedAt?: string;
+  closedAt?: string;
+  resolvedBy?: number;
 };
 
 type Staff = {
@@ -49,6 +54,20 @@ function toErrorMessage(err: unknown): string {
   } catch {
     return "Request failed";
   }
+}
+
+function AnalyticsNavButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-sky-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition will-change-transform hover:scale-[1.02] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-400/60 focus:ring-offset-2 md:w-auto"
+      aria-label="View Analytics"
+    >
+      <FiBarChart2 className="h-4 w-4 opacity-95 transition group-hover:opacity-100" />
+      <span>View Analytics</span>
+    </button>
+  );
 }
 
 const IssueDashboard = () => {
@@ -159,11 +178,12 @@ const IssueDashboard = () => {
   const stats = useMemo(() => {
     return {
       total: tickets.length,
-      open: tickets.filter((t) => t.status === "OPEN").length,
+      open: tickets.filter((t) => t.status === "OPEN" || t.status === "PENDING").length,
       inProgress: tickets.filter((t) => t.status === "IN_PROGRESS").length,
-      resolved: tickets.filter((t) => t.status === "RESOLVED").length,
+      resolved: tickets.filter((t) => t.status === "RESOLVED" || t.status === "COMPLETED_BY_STAFF").length,
       closed: tickets.filter((t) => t.status === "CLOSED").length,
       rejected: tickets.filter((t) => t.status === "REJECTED").length,
+      completedByStaff: tickets.filter((t) => t.status === "COMPLETED_BY_STAFF").length,
     };
   }, [tickets]);
 
@@ -182,6 +202,18 @@ const IssueDashboard = () => {
       return searchOk && statusOk && priorityOk && assignedOk && fromOk && toOk;
     });
   }, [tickets, query, statusFilter, priorityFilter, assignedToFilter, fromDate, toDate]);
+
+  const closeCompletedTicket = async (ticketId: number) => {
+    if (!isIssueManager) return;
+    try {
+      await closeTicket(ticketId);
+      setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, status: "CLOSED" } : t)));
+      showToast("success", "Ticket closed.");
+    } catch (e: unknown) {
+      const msg = toErrorMessage(e) || "Failed to close ticket";
+      showToast("error", msg);
+    }
+  };
 
   const handleLogout = () => {
     clearAuthSession();
@@ -357,7 +389,7 @@ const IssueDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#eef2f6]">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100">
       <header className="bg-[#002147] text-white shadow-lg">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
@@ -392,6 +424,14 @@ const IssueDashboard = () => {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-8">
+        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Issue Manager</p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-900">Issue Dashboard</h2>
+          </div>
+          <AnalyticsNavButton onClick={() => navigate("/manager/analytics")} />
+        </div>
+
         {/* Toast */}
         {toast && (
           <div className="fixed right-4 top-6 z-80 w-[calc(100%-2rem)] max-w-sm">
@@ -414,32 +454,71 @@ const IssueDashboard = () => {
           </div>
         )}
 
-        <div className="mb-6 grid gap-4 md:grid-cols-7">
-          <div className="rounded-xl bg-white p-4 shadow">Total: {stats.total}</div>
-          <div className="rounded-xl bg-white p-4 shadow">Open: {stats.open}</div>
-          <div className="rounded-xl bg-white p-4 shadow">In Progress: {stats.inProgress}</div>
-          <div className="rounded-xl bg-white p-4 shadow">Resolved: {stats.resolved}</div>
-          <div className="rounded-xl bg-white p-4 shadow">Rejected: {stats.rejected}</div>
-          <div className="rounded-xl bg-white p-4 shadow">Closed: {stats.closed}</div>
+        <div className="mb-8 grid gap-3 sm:grid-cols-1 md:grid-cols-3 lg:grid-cols-7" >
+          <div className="rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 px-3 py-3 text-white shadow" >
+            <p className="text-[15px] opacity-80">Total</p>
+            <h3 className="text-1xl font-bold">{stats.total}</h3>
+          </div>
+
+          <div className="rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 px-3 py-3 text-white shadow">
+            <p className="text-[15px] opacity-80">Open</p>
+            <h3 className="text-1xl font-bold">{stats.open}</h3>
+          </div>
+
+          <div className="rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 px-3 py-3 text-white shadow">
+            <p className="text-[15px] opacity-80">In Progress</p>
+            <h3 className="text-1xl font-bold">{stats.inProgress}</h3>
+          </div>
+
+          <div className="rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-3 py-3 text-white shadow">
+            <p className="text-[15px] opacity-80">Completed</p>
+            <h3 className="text-1xl font-bold">{stats.completedByStaff}</h3>
+          </div>
+
+          <div className="rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 px-3 py-3 text-white shadow">
+            <p className="text-[15px] opacity-80">Resolved</p>
+            <h3 className="text-1xl font-bold">{stats.resolved}</h3>
+          </div>
+
+          <div className="rounded-xl bg-gradient-to-r from-red-500 to-pink-600 px-3 py-3 text-white shadow">
+            <p className="text-[15px] opacity-80">Rejected</p>
+            <h3 className="text-1xl font-bold">{stats.rejected}</h3>
+          </div>
+
+          <div className="rounded-xl bg-gradient-to-r from-gray-500 to-gray-700 px-3 py-3 text-white shadow">
+            <p className="text-[15px] opacity-80">Closed</p>
+            <h3 className="text-1xl font-bold">{stats.closed}</h3>
+          </div>
         </div>
 
-        <div className="mb-6 grid gap-3 md:grid-cols-3">
+        <div className="mb-6 grid gap-4 md:grid-cols-3">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by ticket id, category, description, reporter..."
-            className="rounded-lg border px-3 py-2"
+            placeholder="🔍 Search tickets..."
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm focus:ring-2 focus:ring-indigo-400"
           />
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border px-3 py-2">
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm focus:ring-2 focus:ring-indigo-400"
+          >
             <option value="ALL">All Status</option>
+            <option value="PENDING">Pending</option>
             <option value="OPEN">Open</option>
             <option value="IN_PROGRESS">In Progress</option>
+            <option value="COMPLETED_BY_STAFF">Completed by Staff</option>
             <option value="RESOLVED">Resolved</option>
             <option value="CLOSED">Closed</option>
             <option value="REJECTED">Rejected</option>
           </select>
-          <button onClick={loadData} className="rounded-lg bg-[#002147] px-4 py-2 text-white">
-            Refresh
+
+          <button
+            onClick={loadData}
+            className="rounded-xl bg-[#002147] px-4 py-2 text-white shadow-md transition hover:bg-[#001733] hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-[#002147]/50"
+          >
+             Refresh
           </button>
         </div>
 
@@ -518,7 +597,7 @@ const IssueDashboard = () => {
         ) : (
           <div className="space-y-4">
             {filteredTickets.map((ticket) => (
-              <div key={ticket.id} className="rounded-xl bg-white p-5 shadow">
+              <div key={ticket.id} className="rounded-2xl bg-white/90 backdrop-blur p-6 shadow-md hover:shadow-xl transition">
                 {ticket.status === "REJECTED" && (
                   <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                     This ticket has been rejected. Further actions are disabled.
@@ -533,7 +612,21 @@ const IssueDashboard = () => {
                       Reported by: {ticket.createdByName} | Priority: {ticket.priority}
                     </p>
                   </div>
-                  <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold">{ticket.status}</span>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold text-white
+                      ${
+                        ticket.status === "OPEN" ? "bg-blue-500" :
+                        ticket.status === "IN_PROGRESS" ? "bg-yellow-500" :
+                        ticket.status === "RESOLVED" ? "bg-green-500" :
+                        ticket.status === "COMPLETED_BY_STAFF" ? "bg-cyan-500" :
+                        ticket.status === "CLOSED" ? "bg-gray-600" :
+                        ticket.status === "REJECTED" ? "bg-red-500" :
+                        "bg-slate-400"
+                      }
+                    `}
+                  >
+                    {ticket.status}
+                  </span>
                 </div>
 
                 <p className="mb-3 text-sm text-slate-700">{ticket.description}</p>
@@ -548,6 +641,20 @@ const IssueDashboard = () => {
                         </div>
                       );
                     }
+                    if (ticket.status === "COMPLETED_BY_STAFF") {
+                      return (
+                        <button
+                          onClick={() => {
+                            const ok = window.confirm("Close this ticket? This action cannot be undone.");
+                            if (!ok) return;
+                            void closeCompletedTicket(ticket.id);
+                          }}
+                          className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
+                        >
+                          Review & Close
+                        </button>
+                      );
+                    }
                     const next = getNextManagerStatus(ticket.status);
                     if (!next) {
                       return <div className="rounded border bg-slate-50 px-3 py-2 text-sm text-slate-600">No further status action available.</div>;
@@ -557,7 +664,7 @@ const IssueDashboard = () => {
                     return (
                       <button
                         onClick={() => updateStatusForTicket(ticket.id, next)}
-                        className="w-full rounded border px-3 py-2"
+                        className="w-full rounded-xl bg-indigo-50 text-indigo-700 font-semibold px-3 py-2 hover:bg-indigo-100 transition"
                         disabled={ticket.status === "REJECTED"}
                       >
                         {label}
@@ -599,7 +706,7 @@ const IssueDashboard = () => {
                   <select
                     value={assignments[ticket.id] || ""}
                     onChange={(e) => setAssignments((prev) => ({ ...prev, [ticket.id]: e.target.value }))}
-                    className="rounded border px-3 py-2"
+                    className="rounded-xl border border-slate-200 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
                     disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
                   >
                     <option value="">Assign staff member</option>

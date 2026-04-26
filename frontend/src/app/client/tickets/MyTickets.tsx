@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
-import { getMyTickets } from "../../../services/ticketService";
+import { completeTicket, getMyTickets } from "../../../services/ticketService";
 import { Plus, Filter, Search, AlertCircle, CheckCircle2, Clock, XCircle } from "lucide-react";
 
 interface Ticket {
@@ -16,6 +16,7 @@ interface Ticket {
   createdAt: string;
   assignedToName?: string;
   assignedToRole?: string;
+  assignedToId?: number;
 }
 
 export default function MyTickets() {
@@ -23,6 +24,8 @@ export default function MyTickets() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [completingTicketId, setCompletingTicketId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [filterPriority, setFilterPriority] = useState<string>("ALL");
@@ -31,7 +34,7 @@ export default function MyTickets() {
     const role = localStorage.getItem("role");
     const id = localStorage.getItem("id");
 
-    if (!role || !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY"].includes(role) || !id) {
+    if (!role || !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY", "STAFF"].includes(role) || !id) {
       navigate("/client/login");
       return;
     }
@@ -69,22 +72,26 @@ export default function MyTickets() {
   const stats = useMemo(() => {
     return {
       total: tickets.length,
-      open: tickets.filter((t) => t.status === "OPEN").length,
+      open: tickets.filter((t) => t.status === "OPEN" || t.status === "PENDING").length,
       inProgress: tickets.filter((t) => t.status === "IN_PROGRESS").length,
-      resolved: tickets.filter((t) => t.status === "RESOLVED").length,
+      resolved: tickets.filter((t) => t.status === "RESOLVED" || t.status === "COMPLETED_BY_STAFF").length,
     };
   }, [tickets]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "PENDING":
+        return "bg-gray-100 text-gray-800";
       case "OPEN":
         return "bg-red-100 text-red-800";
       case "IN_PROGRESS":
         return "bg-blue-100 text-blue-800";
+      case "COMPLETED_BY_STAFF":
+        return "bg-orange-100 text-orange-800";
       case "RESOLVED":
         return "bg-green-100 text-green-800";
       case "CLOSED":
-        return "bg-gray-100 text-gray-800";
+        return "bg-green-100 text-green-800";
       case "REJECTED":
         return "bg-yellow-100 text-yellow-800";
       default:
@@ -94,10 +101,14 @@ export default function MyTickets() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case "PENDING":
+        return <Clock className="w-4 h-4" />;
       case "OPEN":
         return <AlertCircle className="w-4 h-4" />;
       case "IN_PROGRESS":
         return <Clock className="w-4 h-4" />;
+      case "COMPLETED_BY_STAFF":
+        return <CheckCircle2 className="w-4 h-4" />;
       case "RESOLVED":
         return <CheckCircle2 className="w-4 h-4" />;
       case "CLOSED":
@@ -134,13 +145,64 @@ export default function MyTickets() {
   };
 
   const role = (localStorage.getItem("role") || "").toUpperCase();
-  const isStaffRole = ["TECHNICIAN", "CLEANER", "SECURITY"].includes(role);
+  const isStaffRole = role === "STAFF" || ["TECHNICIAN", "CLEANER", "SECURITY"].includes(role);
+  const currentUserId = Number(localStorage.getItem("id") || "0");
+
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    window.setTimeout(() => setToast(null), 3000);
+  };
+
+  const canCompleteTicket = (ticket: Ticket) => {
+    if (!isStaffRole) return false;
+    if (!Number.isFinite(currentUserId) || currentUserId <= 0) return false;
+    if (ticket.assignedToId == null) return false;
+    if (Number(ticket.assignedToId) !== currentUserId) return false;
+    return ticket.status === "IN_PROGRESS" || ticket.status === "RESOLVED";
+  };
+
+  const handleComplete = async (ticketId: number) => {
+    try {
+      console.log("[MyTickets] Mark as Completed clicked", { ticketId, role, currentUserId });
+      setCompletingTicketId(ticketId);
+      await completeTicket(ticketId);
+      setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, status: "COMPLETED_BY_STAFF" } : t)));
+      showToast("success", "Ticket marked as completed. Waiting for manager review.");
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.response?.data || err?.message || "Failed to complete ticket";
+      showToast("error", String(msg));
+    } finally {
+      setCompletingTicketId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col">
       <Header />
 
-      <main className="flex-grow mx-auto w-full max-w-6xl px-4 pb-16 pt-32 sm:px-6 lg:px-8">
+      <main className="grow mx-auto w-full max-w-6xl px-4 pb-16 pt-32 sm:px-6 lg:px-8">
+        {/* Toast */}
+        {toast && (
+          <div className="fixed right-4 top-6 z-80 w-[calc(100%-2rem)] max-w-sm">
+            <div
+              className={`rounded-xl border px-4 py-3 shadow-lg ${
+                toast.type === "success"
+                  ? "border-green-200 bg-green-50 text-green-800"
+                  : "border-red-200 bg-red-50 text-red-800"
+              }`}
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-semibold">{toast.message}</p>
+                <button className="rounded-md p-1 hover:bg-black/5" onClick={() => setToast(null)} aria-label="Close notification">
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-[#002147] mb-2">Issue Reporting & Tracking</h1>
@@ -203,8 +265,10 @@ export default function MyTickets() {
                 className="px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#002147]"
               >
                 <option value="ALL">All Status</option>
+                <option value="PENDING">Pending</option>
                 <option value="OPEN">Open</option>
                 <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED_BY_STAFF">Completed by Staff</option>
                 <option value="RESOLVED">Resolved</option>
                 <option value="CLOSED">Closed</option>
                 <option value="REJECTED">Rejected</option>
@@ -301,6 +365,18 @@ export default function MyTickets() {
                       >
                         View Details
                       </button>
+                      {canCompleteTicket(ticket) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleComplete(ticket.id);
+                          }}
+                          disabled={completingTicketId === ticket.id}
+                          className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {completingTicketId === ticket.id ? "Marking..." : "Mark as Completed"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -260,364 +260,388 @@ export default function StudentPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Generate Print HTML for PDF
-  const generatePrintHTML = () => {
-    const getFilterText = () => {
-      if (selectedYear === "all" && selectedSemester === "all") return "All Years & Semesters";
-      if (selectedYear !== "all" && selectedSemester === "all") return `Year ${selectedYear} Only`;
-      if (selectedYear === "all" && selectedSemester !== "all") return `Semester ${selectedSemester} Only`;
-      return `Year ${selectedYear} - Semester ${selectedSemester}`;
-    };
+// Generate Print HTML for PDF - WITHOUT LOGO AND DATE OF BIRTH
+const generatePrintHTML = () => {
+  const getFilterText = () => {
+    if (selectedYear === "all" && selectedSemester === "all") return "All Years & Semesters";
+    if (selectedYear !== "all" && selectedSemester === "all") return `Year ${selectedYear} Only`;
+    if (selectedYear === "all" && selectedSemester !== "all") return `Semester ${selectedSemester} Only`;
+    return `Year ${selectedYear} - Semester ${selectedSemester}`;
+  };
 
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Student Report - Northbridge University</title>
-        <meta charset="UTF-8">
-        <style>
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Student Report - Northbridge University</title>
+      <meta charset="UTF-8">
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body {
+          font-family: 'Times New Roman', Arial, sans-serif;
+          padding: 40px 35px;
+          color: #1a1a1a;
+          line-height: 1.4;
+          background: white;
+        }
+        
+        .official-header {
+          text-align: center;
+          margin-bottom: 30px;
+          padding-bottom: 20px;
+          border-bottom: 3px solid #002147;
+        }
+        
+        .university-name {
+          font-size: 28px;
+          font-weight: bold;
+          color: #002147;
+          margin-top: 10px;
+          letter-spacing: 2px;
+        }
+        
+        .university-subtitle {
+          font-size: 11px;
+          color: #555;
+          margin-top: 5px;
+          letter-spacing: 3px;
+        }
+        
+        .report-title {
+          font-size: 20px;
+          font-weight: bold;
+          color: #002147;
+          margin-top: 15px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+        
+        .report-date {
+          font-size: 11px;
+          color: #666;
+          margin-top: 8px;
+        }
+        
+        .info-bar {
+          display: flex;
+          justify-content: space-between;
+          background: #f0f4f8;
+          padding: 12px 20px;
+          margin: 20px 0 30px;
+          border-radius: 8px;
+          font-size: 11px;
+          border-left: 4px solid #002147;
+        }
+        
+        .info-bar span {
+          font-weight: 500;
+        }
+        
+        .info-bar strong {
+          color: #002147;
+        }
+        
+        .student-section {
+          margin-bottom: 35px;
+          page-break-inside: avoid;
+        }
+        
+        .section-header {
+          background: #002147;
+          color: white;
+          padding: 12px 20px;
+          margin-bottom: 15px;
+          border-radius: 8px;
+        }
+        
+        .section-header h3 {
+          font-size: 16px;
+          font-weight: bold;
+          margin: 0;
+        }
+        
+        .section-header p {
+          font-size: 11px;
+          margin-top: 5px;
+          opacity: 0.9;
+        }
+        
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 15px;
+          font-size: 10px;
+        }
+        
+        th {
+          background: #1e293b;
+          color: white;
+          border: 1px solid #334155;
+          padding: 10px 8px;
+          text-align: left;
+          font-weight: bold;
+        }
+        
+        td {
+          border: 1px solid #cbd5e1;
+          padding: 8px;
+          text-align: left;
+          vertical-align: top;
+        }
+        
+        tr:nth-child(even) {
+          background-color: #f8fafc;
+        }
+        
+        .summary-row {
+          background: #f0f4f8;
+          padding: 10px 15px;
+          margin-top: 8px;
+          font-size: 11px;
+          font-weight: bold;
+          border-radius: 6px;
+          color: #002147;
+          border-left: 3px solid #002147;
+        }
+        
+        .official-footer {
+          margin-top: 50px;
+          padding-top: 25px;
+          border-top: 2px solid #cbd5e1;
+        }
+        
+        .footer-content {
+          display: flex;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          margin-bottom: 30px;
+        }
+        
+        .footer-left, .footer-center, .footer-right {
+          flex: 1;
+          font-size: 9px;
+        }
+        
+        .footer-left { text-align: left; }
+        .footer-center { text-align: center; }
+        .footer-right { text-align: right; }
+        
+        .footer-left p, .footer-center p, .footer-right p {
+          margin-bottom: 3px;
+        }
+        
+        .signature-area {
+          margin-top: 40px;
+          display: flex;
+          justify-content: flex-end;
+          gap: 50px;
+          flex-wrap: wrap;
+        }
+        
+        .signature-box {
+          text-align: center;
+          width: 250px;
+        }
+        
+        .signature-line {
+          border-top: 1px solid #1a1a1a;
+          margin-top: 40px;
+          padding-top: 10px;
+          width: 100%;
+        }
+        
+        .signature-label {
+          margin-top: 8px;
+        }
+        
+        .signature-label strong {
+          font-size: 10px;
+        }
+        
+        .seal {
+          display: inline-block;
+        }
+        
+        .seal div {
+          border: 2px solid #002147;
+          border-radius: 50%;
+          padding: 12px;
+          text-align: center;
+          width: 80px;
+          height: 80px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+        }
+        
+        .verification-note {
+          text-align: center;
+          margin-top: 25px;
+          font-size: 8px;
+          color: #888;
+          padding-top: 15px;
+          border-top: 1px solid #e2e8f0;
+        }
+        
+        .copyright {
+          text-align: center;
+          margin-top: 15px;
+          font-size: 7px;
+          color: #999;
+        }
+        
+        @page {
+          size: A4;
+          margin: 1.5cm;
+        }
+        
+        @media print {
           body {
-            font-family: 'Times New Roman', Arial, sans-serif;
-            padding: 50px 40px;
-            color: #1a1a1a;
-            line-height: 1.4;
-            background: white;
-          }
-          
-          .official-header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #002147;
-          }
-          
-          .logo-placeholder {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #002147 0%, #004080 100%);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 10px;
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-            text-align: center;
-            line-height: 1.2;
-            padding: 10px;
-          }
-          
-          .university-name {
-            font-size: 28px;
-            font-weight: bold;
-            color: #002147;
-            margin-top: 10px;
-            letter-spacing: 2px;
-          }
-          
-          .university-subtitle {
-            font-size: 12px;
-            color: #555;
-            margin-top: 5px;
-            letter-spacing: 3px;
-          }
-          
-          .report-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #002147;
-            margin-top: 15px;
-            text-transform: uppercase;
-          }
-          
-          .report-date {
-            font-size: 11px;
-            color: #666;
-            margin-top: 5px;
-          }
-          
-          .info-bar {
-            display: flex;
-            justify-content: space-between;
-            background: #f0f4f8;
-            padding: 10px 15px;
-            margin-bottom: 25px;
-            border-radius: 4px;
-            font-size: 11px;
-            border-left: 4px solid #002147;
-          }
-          
-          .student-section {
-            margin-bottom: 35px;
-            page-break-inside: avoid;
+            padding: 0;
           }
           
           .section-header {
-            background-color: #002147;
-            color: white;
-            padding: 8px 15px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-          }
-          
-          .section-header h3 {
-            font-size: 14px;
-            font-weight: bold;
-            margin: 0;
-          }
-          
-          .section-header p {
-            font-size: 10px;
-            margin-top: 3px;
-            opacity: 0.9;
-          }
-          
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 15px;
-            font-size: 10px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           
           th {
-            background-color: #e8edf2;
-            border: 1px solid #cbd5e1;
-            padding: 8px 6px;
-            text-align: left;
-            font-weight: bold;
-            color: #1e293b;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           
-          td {
-            border: 1px solid #cbd5e1;
-            padding: 6px;
-            text-align: left;
+          .info-bar {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
-          
-          tr:nth-child(even) {
-            background-color: #f9fbfd;
-          }
-          
-          .summary-row {
-            background-color: #f0f4f8;
-            padding: 8px 12px;
-            margin-top: 5px;
-            font-size: 10px;
-            font-weight: bold;
-            border-radius: 3px;
-          }
-          
-          .official-footer {
-            margin-top: 50px;
-            padding-top: 20px;
-            border-top: 1px solid #cbd5e1;
-            font-size: 9px;
-            color: #666;
-          }
-          
-          .footer-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-          }
-          
-          .footer-left, .footer-center, .footer-right {
-            flex: 1;
-          }
-          
-          .footer-left { text-align: left; }
-          .footer-center { text-align: center; }
-          .footer-right { text-align: right; }
-          
-          .signature-area {
-            margin-top: 30px;
-            display: flex;
-            justify-content: flex-end;
-            align-items: flex-end;
-          }
-          
-          .signature-box {
-            text-align: center;
-            width: 250px;
-          }
-          
-          .signature-line {
-            border-top: 1px solid #1a1a1a;
-            margin-top: 30px;
-            padding-top: 8px;
-            width: 100%;
-          }
-          
-          .signature-label {
-            font-size: 9px;
-            color: #555;
-            margin-top: 5px;
-          }
-          
-          .seal {
-            display: inline-block;
-            margin-left: 20px;
-            font-size: 10px;
-            color: #002147;
-          }
-          
-          .verification-note {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 8px;
-            color: #888;
-          }
-          
-          .copyright {
-            text-align: center;
-            margin-top: 10px;
-            font-size: 8px;
-            color: #999;
-          }
-          
-          @page {
-            size: A4;
-            margin: 1.5cm;
-          }
-          
-          @media print {
-            body {
-              padding: 0;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <!-- Header -->
-        <div class="official-header">
-          <div class="logo-placeholder">NB<br>UNIV</div>
-          <div class="university-name">NORTHBRIDGE UNIVERSITY</div>
-          <div class="university-subtitle">ESTABLISHED 2004 | ACCREDITED INSTITUTION</div>
-          <div class="report-title">Student Enrollment Report</div>
-          <div class="report-date">Generated: ${new Date().toLocaleString()}</div>
-        </div>
+        }
+      </style>
+    </head>
+    <body>
+      <!-- Header without Logo -->
+      <div class="official-header">
+        <div class="university-name">NORTHBRIDGE UNIVERSITY</div>
+        <div class="university-subtitle">ESTABLISHED 2004 | ACCREDITED INSTITUTION</div>
+        <div class="report-title">Student Enrollment Report</div>
+        <div class="report-date">Generated: ${new Date().toLocaleString()}</div>
+      </div>
+      
+      <!-- Info Bar -->
+      <div class="info-bar">
+        <span><strong>Total Students:</strong> ${students.length}</span>
+        <span><strong>Filter:</strong> ${getFilterText()}</span>
+        <span><strong>Academic Year:</strong> ${new Date().getFullYear()}</span>
+      </div>
+      
+      <!-- Student Data without Date of Birth column -->
+      ${filteredReportData.map((item) => {
+        const maleCount = item.students.filter(s => s.gender === 'Male').length;
+        const femaleCount = item.students.filter(s => s.gender === 'Female').length;
+        const otherCount = item.students.filter(s => s.gender === 'Other').length;
         
-        <!-- Info Bar -->
-        <div class="info-bar">
-          <span><strong>Total Students:</strong> ${students.length}</span>
-          <span><strong>Filter:</strong> ${getFilterText()}</span>
-          <span><strong>Academic Year:</strong> ${new Date().getFullYear()}</span>
-        </div>
-        
-        <!-- Student Data -->
-        ${filteredReportData.map((item) => {
-          const maleCount = item.students.filter(s => s.gender === 'Male').length;
-          const femaleCount = item.students.filter(s => s.gender === 'Female').length;
-          const otherCount = item.students.filter(s => s.gender === 'Other').length;
-          
-          return `
-            <div class="student-section">
-              <div class="section-header">
-                <h3>YEAR ${item.year} - SEMESTER ${item.semester}</h3>
-                <p>Total: ${item.studentCount} students | Male: ${maleCount} | Female: ${femaleCount} | Other: ${otherCount}</p>
-              </div>
-              
-              <table>
-                <thead>
+        return `
+          <div class="student-section">
+            <div class="section-header">
+              <h3>YEAR ${item.year} - SEMESTER ${item.semester}</h3>
+              <p>Total: ${item.studentCount} students | Male: ${maleCount} | Female: ${femaleCount} | Other: ${otherCount}</p>
+            </div>
+            
+            <table>
+              <thead>
+                <tr>
+                  <th>Student ID</th>
+                  <th>Full Name</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Address</th>
+                  <th>Course</th>
+                  <th>Gender</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${item.students.map(student => `
                   <tr>
-                    <th>Student ID</th>
-                    <th>Full Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Address</th>
-                    <th>Course</th>
-                    <th>Gender</th>
-                    <th>Date of Birth</th>
+                    <td>${getStudentIdValue(student)}</td>
+                    <td>${student.name}</td>
+                    <td>${student.email}</td>
+                    <td>${student.phone || '-'}</td>
+                    <td>${student.address || '-'}</td>
+                    <td>${student.course || '-'}</td>
+                    <td>${student.gender || '-'}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  ${item.students.map(student => `
-                    <tr>
-                      <td>${getStudentIdValue(student)}</td>
-                      <td>${student.name}</td>
-                      <td>${student.email}</td>
-                      <td>${student.phone || '-'}</td>
-                      <td>${student.address || '-'}</td>
-                      <td>${student.course || '-'}</td>
-                      <td>${student.gender || '-'}</td>
-                      <td>${student.dateOfBirth || '-'}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-              
-              <div class="summary-row">
-                Year ${item.year} Semester ${item.semester}: ${item.studentCount} students registered
-              </div>
-            </div>
-          `;
-        }).join('')}
-        
-        <!-- Footer -->
-        <div class="official-footer">
-          <div class="footer-content">
-            <div class="footer-left">
-              <p><strong>Northbridge University</strong></p>
-              <p>123 University Avenue, Colombo, Sri Lanka</p>
-              <p>Tel: +94 11 234 5678 | Email: registrar@northbridge.edu</p>
-            </div>
-            <div class="footer-center">
-              <p>www.northbridge.edu</p>
-              <p>Accredited by UGC Sri Lanka</p>
-              <p>ISO 9001:2024 Certified</p>
-            </div>
-            <div class="footer-right">
-              <p>Document ID: NB-REP-${new Date().getFullYear()}${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}</p>
-              <p>Security Level: Official</p>
+                `).join('')}
+              </tbody>
+            </table>
+            
+            <div class="summary-row">
+              Year ${item.year} Semester ${item.semester}: ${item.studentCount} students registered
             </div>
           </div>
-          
-          <div class="signature-area">
-            <div class="signature-box">
-              <div class="signature-line"></div>
-              <div class="signature-label">
-                <strong>Registrar's Signature</strong><br>
-                Prof. M.S. Perera<br>
-                University Registrar
-              </div>
-            </div>
-            <div class="signature-box" style="margin-left: 40px;">
-              <div class="signature-line"></div>
-              <div class="signature-label">
-                <strong>Vice Chancellor's Signature</strong><br>
-                Dr. K.D. Silva<br>
-                Vice Chancellor
-              </div>
-            </div>
-            <div class="seal">
-              <div style="border: 1px solid #002147; border-radius: 4px; padding: 8px;">
-                OFFICIAL<br>SEAL
-              </div>
-            </div>
+        `;
+      }).join('')}
+      
+      <!-- Footer -->
+      <div class="official-footer">
+        <div class="footer-content">
+          <div class="footer-left">
+            <p><strong>Northbridge University</strong></p>
+            <p>123 University Avenue, Colombo, Sri Lanka</p>
+            <p>Tel: +94 11 234 5678 | Email: registrar@northbridge.edu</p>
           </div>
-          
-          <div class="verification-note">
-            This is a computer-generated document and requires no physical signature.<br>
-            Verification Code: NB-${Math.random().toString(36).substring(2, 10).toUpperCase()}
+          <div class="footer-center">
+            <p>www.northbridge.edu</p>
+            <p>Accredited by UGC Sri Lanka</p>
+            <p>ISO 9001:2024 Certified</p>
           </div>
-          
-          <div class="copyright">
-            © ${new Date().getFullYear()} Northbridge University. All rights reserved.
+          <div class="footer-right">
+            <p>Document ID: NB-REP-${new Date().getFullYear()}${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}</p>
+            <p>Security Level: Official</p>
           </div>
         </div>
-      </body>
-      </html>
-    `;
-  };
+        
+        <div class="signature-area">
+          <div class="signature-box">
+            <div class="signature-line"></div>
+            <div class="signature-label">
+              <strong>Registrar's Signature</strong><br>
+              Prof. M.S. Perera<br>
+              University Registrar
+            </div>
+          </div>
+          <div class="signature-box">
+            <div class="signature-line"></div>
+            <div class="signature-label">
+              <strong>Vice Chancellor's Signature</strong><br>
+              Dr. K.D. Silva<br>
+              Vice Chancellor
+            </div>
+          </div>
+          <div class="seal">
+            <div>
+              OFFICIAL<br>SEAL
+            </div>
+          </div>
+        </div>
+        
+        <div class="verification-note">
+          This is a computer-generated document and requires no physical signature.<br>
+          Verification Code: NB-${Math.random().toString(36).substring(2, 10).toUpperCase()}
+        </div>
+        
+        <div class="copyright">
+          © ${new Date().getFullYear()} Northbridge University. All rights reserved.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
 
   // Print/PDF Download
   const downloadPDF = () => {

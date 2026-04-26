@@ -20,6 +20,7 @@ interface ReportData {
     academicYear?: string;
     generatedBy?: string;
   };
+  logoUrl?: string;
 }
 
 export const generateReport = (data: ReportData) => {
@@ -29,14 +30,34 @@ export const generateReport = (data: ReportData) => {
     reportType = "Comprehensive Report",
     sections,
     totalRecords,
-    additionalInfo = {}
+    additionalInfo = {},
+    logoUrl = "/logo.jpeg" // ✅ FIXED: changed from "/logo_.jpeg" to "/logo.jpeg"
   } = data;
 
   const generatedDate = new Date();
-  const { totalStudents = totalRecords, academicYear = new Date().getFullYear().toString(), generatedBy = "Administration Office" } = additionalInfo;
+  const { 
+    totalStudents = totalRecords, 
+    academicYear = new Date().getFullYear().toString(), 
+    generatedBy = "Administration Office" 
+  } = additionalInfo;
 
   const printWindow = window.open("", "_blank");
   if (!printWindow) return;
+
+  // Generate header HTML with logo URL
+  const headerHtml = ReportHeader({
+    title,
+    subtitle,
+    generatedDate,
+    reportType,
+    organizationName: "Northbridge University",
+    logoUrl: logoUrl
+  });
+
+  // Generate footer HTML
+  const footerHtml = ReportFooter({
+    showSignatures: true
+  });
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -44,13 +65,24 @@ export const generateReport = (data: ReportData) => {
     <head>
       <title>${title} - Northbridge University</title>
       <meta charset="UTF-8">
+      <style>
+        /* Additional print styles */
+        @media print {
+          body {
+            margin: 0;
+            padding: 0;
+          }
+          .no-break {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+        }
+      </style>
       ${getReportStyles()}
-      ${ReportHeader({ title, subtitle, generatedDate, reportType })}
-      ${ReportFooter({})}
     </head>
     <body>
       <!-- Header -->
-      ${ReportHeader({ title, subtitle, generatedDate, reportType })}
+      ${headerHtml}
       
       <!-- Info Bar -->
       <div class="info-bar">
@@ -72,7 +104,7 @@ export const generateReport = (data: ReportData) => {
             <thead>
               <tr>
                 ${section.headers.map(header => `<th>${header}</th>`).join('')}
-              <table>
+              </tr>
             </thead>
             <tbody>
               ${section.rows.map(row => `
@@ -88,7 +120,7 @@ export const generateReport = (data: ReportData) => {
       `).join('')}
       
       <!-- Footer -->
-      ${ReportFooter({})}
+      ${footerHtml}
     </body>
     </html>
   `;
@@ -98,3 +130,81 @@ export const generateReport = (data: ReportData) => {
   printWindow.print();
   printWindow.close();
 };
+
+// Helper function to generate student report
+export const generateStudentReport = (students: any[], filters?: { year?: number; semester?: number }, logoUrl?: string) => {
+  // Group students by year and semester
+  const groupedStudents: { [key: string]: any[] } = {};
+  
+  students.forEach(student => {
+    const year = student.year || 1;
+    const semester = student.semester || 1;
+    const key = `${year}-${semester}`;
+    
+    if (!groupedStudents[key]) {
+      groupedStudents[key] = [];
+    }
+    groupedStudents[key].push(student);
+  });
+
+  const sections = Object.keys(groupedStudents)
+    .sort((a, b) => {
+      const [yearA, semA] = a.split('-').map(Number);
+      const [yearB, semB] = b.split('-').map(Number);
+      if (yearA !== yearB) return yearA - yearB;
+      return semA - semB;
+    })
+    .map(key => {
+      const [year, semester] = key.split('-');
+      const sectionStudents = groupedStudents[key];
+      const maleCount = sectionStudents.filter(s => s.gender === 'Male').length;
+      const femaleCount = sectionStudents.filter(s => s.gender === 'Female').length;
+      const otherCount = sectionStudents.filter(s => s.gender === 'Other').length;
+      
+      return {
+        title: `YEAR ${year} - SEMESTER ${semester}`,
+        subtitle: `Total: ${sectionStudents.length} students | Male: ${maleCount} | Female: ${femaleCount} | Other: ${otherCount}`,
+        headers: ['Student ID', 'Full Name', 'Email', 'Phone', 'Address', 'Course', 'Gender', 'Date of Birth'],
+        rows: sectionStudents.map(student => [
+          student.studentId || student.student_id || '-',
+          student.name || '-',
+          student.email || '-',
+          student.phone || '-',
+          student.address || '-',
+          student.course || '-',
+          student.gender || '-',
+          student.dateOfBirth || '-'
+        ]),
+        summary: `Year ${year} Semester ${semester}: ${sectionStudents.length} students registered`
+      };
+    });
+
+  // Apply filters if provided
+  let filteredSections = sections;
+  if (filters?.year && filters.year !== -1) {
+    filteredSections = filteredSections.filter(section => 
+      section.title.includes(`YEAR ${filters.year}`)
+    );
+  }
+  if (filters?.semester && filters.semester !== -1) {
+    filteredSections = filteredSections.filter(section => 
+      section.title.includes(`SEMESTER ${filters.semester}`)
+    );
+  }
+
+  return {
+    title: "Student Enrollment Report",
+    subtitle: "Official Academic Record",
+    reportType: "Student Enrollment Summary",
+    sections: filteredSections,
+    totalRecords: students.length,
+    additionalInfo: {
+      totalStudents: students.length,
+      academicYear: new Date().getFullYear().toString(),
+      generatedBy: "Registrar's Office"
+    },
+    logoUrl: logoUrl || "/logo.jpeg" // ✅ FIXED: changed from "/logo_.jpeg" to "/logo.jpeg"
+  };
+};
+
+export default generateReport;

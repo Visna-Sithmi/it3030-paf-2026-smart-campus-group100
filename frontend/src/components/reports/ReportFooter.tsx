@@ -25,160 +25,101 @@ const ReportFooter: React.FC<ReportFooterProps> = ({
 
   return `
     <div class="official-footer">
-      <div class="footer-content">
-        <div class="footer-left">
-          <p><strong>Northbridge University</strong></p>
-          <p>${organizationAddress}</p>
-          <p>${contactInfo}</p>
+      <div class="footer-main">
+        <div class="footer-grid">
+          <div class="footer-section">
+            <div class="footer-title">NORTHBRIDGE UNIVERSITY</div>
+            <div class="footer-address">${organizationAddress}</div>
+            <div class="footer-contact">${contactInfo}</div>
+          </div>
+          
+          <div class="footer-section">
+            <div class="footer-title">ACCREDITATION</div>
+            <div class="footer-accreditation">${website}</div>
+            <div class="footer-accreditation">Accredited by UGC Sri Lanka</div>
+            <div class="footer-accreditation">ISO 9001:2024 Certified</div>
+          </div>
+          
+          <div class="footer-section">
+            <div class="footer-title">DOCUMENT INFO</div>
+            <div class="footer-doc">Document ID: ${documentId}</div>
+            <div class="footer-doc">Security Level: <span class="security-level">OFFICIAL</span></div>
+            <div class="footer-doc">Page <span class="page-number"></span></div>
+          </div>
         </div>
-        <div class="footer-center">
-          <p>${website}</p>
-          <p>Accredited by UGC Sri Lanka</p>
-          <p>ISO 9001:2024 Certified</p>
-        </div>
-        <div class="footer-right">
-          <p>Document ID: ${documentId}</p>
-          <p>Security Level: Official</p>
-          <p>Page <span class="page-number"></span></p>
-        </div>
+      </div>
+
+      <div class="footer-divider">
+        <span class="divider-line"></span>
+        <span class="divider-logo">⚜️</span>
+        <span class="divider-line"></span>
       </div>
       
       ${additionalNotes ? `
         <div class="additional-notes">
-          <p><strong>Additional Notes:</strong> ${additionalNotes}</p>
+          <div class="notes-icon">📋</div>
+          <div class="notes-content">
+            <strong>Additional Notes:</strong> ${additionalNotes}
+          </div>
         </div>
       ` : ''}
       
       ${showSignatures ? `
         <div class="signature-area">
-          <div class="signature-box">
-            <div class="signature-line"></div>
-            <div class="signature-label">
-              <strong>Registrar's Signature</strong><br>
-              ${registrarName}<br>
-              University Registrar
+          <div class="signature-container">
+            <div class="signature-box">
+              <div class="signature-line"></div>
+              <div class="signature-label">
+                <div class="signature-title">Registrar's Signature</div>
+                <div class="signature-name">${registrarName}</div>
+                <div class="signature-role">University Registrar</div>
+              </div>
             </div>
-          </div>
-          <div class="signature-box" style="margin-left: 40px;">
-            <div class="signature-line"></div>
-            <div class="signature-label">
-              <strong>Vice Chancellor's Signature</strong><br>
-              ${viceChancellorName}<br>
-              Vice Chancellor
+            
+            <div class="signature-box">
+              <div class="signature-line"></div>
+              <div class="signature-label">
+                <div class="signature-title">Vice Chancellor's Signature</div>
+                <div class="signature-name">${viceChancellorName}</div>
+                <div class="signature-role">Vice Chancellor</div>
+              </div>
             </div>
-          </div>
-          <div class="seal">
-            <div style="border: 1px solid #002147; border-radius: 4px; padding: 8px;">
-              OFFICIAL<br>SEAL
+            
+            <div class="seal-container">
+              <div class="seal">
+                <div class="seal-inner">
+                  <div class="seal-text">OFFICIAL</div>
+                  <div class="seal-subtext">SEAL</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       ` : ''}
       
-      <div class="verification-note">
-        This is a computer-generated document and requires no physical signature.<br>
-        Verification Code: ${verificationCode}
+      <div class="verification-section">
+        <div class="verification-badge">
+          <span class="badge-icon">✓</span>
+          <span class="badge-text">VERIFIED DOCUMENT</span>
+        </div>
+        <div class="verification-code">
+          Verification Code: <span class="code-value">${verificationCode}</span>
+        </div>
+        <div class="verification-note">
+          This is a computer-generated document and requires no physical signature.
+        </div>
       </div>
       
       <div class="copyright">
         © ${new Date().getFullYear()} Northbridge University. All rights reserved.
       </div>
     </div>
-
-    <style>
-      .official-footer {
-        margin-top: 50px;
-        padding-top: 20px;
-        border-top: 1px solid #cbd5e1;
-        font-size: 9px;
-        color: #666;
-      }
-      
-      .footer-content {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        flex-wrap: wrap;
-        margin-bottom: 20px;
-      }
-      
-      .footer-left, .footer-center, .footer-right {
-        flex: 1;
-      }
-      
-      .footer-left {
-        text-align: left;
-      }
-      
-      .footer-center {
-        text-align: center;
-      }
-      
-      .footer-right {
-        text-align: right;
-      }
-      
-      .additional-notes {
-        background: #f9fbfd;
-        padding: 10px;
-        margin: 15px 0;
-        border-left: 3px solid #002147;
-        font-size: 9px;
-      }
-      
-      .signature-area {
-        margin-top: 30px;
-        display: flex;
-        justify-content: flex-end;
-        align-items: flex-end;
-      }
-      
-      .signature-box {
-        text-align: center;
-        width: 250px;
-      }
-      
-      .signature-line {
-        border-top: 1px solid #1a1a1a;
-        margin-top: 30px;
-        padding-top: 8px;
-        width: 100%;
-      }
-      
-      .signature-label {
-        font-size: 9px;
-        color: #555;
-        margin-top: 5px;
-      }
-      
-      .seal {
-        display: inline-block;
-        margin-left: 20px;
-        font-size: 10px;
-        color: #002147;
-      }
-      
-      .verification-note {
-        text-align: center;
-        margin-top: 20px;
-        font-size: 8px;
-        color: #888;
-      }
-      
-      .copyright {
-        text-align: center;
-        margin-top: 10px;
-        font-size: 8px;
-        color: #999;
-      }
-      
-      @media print {
-        .signature-area {
-          margin-top: 40px;
-        }
-      }
-    </style>
   `;
+};
+
+// Also export as a function that can be called directly
+export const getReportFooter = (props?: ReportFooterProps) => {
+  return ReportFooter(props || {});
 };
 
 export default ReportFooter;

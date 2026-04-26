@@ -21,6 +21,7 @@ import TicketDetails from "./app/client/tickets/TicketDetails";
 import ProtectedRoute from "./components/ProtectedRoute"; // IMPORT THE PROTECTED ROUTE
 import HomePage from "./app/home/page";
 import AboutPage from "./app/about/page";
+import OAuthCallbackPage from "./app/oauth/callback/page";
 
 const HomeRedirect = () => {
   const role = localStorage.getItem("role");
@@ -102,6 +103,7 @@ function App() {
         {/* Default route */}
         <Route path="/" element={<HomePage />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
         {/* Admin routes */}
         <Route path="/admin/login" element={<LoginPage />} />

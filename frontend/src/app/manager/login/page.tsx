@@ -11,6 +11,8 @@ import SpinnerMorph from "@/components/ui/spinner-morph";
 
 type ManagerType = "BOOKING" | "RESOURCE" | "ISSUE";
 
+const GOOGLE_AUTH_URL = "http://localhost:8081/oauth2/authorization/google";
+
 const ManagerLoginPage = () => {
   const navigate = useNavigate();
 
@@ -137,6 +139,10 @@ const ManagerLoginPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    window.location.assign(GOOGLE_AUTH_URL);
   };
 
   return (
@@ -289,6 +295,15 @@ const ManagerLoginPage = () => {
                 ) : (
                   "Authorize Entry"
                 )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#002147]/20 bg-white px-4 py-3 text-sm font-bold uppercase tracking-[0.18em] text-[#002147] shadow-sm transition duration-200 hover:bg-[#eef4fb]"
+              >
+                <span className="text-base font-black leading-none">G</span>
+                Continue with Google
               </button>
             </form>
 

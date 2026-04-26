@@ -17,6 +17,9 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     // Find student by Email
     Optional<Student> findByEmail(String email);
 
+    @Query("SELECT s FROM Student s WHERE LOWER(s.email) = LOWER(:email)")
+    Optional<Student> findByEmailCaseInsensitive(@Param("email") String email);
+
     // Find students by course
     List<Student> findByCourse(String course);
 

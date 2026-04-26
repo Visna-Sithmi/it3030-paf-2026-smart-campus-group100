@@ -30,6 +30,8 @@ const emptyHelperForm = {
   password: "",
 };
 
+const GOOGLE_AUTH_URL = "http://localhost:8081/oauth2/authorization/google";
+
 export default function ClientLoginPage() {
   const navigate = useNavigate();
   const [activePortal, setActivePortal] = useState<PortalType>("STUDENT");
@@ -213,6 +215,10 @@ export default function ClientLoginPage() {
     }
   };
 
+  const handleGoogleLogin = () => {
+    window.location.assign(GOOGLE_AUTH_URL);
+  };
+
   return (
     <AnimatedCharactersLoginPage
       brandName="Northbridge University"
@@ -291,6 +297,15 @@ export default function ClientLoginPage() {
           Helper Staff
         </button>
       </div>
+
+      <Button
+        type="button"
+        onClick={handleGoogleLogin}
+        className="mb-5 w-full rounded-xl border border-[#002147]/20 bg-white py-3 text-sm font-bold uppercase tracking-[0.16em] text-[#002147] shadow-sm transition hover:bg-[#eef4fb]"
+      >
+        <span className="mr-2 text-base font-black leading-none">G</span>
+        Continue with Google
+      </Button>
 
       {activePortal === "STUDENT" ? (
         <form onSubmit={handleStudentLogin} className="space-y-4">

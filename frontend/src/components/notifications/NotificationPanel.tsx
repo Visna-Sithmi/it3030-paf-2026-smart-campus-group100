@@ -1,5 +1,5 @@
 import React from "react";
-import { Bell, CheckCircle2 } from "lucide-react";
+import { Bell, CheckCheck, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { NotificationItem } from "../../services/notificationService";
 
@@ -7,6 +7,7 @@ interface NotificationPanelProps {
   notifications: NotificationItem[];
   loading: boolean;
   onMarkAsRead: (notificationId: number) => Promise<void>;
+  onMarkAllAsRead: () => Promise<void>;
   onClose: () => void;
 }
 
@@ -21,9 +22,11 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
   notifications,
   loading,
   onMarkAsRead,
+  onMarkAllAsRead,
   onClose,
 }) => {
   const navigate = useNavigate();
+  const hasNotifications = notifications.length > 0;
 
   const getNotificationPath = (notification: NotificationItem): string | null => {
     if (notification.referenceId == null) {
@@ -64,8 +67,21 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
   return (
     <div className="absolute right-0 mt-3 w-[360px] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white shadow-xl z-50">
       <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-        <h3 className="font-semibold text-slate-900">Notifications</h3>
-        <span className="text-xs text-slate-500">{notifications.length} total</span>
+        <div>
+          <h3 className="font-semibold text-slate-900">Notifications</h3>
+          <span className="text-xs text-slate-500">{notifications.length} unread</span>
+        </div>
+        {hasNotifications && (
+          <button
+            type="button"
+            onClick={() => void onMarkAllAsRead()}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-700"
+            title="Mark all as read"
+            aria-label="Mark all notifications as read"
+          >
+            <CheckCheck className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="max-h-[420px] overflow-y-auto">

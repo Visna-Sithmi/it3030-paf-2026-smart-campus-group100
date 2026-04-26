@@ -140,7 +140,7 @@ const Header: React.FC = () => {
             setNotificationsLoading(true);
             const data = await getNotifications(currentUserId);
             if (isMounted) {
-              setNotifications(data);
+              setNotifications(data.filter((item) => !item.read));
             }
           } catch (error) {
             console.error("Failed to fetch notifications:", error);
@@ -164,16 +164,28 @@ const Header: React.FC = () => {
     try {
       await markAsRead(notificationId);
       setNotifications((prev) =>
-        prev.map((item) =>
-          item.id === notificationId ? { ...item, read: true } : item
-        )
+        prev.filter((item) => item.id !== notificationId)
       );
     } catch (error) {
       console.error("Failed to mark as read:", error);
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const handleMarkAllNotificationsRead = async () => {
+    const unreadNotifications = notifications.filter((item) => !item.read);
+    if (unreadNotifications.length === 0) {
+      return;
+    }
+
+    try {
+      await Promise.all(unreadNotifications.map((item) => markAsRead(item.id)));
+      setNotifications([]);
+    } catch (error) {
+      console.error("Failed to mark all notifications as read:", error);
+    }
+  };
+
+  const unreadCount = notifications.length;
 
   const handleLogout = () => {
     // Clear all student-related localStorage items
@@ -287,6 +299,7 @@ const Header: React.FC = () => {
                         notifications={notifications}
                         loading={notificationsLoading}
                         onMarkAsRead={handleMarkNotificationRead}
+                        onMarkAllAsRead={handleMarkAllNotificationsRead}
                         onClose={() => setIsNotificationsOpen(false)}
                       />
                     )}

@@ -180,7 +180,7 @@ public class BookingServiceImpl implements BookingService {
 
         Booking savedBooking = bookingRepository.save(booking);
         notificationService.createNotification(
-                savedBooking.getRequestedBy().getId(),
+                resolveClientNotificationRecipientId(savedBooking),
                 "Your booking request for " + savedBooking.getResource().getName() + " on "
                         + savedBooking.getBookingDate() + " has been approved.",
                 "BOOKING",
@@ -211,7 +211,7 @@ public class BookingServiceImpl implements BookingService {
 
         Booking savedBooking = bookingRepository.save(booking);
         notificationService.createNotification(
-                savedBooking.getRequestedBy().getId(),
+                resolveClientNotificationRecipientId(savedBooking),
                 "Your booking request for " + savedBooking.getResource().getName() + " on "
                         + savedBooking.getBookingDate() + " was rejected. Reason: " + savedBooking.getAdminReason(),
                 "BOOKING",
@@ -361,6 +361,21 @@ public class BookingServiceImpl implements BookingService {
         }
 
         return requester;
+    }
+
+    private Long resolveClientNotificationRecipientId(Booking booking) {
+        User requester = booking.getRequestedBy();
+        if (requester == null) {
+            throw new IllegalArgumentException("Booking requester is required for notification");
+        }
+
+        if ("STUDENT".equals(normalizeRole(requester.getRole()))) {
+            return studentRepository.findByEmail(requester.getEmail())
+                    .map(Student::getId)
+                    .orElse(requester.getId());
+        }
+
+        return requester.getId();
     }
 
     private BookingResponseDTO toResponse(Booking booking) {

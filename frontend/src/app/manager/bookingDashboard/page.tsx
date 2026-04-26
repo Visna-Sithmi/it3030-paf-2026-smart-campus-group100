@@ -46,6 +46,24 @@ const REJECT_REASON_OPTIONS: Array<{
 
 const APPROVAL_NOTE_TEMPLATE = "Your booking request is confirmed.";
 
+const getStoredManagerId = (): number => {
+  const directId = localStorage.getItem("id");
+  if (directId && Number.isFinite(Number(directId))) {
+    return Number(directId);
+  }
+
+  const rawUser = localStorage.getItem("user");
+  if (!rawUser) return 0;
+
+  try {
+    const parsed = JSON.parse(rawUser);
+    const parsedId = parsed?.id ?? parsed?.managerId ?? parsed?.manager_id;
+    return parsedId && Number.isFinite(Number(parsedId)) ? Number(parsedId) : 0;
+  } catch {
+    return 0;
+  }
+};
+
 const BookingDashboard = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");

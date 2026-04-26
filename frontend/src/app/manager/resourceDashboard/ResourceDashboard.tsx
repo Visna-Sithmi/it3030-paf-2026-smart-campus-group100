@@ -1368,7 +1368,14 @@ const ResourceDashboard: React.FC = () => {
             <a className="nav-link nav-link-active" href="#">
               Resources
             </a>
-            <a className="nav-link" href="#">
+            <a 
+              className="nav-link" 
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/manager/resource/analysis';
+              }}
+            >
               Analytics
             </a>
           </nav>
@@ -1443,10 +1450,13 @@ const ResourceDashboard: React.FC = () => {
               <span className="btn-text-hide-sm">Holidays</span>
             </button>
 
-            <button className="btn btn-analysis">
-              <BarChart3 size={18} />
-              <span className="btn-text-hide-sm">Analysis</span>
-            </button>
+                  <button 
+        className="btn btn-analysis"
+        onClick={() => window.location.href = '/manager/resource/analysis'}
+      >
+        <BarChart3 size={18} />
+        <span className="btn-text-hide-sm">Analysis</span>
+      </button>
 
             <button
               onClick={() => {

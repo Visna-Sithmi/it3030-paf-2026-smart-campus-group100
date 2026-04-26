@@ -245,6 +245,18 @@ public class BookingServiceImpl implements BookingService {
         return toResponse(bookingRepository.save(booking));
     }
 
+    
+    public BookingResponseDTO deleteBooking(Long bookingId, Long managerId, String managerRole) {
+        validateBookingManager(managerId, managerRole);
+
+        Booking booking = findBookingOrThrow(bookingId);
+        BookingResponseDTO deletedBooking = toResponse(booking);
+        bookingRepository.delete(booking);
+
+        return deletedBooking;
+    }
+
+    
     @Override
     @Transactional(readOnly = true)
     public List<BookingSlotDTO> getBookedSlotsForResourceDate(Long resourceId, LocalDate bookingDate, Long requesterId, String requesterRole) {

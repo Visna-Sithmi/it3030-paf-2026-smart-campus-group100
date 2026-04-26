@@ -36,6 +36,8 @@ export default function BookingHistoryPage() {
   const [analyticsResourceTypeFilter, setAnalyticsResourceTypeFilter] = useState("ALL");
   const [analyticsFromDate, setAnalyticsFromDate] = useState("");
   const [analyticsToDate, setAnalyticsToDate] = useState("");
+  const [historyPage, setHistoryPage] = useState(1);
+  const [deletingBookingId, setDeletingBookingId] = useState<number | null>(null);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(startOfMonth(new Date()));
   const [selectedCalendarDate, setSelectedCalendarDate] = useState("");
 
@@ -196,27 +198,7 @@ export default function BookingHistoryPage() {
     return monthCounts;
   }, [actionedBookings, monthlyChartYear, analyticsStatusFilter, analyticsResourceTypeFilter, monthLabels]);
 
-  const annualChartData = useMemo(() => {
-    const annualCounts = new Map<string, number>();
-
-    actionedBookings
-      .filter((booking) => analyticsStatusFilter === "ALL" || booking.status === analyticsStatusFilter)
-      .filter((booking) => analyticsResourceTypeFilter === "ALL" || (booking.resourceType || "") === analyticsResourceTypeFilter)
-      .filter((booking) => analyticsMonthFilter === "ALL" || (booking.bookingDate || "").slice(5, 7) === analyticsMonthFilter)
-      .forEach((booking) => {
-        const year = (booking.bookingDate || "").slice(0, 4);
-        if (/^\d{4}$/.test(year)) {
-          annualCounts.set(year, (annualCounts.get(year) || 0) + 1);
-        }
-      });
-
-    return Array.from(annualCounts.entries())
-      .map(([year, count]) => ({ year, count }))
-      .sort((a, b) => Number(a.year) - Number(b.year));
-  }, [actionedBookings, analyticsStatusFilter, analyticsResourceTypeFilter, analyticsMonthFilter]);
-
   const maxMonthlyCount = Math.max(1, ...monthlyChartData.map((item) => item.count));
-  const maxAnnualCount = Math.max(1, ...annualChartData.map((item) => item.count));
 
   const monthlyCalendarDays = useMemo(
     () =>
@@ -264,6 +246,69 @@ export default function BookingHistoryPage() {
         return matchesStatus && matchesDate && matchesResourceType && matchesSearch;
       });
   }, [bookings, historySearch, historyDateFilter, historyStatusFilter, historyResourceTypeFilter]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historySearch, historyDateFilter, historyStatusFilter, historyResourceTypeFilter]);
+
+  const pageSize = 10;
+  const totalHistoryPages = Math.max(1, Math.ceil(filteredHistoryBookings.length / pageSize));
+
+  useEffect(() => {
+    if (historyPage > totalHistoryPages) {
+      setHistoryPage(totalHistoryPages);
+    }
+  }, [historyPage, totalHistoryPages]);
+
+  const paginatedHistoryBookings = useMemo(() => {
+    const startIndex = (historyPage - 1) * pageSize;
+    return filteredHistoryBookings.slice(startIndex, startIndex + pageSize);
+  }, [filteredHistoryBookings, historyPage]);
+
+  const visibleHistoryPageNumbers = useMemo(() => {
+    const pages: Array<number | "..."> = [];
+
+    if (totalHistoryPages <= 7) {
+      for (let i = 1; i <= totalHistoryPages; i += 1) {
+        pages.push(i);
+      }
+      return pages;
+    }
+
+    pages.push(1);
+    if (historyPage > 3) {
+      pages.push("...");
+    }
+
+    const start = Math.max(2, historyPage - 1);
+    const end = Math.min(totalHistoryPages - 1, historyPage + 1);
+    for (let i = start; i <= end; i += 1) {
+      pages.push(i);
+    }
+
+    if (historyPage < totalHistoryPages - 2) {
+      pages.push("...");
+    }
+    pages.push(totalHistoryPages);
+
+    return pages;
+  }, [historyPage, totalHistoryPages]);
+
+  const handleDeleteHistoryBooking = async (bookingId: number) => {
+    const confirmed = window.confirm("Delete this booking record from history?");
+    if (!confirmed) return;
+
+    try {
+      setDeletingBookingId(bookingId);
+      setError("");
+      await bookingService.deleteBooking(bookingId);
+      setBookings((prev) => prev.filter((booking) => booking.bookingId !== bookingId));
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err.message || "Failed to delete booking history record");
+    } finally {
+      setDeletingBookingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#eef2f6]">
@@ -592,30 +637,6 @@ export default function BookingHistoryPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-4 lg:col-span-2">
-              <h4 className="text-sm font-semibold text-slate-700">Annual Trend</h4>
-              {annualChartData.length === 0 ? (
-                <p className="mt-4 text-sm text-slate-500">No annual data for selected filters.</p>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  {annualChartData.map((item) => {
-                    const widthPercent = (item.count / maxAnnualCount) * 100;
-                    return (
-                      <div key={item.year} className="grid grid-cols-[64px_1fr_40px] items-center gap-3 text-sm">
-                        <span className="font-semibold text-slate-700">{item.year}</span>
-                        <div className="h-3 rounded-full bg-slate-100">
-                          <div
-                            className="h-3 rounded-full bg-gradient-to-r from-[#0b4a8b] to-[#1e73be]"
-                            style={{ width: `${Math.max(widthPercent, item.count > 0 ? 4 : 0)}%` }}
-                          />
-                        </div>
-                        <span className="text-right text-slate-600">{item.count}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
           </div>
         </section>
 
@@ -674,7 +695,9 @@ export default function BookingHistoryPage() {
           </div>
 
           <div className="mb-3 flex items-center justify-between text-xs text-slate-600">
-            <p>Showing {filteredHistoryBookings.length} actioned booking(s)</p>
+            <p>
+              Showing {filteredHistoryBookings.length} actioned booking(s) · Page {historyPage} of {totalHistoryPages}
+            </p>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -713,10 +736,11 @@ export default function BookingHistoryPage() {
                     <th className="px-4 py-3 font-semibold text-slate-600">Time</th>
                     <th className="px-4 py-3 font-semibold text-slate-600">Status</th>
                     <th className="px-4 py-3 font-semibold text-slate-600">Reason / Actioned By</th>
+                    <th className="px-4 py-3 font-semibold text-slate-600">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredHistoryBookings.map((booking) => (
+                  {paginatedHistoryBookings.map((booking) => (
                     <tr key={booking.bookingId}>
                       <td className="px-4 py-3">
                         <p className="font-semibold text-slate-800">{booking.resourceName}</p>
@@ -743,10 +767,61 @@ export default function BookingHistoryPage() {
                         <p>{booking.adminReason || (booking.status === "CANCELLED" ? "Cancelled by requester" : "-")}</p>
                         <p className="mt-1 text-slate-500">{booking.approvedOrRejectedByName || "-"}</p>
                       </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteHistoryBooking(booking.bookingId)}
+                          disabled={deletingBookingId === booking.bookingId}
+                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {deletingBookingId === booking.bookingId ? "Deleting..." : "Delete"}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {filteredHistoryBookings.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}
+                disabled={historyPage === 1}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+
+              {visibleHistoryPageNumbers.map((page, index) => (
+                page === "..." ? (
+                  <span key={`ellipsis-${index}`} className="px-2 text-xs text-slate-500">...</span>
+                ) : (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setHistoryPage(page)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                      historyPage === page
+                        ? "border-[#002147] bg-[#002147] text-white"
+                        : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setHistoryPage((page) => Math.min(totalHistoryPages, page + 1))}
+                disabled={historyPage === totalHistoryPages}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
             </div>
           )}
         </div>

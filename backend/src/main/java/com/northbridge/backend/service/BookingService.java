@@ -24,5 +24,7 @@ public interface BookingService {
 
     BookingResponseDTO cancelBooking(Long bookingId, Long requesterId, String requesterRole);
 
+    BookingResponseDTO deleteBooking(Long bookingId, Long managerId, String managerRole);
+
     List<BookingSlotDTO> getBookedSlotsForResourceDate(Long resourceId, LocalDate bookingDate, Long requesterId, String requesterRole);
 }

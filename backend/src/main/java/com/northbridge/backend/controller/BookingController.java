@@ -107,4 +107,14 @@ public class BookingController {
         BookingResponseDTO booking = bookingService.cancelBooking(id, userId, userRole);
         return ResponseEntity.ok(new ApiResponse(true, "Booking cancelled successfully", booking));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse> deleteBooking(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") Long managerId,
+            @RequestHeader("X-User-Role") String managerRole
+    ) {
+        BookingResponseDTO booking = bookingService.deleteBooking(id, managerId, managerRole);
+        return ResponseEntity.ok(new ApiResponse(true, "Booking deleted successfully", booking));
+    }
 }

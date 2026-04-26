@@ -210,6 +210,17 @@ export const bookingService = {
     return normalizeBooking(response.data.data || {});
   },
 
+  async deleteBooking(bookingId: number): Promise<BookingResponseDTO> {
+    const response = await api.delete<BookingApiResponse<BookingResponseApiModel>>(
+      `/${bookingId}`,
+      {
+        headers: buildAuthHeaders(),
+      }
+    );
+
+    return normalizeBooking(response.data.data || {});
+  },
+
   async getBookedSlots(resourceId: number, date: string): Promise<BookingSlotDTO[]> {
     const response = await api.get<BookingApiResponse<BookingSlotApiModel[]>>(
       `/resource/${resourceId}/slots`,

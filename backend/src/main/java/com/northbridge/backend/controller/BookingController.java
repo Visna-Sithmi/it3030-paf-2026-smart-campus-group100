@@ -41,9 +41,10 @@ public class BookingController {
 
     @GetMapping("/my")
     public ResponseEntity<ApiResponse> getMyBookings(
-            @RequestHeader("X-User-Id") Long userId
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-User-Role") String userRole
     ) {
-        List<BookingResponseDTO> bookings = bookingService.getMyBookings(userId);
+        List<BookingResponseDTO> bookings = bookingService.getMyBookings(userId, userRole);
         return ResponseEntity.ok(new ApiResponse(true, "My bookings fetched successfully", bookings));
     }
 
@@ -105,5 +106,15 @@ public class BookingController {
     ) {
         BookingResponseDTO booking = bookingService.cancelBooking(id, userId, userRole);
         return ResponseEntity.ok(new ApiResponse(true, "Booking cancelled successfully", booking));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse> deleteBooking(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") Long managerId,
+            @RequestHeader("X-User-Role") String managerRole
+    ) {
+        BookingResponseDTO booking = bookingService.deleteBooking(id, managerId, managerRole);
+        return ResponseEntity.ok(new ApiResponse(true, "Booking deleted successfully", booking));
     }
 }

@@ -1,11 +1,20 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { loginAdmin } from "../../../services/authService";
 import type { LoginResponse } from "../../../types/auth";
 import logo from "../../../assets/logo.jpeg";
+import SpinnerMorph from "@/components/ui/spinner-morph";
+import { getAuthItem, setAuthItem } from "../../../services/authSession";
+
+const GOOGLE_AUTH_URL = "http://localhost:8081/oauth2/authorization/google";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get the attempted path from location state
+  // If no state exists (direct login), default to /admin/dashboard
+  const from = (location.state as any)?.from || "/admin/dashboard";
 
   const [formData, setFormData] = useState({
     email: "",
@@ -15,6 +24,17 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Check if already logged in
+  useEffect(() => {
+    const isLoggedIn = getAuthItem("isAdminLoggedIn") === "true";
+    const role = getAuthItem("role");
+    
+    if (isLoggedIn && role === "ADMIN") {
+      // Redirect to dashboard if already logged in
+      navigate("/admin/dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -37,19 +57,22 @@ const LoginPage = () => {
       if (data.success) {
         if (data.role === "ADMIN") {
           // Store complete user info in localStorage
-          localStorage.setItem("user", JSON.stringify(data));
-          localStorage.setItem("role", data.role || "");
-          localStorage.setItem("name", data.name || "");
-          localStorage.setItem("email", data.email || "");
-          localStorage.setItem("id", data.id?.toString() || "");
-          localStorage.setItem("adminName", data.name || "Admin User");
-          localStorage.setItem("adminEmail", data.email || "");
-          localStorage.setItem("adminRole", "Chancellor Administrator");
+          setAuthItem("user", JSON.stringify(data));
+          setAuthItem("role", data.role || "");
+          setAuthItem("name", data.name || "");
+          setAuthItem("email", data.email || "");
+          setAuthItem("id", data.id?.toString() || "");
+          setAuthItem("adminName", data.name || "Admin User");
+          setAuthItem("adminEmail", data.email || "");
+          setAuthItem("adminRole", "Chancellor Administrator");
+          
+          // Store admin authentication (without token since backend doesn't send it)
+          setAuthItem("isAdminLoggedIn", "true");
 
           setSuccessMessage(data.message || "Login successful");
           
-          // Redirect directly to manager page
-          navigate("/admin/manager");
+          // Always redirect to dashboard after successful login
+          navigate("/admin/dashboard", { replace: true });
         } else {
           setError("Access denied. Admin only.");
         }
@@ -62,6 +85,11 @@ const LoginPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    sessionStorage.setItem("oauthExpectedRole", "ADMIN");
+    window.location.assign(GOOGLE_AUTH_URL);
   };
 
   return (
@@ -157,7 +185,23 @@ const LoginPage = () => {
                 disabled={loading}
                 className="w-full rounded-xl bg-gradient-to-r from-[#000a1e] to-[#002147] px-4 py-3 text-sm font-bold uppercase tracking-[0.25em] text-white shadow-[0_10px_24px_rgba(0,33,71,0.28)] transition duration-200 hover:-translate-y-[1px] hover:shadow-[0_14px_28px_rgba(0,33,71,0.32)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {loading ? "Authorizing..." : "Authorize Entry"}
+                {loading ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <SpinnerMorph size={20} fill="#ffffff" rotateDur="3s" morphDur="3s" />
+                    Authorizing...
+                  </span>
+                ) : (
+                  "Authorize Entry"
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#002147]/20 bg-white px-4 py-3 text-sm font-bold uppercase tracking-[0.18em] text-[#002147] shadow-sm transition duration-200 hover:bg-[#eef4fb]"
+              >
+                <span className="text-base font-black leading-none">G</span>
+                Continue with Google
               </button>
             </form>
 
@@ -170,6 +214,14 @@ const LoginPage = () => {
             </div>
           </div>
 
+          {/* Show attempted path info if they were redirected from a specific page */}
+          {from !== "/admin/dashboard" && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-xs text-yellow-800 text-center">
+                <strong>Note:</strong> You were trying to access: {from}
+              </p>
+            </div>
+          )}
         </div>
       </main>
 

@@ -5,6 +5,7 @@ import type {
   BookingResponseDTO,
   BookingSlotDTO,
 } from "../types/booking";
+import { getAuthItem } from "./authSession";
 
 const API_BASE_URL = "http://localhost:8081/api/bookings";
 
@@ -16,13 +17,13 @@ const api = axios.create({
 });
 
 const getStoredUserId = (): string => {
-  const directId = localStorage.getItem("id");
+  const directId = getAuthItem("id");
   if (directId) return directId;
 
-  const studentId = localStorage.getItem("studentId");
+  const studentId = getAuthItem("studentId");
   if (studentId) return studentId;
 
-  const rawUser = localStorage.getItem("user");
+  const rawUser = getAuthItem("user");
   if (!rawUser) return "";
 
   try {
@@ -53,6 +54,10 @@ interface BookingResponseApiModel {
   requested_by_name?: string;
   requestedByRole?: string;
   requested_by_role?: string;
+  requestedByEmail?: string | null;
+  requested_by_email?: string | null;
+  requestedByProfileImageUrl?: string | null;
+  requested_by_profile_image_url?: string | null;
   bookingDate?: string;
   booking_date?: string;
   startTime?: string;
@@ -94,6 +99,8 @@ const normalizeBooking = (raw: BookingResponseApiModel): BookingResponseDTO => (
   requestedById: raw.requestedById ?? raw.requested_by_id ?? 0,
   requestedByName: raw.requestedByName ?? raw.requested_by_name ?? "",
   requestedByRole: raw.requestedByRole ?? raw.requested_by_role ?? "",
+  requestedByEmail: raw.requestedByEmail ?? raw.requested_by_email ?? null,
+  requestedByProfileImageUrl: raw.requestedByProfileImageUrl ?? raw.requested_by_profile_image_url ?? null,
   bookingDate: raw.bookingDate ?? raw.booking_date ?? "",
   startTime: raw.startTime ?? raw.start_time ?? "",
   endTime: raw.endTime ?? raw.end_time ?? "",
@@ -130,7 +137,7 @@ const normalizeBookingSlot = (raw: BookingSlotApiModel): BookingSlotDTO => ({
 
 const buildAuthHeaders = () => {
   const userId = getStoredUserId();
-  const role = localStorage.getItem("role") || "";
+  const role = getAuthItem("role") || "";
 
   return {
     "X-User-Id": userId,
@@ -196,6 +203,17 @@ export const bookingService = {
     const response = await api.put<BookingApiResponse<BookingResponseApiModel>>(
       `/${bookingId}/cancel`,
       {},
+      {
+        headers: buildAuthHeaders(),
+      }
+    );
+
+    return normalizeBooking(response.data.data || {});
+  },
+
+  async deleteBooking(bookingId: number): Promise<BookingResponseDTO> {
+    const response = await api.delete<BookingApiResponse<BookingResponseApiModel>>(
+      `/${bookingId}`,
       {
         headers: buildAuthHeaders(),
       }

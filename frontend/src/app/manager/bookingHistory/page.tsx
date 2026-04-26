@@ -11,12 +11,14 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import logo from "../../../assets/logo.jpeg";
 import { bookingService } from "../../../services/bookingService";
 import { resourceService } from "../../../services/resource.service";
 import type { BookingResponseDTO } from "../../../types/booking";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { getAuthItem } from "../../../services/authSession";
+import { generateReport } from "../../../utils/reportGenerator";
 
 export default function BookingHistoryPage() {
   const navigate = useNavigate();
@@ -36,10 +38,16 @@ export default function BookingHistoryPage() {
   const [analyticsResourceTypeFilter, setAnalyticsResourceTypeFilter] = useState("ALL");
   const [analyticsFromDate, setAnalyticsFromDate] = useState("");
   const [analyticsToDate, setAnalyticsToDate] = useState("");
+  const [historyPage, setHistoryPage] = useState(1);
+  const [deletingBookingId, setDeletingBookingId] = useState<number | null>(null);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(startOfMonth(new Date()));
   const [selectedCalendarDate, setSelectedCalendarDate] = useState("");
 
-  const userName = localStorage.getItem("name") || "Booking Manager";
+  const userName = getAuthItem("name") || "Booking Manager";
+  const selectClassName =
+    "w-full appearance-none rounded-2xl border border-[#c9d8ea] bg-[#f8fbff] px-4 py-3 pr-10 text-sm font-semibold text-[#09203d] shadow-[0_8px_22px_rgba(0,33,71,0.06)] outline-none transition hover:border-[#7aa3cf] hover:bg-white focus:border-[#002147] focus:bg-white focus:ring-4 focus:ring-[#002147]/10";
+  const inputClassName =
+    "w-full rounded-2xl border border-[#c9d8ea] bg-[#f8fbff] px-4 py-3 text-sm font-semibold text-[#09203d] shadow-[0_8px_22px_rgba(0,33,71,0.06)] outline-none transition hover:border-[#7aa3cf] hover:bg-white focus:border-[#002147] focus:bg-white focus:ring-4 focus:ring-[#002147]/10";
 
   const fetchBookings = async () => {
     try {
@@ -73,7 +81,7 @@ export default function BookingHistoryPage() {
   };
 
   useEffect(() => {
-    const role = localStorage.getItem("role");
+    const role = getAuthItem("role");
     if (role !== "BOOKING_MANAGER") {
       navigate("/manager/login");
       return;
@@ -196,27 +204,7 @@ export default function BookingHistoryPage() {
     return monthCounts;
   }, [actionedBookings, monthlyChartYear, analyticsStatusFilter, analyticsResourceTypeFilter, monthLabels]);
 
-  const annualChartData = useMemo(() => {
-    const annualCounts = new Map<string, number>();
-
-    actionedBookings
-      .filter((booking) => analyticsStatusFilter === "ALL" || booking.status === analyticsStatusFilter)
-      .filter((booking) => analyticsResourceTypeFilter === "ALL" || (booking.resourceType || "") === analyticsResourceTypeFilter)
-      .filter((booking) => analyticsMonthFilter === "ALL" || (booking.bookingDate || "").slice(5, 7) === analyticsMonthFilter)
-      .forEach((booking) => {
-        const year = (booking.bookingDate || "").slice(0, 4);
-        if (/^\d{4}$/.test(year)) {
-          annualCounts.set(year, (annualCounts.get(year) || 0) + 1);
-        }
-      });
-
-    return Array.from(annualCounts.entries())
-      .map(([year, count]) => ({ year, count }))
-      .sort((a, b) => Number(a.year) - Number(b.year));
-  }, [actionedBookings, analyticsStatusFilter, analyticsResourceTypeFilter, analyticsMonthFilter]);
-
   const maxMonthlyCount = Math.max(1, ...monthlyChartData.map((item) => item.count));
-  const maxAnnualCount = Math.max(1, ...annualChartData.map((item) => item.count));
 
   const monthlyCalendarDays = useMemo(
     () =>
@@ -265,6 +253,140 @@ export default function BookingHistoryPage() {
       });
   }, [bookings, historySearch, historyDateFilter, historyStatusFilter, historyResourceTypeFilter]);
 
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historySearch, historyDateFilter, historyStatusFilter, historyResourceTypeFilter]);
+
+  const pageSize = 10;
+  const totalHistoryPages = Math.max(1, Math.ceil(filteredHistoryBookings.length / pageSize));
+
+  useEffect(() => {
+    if (historyPage > totalHistoryPages) {
+      setHistoryPage(totalHistoryPages);
+    }
+  }, [historyPage, totalHistoryPages]);
+
+  const paginatedHistoryBookings = useMemo(() => {
+    const startIndex = (historyPage - 1) * pageSize;
+    return filteredHistoryBookings.slice(startIndex, startIndex + pageSize);
+  }, [filteredHistoryBookings, historyPage]);
+
+  const visibleHistoryPageNumbers = useMemo(() => {
+    const pages: Array<number | "..."> = [];
+
+    if (totalHistoryPages <= 7) {
+      for (let i = 1; i <= totalHistoryPages; i += 1) {
+        pages.push(i);
+      }
+      return pages;
+    }
+
+    pages.push(1);
+    if (historyPage > 3) {
+      pages.push("...");
+    }
+
+    const start = Math.max(2, historyPage - 1);
+    const end = Math.min(totalHistoryPages - 1, historyPage + 1);
+    for (let i = start; i <= end; i += 1) {
+      pages.push(i);
+    }
+
+    if (historyPage < totalHistoryPages - 2) {
+      pages.push("...");
+    }
+    pages.push(totalHistoryPages);
+
+    return pages;
+  }, [historyPage, totalHistoryPages]);
+
+  const handleDeleteHistoryBooking = async (bookingId: number) => {
+    const confirmed = window.confirm("Delete this booking record from history?");
+    if (!confirmed) return;
+
+    try {
+      setDeletingBookingId(bookingId);
+      setError("");
+      await bookingService.deleteBooking(bookingId);
+      setBookings((prev) => prev.filter((booking) => booking.bookingId !== bookingId));
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err.message || "Failed to delete booking history record");
+    } finally {
+      setDeletingBookingId(null);
+    }
+  };
+
+  const formatReportDate = (value?: string | null) => {
+    if (!value) return "-";
+    try {
+      return format(new Date(value), "MMM d, yyyy");
+    } catch {
+      return value;
+    }
+  };
+
+  const formatReportTime = (value?: string | null) => {
+    if (!value) return "-";
+    return String(value).slice(0, 5);
+  };
+
+  const handleDownloadReport = () => {
+    const reportBookings = analyticsFilteredBookings.length > 0 ? analyticsFilteredBookings : actionedBookings;
+    const statusOrder = ["APPROVED", "REJECTED", "CANCELLED"];
+
+    const sections = statusOrder
+      .map((status) => {
+        const statusBookings = reportBookings.filter((booking) => booking.status === status);
+        if (statusBookings.length === 0) return null;
+
+        return {
+          title: `${status.charAt(0)}${status.slice(1).toLowerCase()} Bookings (${statusBookings.length})`,
+          subtitle: `Resource Types: ${
+            Array.from(new Set(statusBookings.map((booking) => booking.resourceType || "N/A")))
+              .map((type) => type.replaceAll("_", " "))
+              .join(", ") || "N/A"
+          }`,
+          headers: ["Booking ID", "Resource", "Requester", "Date", "Time", "Purpose", "Action Note"],
+          rows: statusBookings.map((booking) => [
+            booking.bookingId || "-",
+            `${booking.resourceName || "-"} (${booking.resourceCode || "-"})`,
+            booking.requestedByName || "-",
+            formatReportDate(booking.bookingDate),
+            `${formatReportTime(booking.startTime)} - ${formatReportTime(booking.endTime)}`,
+            booking.purpose || "-",
+            booking.adminReason || (booking.status === "CANCELLED" ? "Cancelled by requester" : "-"),
+          ]),
+          summary: `${statusBookings.length} ${status.toLowerCase()} booking record(s) in this section`,
+        };
+      })
+      .filter(Boolean) as Array<{
+        title: string;
+        subtitle?: string;
+        headers: string[];
+        rows: Array<Array<string | number>>;
+        summary?: string;
+      }>;
+
+    if (sections.length === 0) {
+      setError("No booking history records available for report generation.");
+      return;
+    }
+
+    generateReport({
+      title: "Booking History Report",
+      subtitle: "Approved, Rejected, and Cancelled Booking Records",
+      reportType: "Booking Management Report",
+      sections,
+      totalRecords: reportBookings.length,
+      additionalInfo: {
+        totalStudents: reportBookings.length,
+        academicYear: new Date().getFullYear().toString(),
+        generatedBy: getAuthItem("name") || "Booking Manager",
+      },
+      logoUrl: undefined,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#eef2f6]">
       <header className="bg-[#002147] text-white shadow-lg">
@@ -302,66 +424,89 @@ export default function BookingHistoryPage() {
         )}
 
         <section className="mb-6 rounded-xl bg-white p-6 shadow-md">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-[#002147]">History Analytics</h3>
-            <p className="text-sm text-slate-600">Analyze booking outcomes by resource type, month, and year.</p>
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-[#002147]">History Analytics</h3>
+              <p className="text-sm text-slate-600">Analyze booking outcomes by resource type, month, and year.</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleDownloadReport}
+              disabled={loading || actionedBookings.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#002147] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,33,71,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0f3460] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Download className="h-4 w-4" />
+              Download Report
+            </button>
           </div>
 
           <div className="mb-5 grid gap-3 md:grid-cols-3 lg:grid-cols-6">
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year</label>
-              <select
-                value={analyticsYearFilter}
-                onChange={(e) => setAnalyticsYearFilter(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
-              >
-                <option value="ALL">All Years</option>
-                {availableAnalyticsYears.map((year) => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={analyticsYearFilter}
+                  onChange={(e) => setAnalyticsYearFilter(e.target.value)}
+                  className={selectClassName}
+                >
+                  <option value="ALL">All Years</option>
+                  {availableAnalyticsYears.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1b4f7d]" />
+              </div>
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Month</label>
-              <select
-                value={analyticsMonthFilter}
-                onChange={(e) => setAnalyticsMonthFilter(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
-              >
-                <option value="ALL">All Months</option>
-                {monthLabels.map((month, index) => (
-                  <option key={month} value={`${index + 1}`.padStart(2, "0")}>{month}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={analyticsMonthFilter}
+                  onChange={(e) => setAnalyticsMonthFilter(e.target.value)}
+                  className={selectClassName}
+                >
+                  <option value="ALL">All Months</option>
+                  {monthLabels.map((month, index) => (
+                    <option key={month} value={`${index + 1}`.padStart(2, "0")}>{month}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1b4f7d]" />
+              </div>
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Status</label>
-              <select
-                value={analyticsStatusFilter}
-                onChange={(e) => setAnalyticsStatusFilter(e.target.value as "ALL" | "APPROVED" | "REJECTED" | "CANCELLED")}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={analyticsStatusFilter}
+                  onChange={(e) => setAnalyticsStatusFilter(e.target.value as "ALL" | "APPROVED" | "REJECTED" | "CANCELLED")}
+                  className={selectClassName}
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1b4f7d]" />
+              </div>
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Resource Type</label>
-              <select
-                value={analyticsResourceTypeFilter}
-                onChange={(e) => setAnalyticsResourceTypeFilter(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
-              >
-                <option value="ALL">All Types</option>
-                {historyResourceTypeOptions.map((type) => (
-                  <option key={type} value={type}>{type.replaceAll("_", " ")}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={analyticsResourceTypeFilter}
+                  onChange={(e) => setAnalyticsResourceTypeFilter(e.target.value)}
+                  className={selectClassName}
+                >
+                  <option value="ALL">All Types</option>
+                  {historyResourceTypeOptions.map((type) => (
+                    <option key={type} value={type}>{type.replaceAll("_", " ")}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1b4f7d]" />
+              </div>
             </div>
 
             <div>
@@ -370,7 +515,7 @@ export default function BookingHistoryPage() {
                 type="date"
                 value={analyticsFromDate}
                 onChange={(e) => setAnalyticsFromDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                className={inputClassName}
               />
             </div>
 
@@ -380,7 +525,7 @@ export default function BookingHistoryPage() {
                 type="date"
                 value={analyticsToDate}
                 onChange={(e) => setAnalyticsToDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                className={inputClassName}
               />
             </div>
           </div>
@@ -592,30 +737,6 @@ export default function BookingHistoryPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-4 lg:col-span-2">
-              <h4 className="text-sm font-semibold text-slate-700">Annual Trend</h4>
-              {annualChartData.length === 0 ? (
-                <p className="mt-4 text-sm text-slate-500">No annual data for selected filters.</p>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  {annualChartData.map((item) => {
-                    const widthPercent = (item.count / maxAnnualCount) * 100;
-                    return (
-                      <div key={item.year} className="grid grid-cols-[64px_1fr_40px] items-center gap-3 text-sm">
-                        <span className="font-semibold text-slate-700">{item.year}</span>
-                        <div className="h-3 rounded-full bg-slate-100">
-                          <div
-                            className="h-3 rounded-full bg-gradient-to-r from-[#0b4a8b] to-[#1e73be]"
-                            style={{ width: `${Math.max(widthPercent, item.count > 0 ? 4 : 0)}%` }}
-                          />
-                        </div>
-                        <span className="text-right text-slate-600">{item.count}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
           </div>
         </section>
 
@@ -628,22 +749,25 @@ export default function BookingHistoryPage() {
                 value={historySearch}
                 onChange={(e) => setHistorySearch(e.target.value)}
                 placeholder="Resource, requester, purpose"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                className={inputClassName}
               />
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Status Filter</label>
-              <select
-                value={historyStatusFilter}
-                onChange={(e) => setHistoryStatusFilter(e.target.value as "ALL" | "APPROVED" | "REJECTED" | "CANCELLED")}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
-              >
-                <option value="ALL">All History Statuses</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={historyStatusFilter}
+                  onChange={(e) => setHistoryStatusFilter(e.target.value as "ALL" | "APPROVED" | "REJECTED" | "CANCELLED")}
+                  className={selectClassName}
+                >
+                  <option value="ALL">All History Statuses</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1b4f7d]" />
+              </div>
             </div>
 
             <div>
@@ -652,29 +776,34 @@ export default function BookingHistoryPage() {
                 type="date"
                 value={historyDateFilter}
                 onChange={(e) => setHistoryDateFilter(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#002147]"
+                className={inputClassName}
               />
             </div>
 
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-500">Resource Type</label>
-              <select
-                value={historyResourceTypeFilter}
-                onChange={(e) => setHistoryResourceTypeFilter(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#002147]"
-              >
-                <option value="ALL">All Resource Types</option>
-                {historyResourceTypeOptions.map((type) => (
-                  <option key={type} value={type}>
-                    {type.replaceAll("_", " ")}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={historyResourceTypeFilter}
+                  onChange={(e) => setHistoryResourceTypeFilter(e.target.value)}
+                  className={selectClassName}
+                >
+                  <option value="ALL">All Resource Types</option>
+                  {historyResourceTypeOptions.map((type) => (
+                    <option key={type} value={type}>
+                      {type.replaceAll("_", " ")}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1b4f7d]" />
+              </div>
             </div>
           </div>
 
           <div className="mb-3 flex items-center justify-between text-xs text-slate-600">
-            <p>Showing {filteredHistoryBookings.length} actioned booking(s)</p>
+            <p>
+              Showing {filteredHistoryBookings.length} actioned booking(s) · Page {historyPage} of {totalHistoryPages}
+            </p>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -713,10 +842,11 @@ export default function BookingHistoryPage() {
                     <th className="px-4 py-3 font-semibold text-slate-600">Time</th>
                     <th className="px-4 py-3 font-semibold text-slate-600">Status</th>
                     <th className="px-4 py-3 font-semibold text-slate-600">Reason / Actioned By</th>
+                    <th className="px-4 py-3 font-semibold text-slate-600">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredHistoryBookings.map((booking) => (
+                  {paginatedHistoryBookings.map((booking) => (
                     <tr key={booking.bookingId}>
                       <td className="px-4 py-3">
                         <p className="font-semibold text-slate-800">{booking.resourceName}</p>
@@ -743,10 +873,61 @@ export default function BookingHistoryPage() {
                         <p>{booking.adminReason || (booking.status === "CANCELLED" ? "Cancelled by requester" : "-")}</p>
                         <p className="mt-1 text-slate-500">{booking.approvedOrRejectedByName || "-"}</p>
                       </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteHistoryBooking(booking.bookingId)}
+                          disabled={deletingBookingId === booking.bookingId}
+                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {deletingBookingId === booking.bookingId ? "Deleting..." : "Delete"}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {filteredHistoryBookings.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}
+                disabled={historyPage === 1}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+
+              {visibleHistoryPageNumbers.map((page, index) => (
+                page === "..." ? (
+                  <span key={`ellipsis-${index}`} className="px-2 text-xs text-slate-500">...</span>
+                ) : (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setHistoryPage(page)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                      historyPage === page
+                        ? "border-[#002147] bg-[#002147] text-white"
+                        : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setHistoryPage((page) => Math.min(totalHistoryPages, page + 1))}
+                disabled={historyPage === totalHistoryPages}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
             </div>
           )}
         </div>

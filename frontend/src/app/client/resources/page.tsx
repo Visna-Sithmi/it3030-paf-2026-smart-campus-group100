@@ -19,6 +19,7 @@ import Footer from '../../../components/layout/Footer';
 import type { Resource } from '../../../types/resource.types';
 import { bookingService } from '../../../services/bookingService';
 import type { BookingSlotDTO } from '../../../types/booking';
+import SpinnerMorph from '@/components/ui/spinner-morph';
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
@@ -70,6 +71,7 @@ interface AvailabilityConfig {
 }
 
 const API_BASE_URL = 'http://localhost:8081/api/resource-manager';
+const RESOURCE_LOADING_MIN_MS = 2000;
 
 const DEFAULT_AVAILABILITY_CONFIG: AvailabilityConfig = {
   mode: 'FIXED_DAILY',
@@ -319,6 +321,7 @@ const ResourceCataloguePage: React.FC = () => {
 
   const fetchResources = async () => {
     setLoading(true);
+    const loadingStartedAt = Date.now();
     try {
       const role = (localStorage.getItem('role') || '').toUpperCase();
       const audience = role === 'LECTURER' ? 'LECTURER' : 'STUDENT';
@@ -332,6 +335,10 @@ const ResourceCataloguePage: React.FC = () => {
     } catch (error) {
       console.error('Error fetching resources:', error);
     } finally {
+      const elapsed = Date.now() - loadingStartedAt;
+      if (elapsed < RESOURCE_LOADING_MIN_MS) {
+        await new Promise((resolve) => window.setTimeout(resolve, RESOURCE_LOADING_MIN_MS - elapsed));
+      }
       setLoading(false);
     }
   };
@@ -637,8 +644,11 @@ const ResourceCataloguePage: React.FC = () => {
         </div>
 
         {loading && (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#002147]"></div>
+          <div className="flex h-64 flex-col items-center justify-center gap-4 text-[#002147]">
+            <SpinnerMorph size={80} fill="#002147" rotateDur="3s" morphDur="3s" />
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Loading resources...
+            </p>
           </div>
         )}
 

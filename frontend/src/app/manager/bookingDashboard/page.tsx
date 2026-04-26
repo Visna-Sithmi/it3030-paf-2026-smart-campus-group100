@@ -9,6 +9,7 @@ import { managerProfileService } from "../../../services/managerProfileService";
 import type { ManagerProfile } from "../../../types/managerProfile";
 import { resourceService } from "../../../services/resource.service";
 import type { Resource } from "../../../types/resource.types";
+import { clearAuthSession, getAuthItem, setAuthItem } from "../../../services/authSession";
 
 type RejectReasonKey = "RESOURCE_ALREADY_BOOKED" | "TIME_NOT_SUITABLE" | "CAPACITY_LIMIT" | "INCOMPLETE_DETAILS" | "OTHER";
 
@@ -46,19 +47,19 @@ const REJECT_REASON_OPTIONS: Array<{
 
 const APPROVAL_NOTE_TEMPLATE = "Your booking request is confirmed.";
 
-const getStoredManagerId = () => {
-  const directId = localStorage.getItem("id");
-  if (directId && Number(directId) > 0) {
+const getStoredManagerId = (): number => {
+  const directId = getAuthItem("id");
+  if (directId && Number.isFinite(Number(directId))) {
     return Number(directId);
   }
 
-  const rawUser = localStorage.getItem("user");
+  const rawUser = getAuthItem("user");
   if (!rawUser) return 0;
 
   try {
     const parsed = JSON.parse(rawUser);
-    const fromUser = Number(parsed?.id || 0);
-    return fromUser > 0 ? fromUser : 0;
+    const parsedId = parsed?.id ?? parsed?.managerId ?? parsed?.manager_id;
+    return parsedId && Number.isFinite(Number(parsedId)) ? Number(parsedId) : 0;
   } catch {
     return 0;
   }
@@ -90,6 +91,7 @@ const BookingDashboard = () => {
   const [heroIndex, setHeroIndex] = useState(0);
   const [resourceSlotsDate, setResourceSlotsDate] = useState(new Date().toISOString().split("T")[0]);
   const [showResourceSlotsId, setShowResourceSlotsId] = useState<number | null>(null);
+  const [selectedRequesterBooking, setSelectedRequesterBooking] = useState<BookingResponseDTO | null>(null);
 
   const fetchBookings = async (isBackground = false) => {
     if (!isBackground) {
@@ -142,9 +144,9 @@ const BookingDashboard = () => {
   };
 
   useEffect(() => {
-    const name = localStorage.getItem("name");
-    const email = localStorage.getItem("email");
-    const role = localStorage.getItem("role");
+    const name = getAuthItem("name");
+    const email = getAuthItem("email");
+    const role = getAuthItem("role");
 
     if (!name || role !== "BOOKING_MANAGER") {
       navigate("/manager/login");
@@ -154,7 +156,7 @@ const BookingDashboard = () => {
     setUserName(name);
     setUserEmail(email || "");
 
-    const profileImageUrl = localStorage.getItem("profileImageUrl");
+    const profileImageUrl = getAuthItem("profileImageUrl");
     const id = getStoredManagerId();
     setProfile({
       id,
@@ -177,7 +179,7 @@ const BookingDashboard = () => {
   }, [navigate]);
 
   const handleLogout = () => {
-    localStorage.clear();
+    clearAuthSession();
     navigate("/manager/login");
   };
 
@@ -193,10 +195,10 @@ const BookingDashboard = () => {
     // Prefill modal from locally available values first for fast UX.
     setProfile((prev) => ({
       id: prev?.id || getStoredManagerId(),
-      name: prev?.name || localStorage.getItem("name") || "",
-      email: prev?.email || localStorage.getItem("email") || "",
-      role: prev?.role || localStorage.getItem("role") || "BOOKING_MANAGER",
-      profileImageUrl: prev?.profileImageUrl || localStorage.getItem("profileImageUrl") || null,
+      name: prev?.name || getAuthItem("name") || "",
+      email: prev?.email || getAuthItem("email") || "",
+      role: prev?.role || getAuthItem("role") || "BOOKING_MANAGER",
+      profileImageUrl: prev?.profileImageUrl || getAuthItem("profileImageUrl") || null,
     }));
 
     const managerId = getStoredManagerId();
@@ -211,9 +213,9 @@ const BookingDashboard = () => {
       setProfile(latestProfile);
       setUserName(latestProfile.name || "");
       setUserEmail(latestProfile.email || "");
-      localStorage.setItem("name", latestProfile.name || "");
-      localStorage.setItem("email", latestProfile.email || "");
-      localStorage.setItem("profileImageUrl", latestProfile.profileImageUrl || "");
+      setAuthItem("name", latestProfile.name || "");
+      setAuthItem("email", latestProfile.email || "");
+      setAuthItem("profileImageUrl", latestProfile.profileImageUrl || "");
     } catch (err: any) {
       setProfileError(err?.response?.data?.message || err.message || "Failed to load profile");
     }
@@ -263,12 +265,12 @@ const BookingDashboard = () => {
       setProfile(updated);
       setUserName(updated.name || "");
       setUserEmail(updated.email || "");
-      localStorage.setItem("name", updated.name || "");
-      localStorage.setItem("email", updated.email || "");
-      localStorage.setItem("id", String(updated.id || managerId));
-      localStorage.setItem("profileImageUrl", updated.profileImageUrl || "");
-      localStorage.setItem("user", JSON.stringify({
-        ...(JSON.parse(localStorage.getItem("user") || "{}")),
+      setAuthItem("name", updated.name || "");
+      setAuthItem("email", updated.email || "");
+      setAuthItem("id", String(updated.id || managerId));
+      setAuthItem("profileImageUrl", updated.profileImageUrl || "");
+      setAuthItem("user", JSON.stringify({
+        ...(JSON.parse(getAuthItem("user") || "{}")),
         name: updated.name,
         email: updated.email,
         profileImageUrl: updated.profileImageUrl || null,
@@ -468,6 +470,25 @@ const BookingDashboard = () => {
     });
   };
 
+  const formatDateTime = (dateInput?: string | null) => {
+    if (!dateInput) return "N/A";
+    const parsed = new Date(dateInput);
+    if (!Number.isFinite(parsed.getTime())) return dateInput;
+    return parsed.toLocaleString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
+  const resolveRequesterImageUrl = (imageUrl?: string | null) => {
+    if (!imageUrl) return "";
+    return imageUrl.startsWith("http") ? imageUrl : `http://localhost:8081${imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`}`;
+  };
+
   const parseAvailabilityConfig = (availabilityWindows?: string) => {
     try {
       if (availabilityWindows) {
@@ -565,15 +586,17 @@ const BookingDashboard = () => {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-[#002147]">Booking Overview</h2>
-          <p className="text-slate-600">Manage facility and resource bookings</p>
-          <p className="text-xs text-slate-500">Signed in as {userEmail || "booking manager"}</p>
-          <div className="mt-3">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-[#002147]">Booking Overview</h2>
+            <p className="text-slate-600">Manage facility and resource bookings</p>
+            <p className="text-xs text-slate-500">Signed in as {userEmail || "booking manager"}</p>
+          </div>
+          <div className="md:pt-1">
             <button
               type="button"
               onClick={() => navigate("/manager/booking/history")}
-              className="rounded-lg border border-[#002147] bg-white px-4 py-2 text-sm font-semibold text-[#002147] transition hover:bg-slate-100"
+              className="inline-flex items-center justify-center rounded-full border border-[#002147]/15 bg-white px-5 py-2.5 text-sm font-semibold text-[#002147] shadow-[0_10px_28px_rgba(0,33,71,0.12)] transition hover:-translate-y-0.5 hover:border-[#002147]/40 hover:bg-[#f8fbff] hover:shadow-[0_14px_34px_rgba(0,33,71,0.18)]"
             >
               View Booking History
             </button>
@@ -586,100 +609,158 @@ const BookingDashboard = () => {
           </div>
         )}
 
-        <section className="mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-[#0b2d5c] via-[#11407d] to-[#1a589f] p-6 text-white shadow-xl">
+        <section className="mb-8 overflow-hidden rounded-[2rem] border border-white/40 bg-[#071426] text-white shadow-[0_28px_70px_rgba(0,33,71,0.22)]">
           {upcomingHeroBooking ? (
-            <>
-              <div className="flex flex-col gap-5 md:flex-row md:items-stretch md:justify-between">
-                <div className="flex-1">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100">
-                    Upcoming Booked Resource
-                  </p>
-                  <h3 className="mt-2 text-2xl font-bold leading-tight md:text-3xl">{upcomingHeroBooking.resourceName}</h3>
-                  <p className="mt-1 text-sm text-blue-100">
-                    {(upcomingHeroBooking.resourceType || "N/A").replaceAll("_", " ")} • {upcomingHeroBooking.resourceCode || "N/A"}
-                  </p>
+            <div className="relative min-h-[430px]">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={upcomingHeroBooking.bookingId}
+                  initial={{ opacity: 0, scale: 1.04 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.7, ease: "easeOut" }}
+                  className="absolute inset-0"
+                >
+                  {heroImageUrl ? (
+                    <img
+                      src={heroImageUrl}
+                      alt={upcomingHeroBooking.resourceName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-[radial-gradient(circle_at_70%_30%,#1f6daf_0%,#0b2d5c_42%,#071426_100%)]" />
+                  )}
+                </motion.div>
+              </AnimatePresence>
 
-                  <div className="mt-4 grid gap-2 text-sm text-blue-50 sm:grid-cols-2">
-                    <p>
-                      <span className="font-semibold text-white">Date:</span> {formatDate(upcomingHeroBooking.bookingDate)}
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,20,38,0.98)_0%,rgba(7,20,38,0.86)_37%,rgba(7,20,38,0.38)_70%,rgba(7,20,38,0.18)_100%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(7,20,38,0.92)_0%,rgba(7,20,38,0.16)_50%,rgba(7,20,38,0.28)_100%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,rgba(125,211,252,0.34)_0%,rgba(125,211,252,0)_34%)]" />
+
+              <div className="relative grid min-h-[430px] gap-8 p-6 sm:p-8 lg:grid-cols-[0.9fr_1.1fr] lg:p-10">
+                <motion.div
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.55, ease: "easeOut" }}
+                  className="flex max-w-2xl flex-col justify-between"
+                >
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.24em] text-sky-100 backdrop-blur">
+                      Upcoming Booked Resource
+                    </div>
+                    <h3 className="mt-6 text-4xl font-bold leading-tight md:text-5xl">
+                      {upcomingHeroBooking.resourceName}
+                    </h3>
+                    <p className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] text-sky-200">
+                      {formatResourceType(upcomingHeroBooking.resourceType)} • {upcomingHeroBooking.resourceCode || "N/A"}
                     </p>
-                    <p>
-                      <span className="font-semibold text-white">Time:</span> {formatTime12(upcomingHeroBooking.startTime.slice(0, 5))} - {formatTime12(upcomingHeroBooking.endTime.slice(0, 5))}
-                    </p>
-                    <p>
-                      <span className="font-semibold text-white">Booked By:</span> {upcomingHeroBooking.requestedByName}
-                    </p>
-                    <p>
-                      <span className="font-semibold text-white">Purpose:</span> {upcomingHeroBooking.purpose || "N/A"}
+                    <p className="mt-5 max-w-xl text-base leading-7 text-slate-200">
+                      {upcomingHeroBooking.purpose || "This approved booking is ready for campus use."}
                     </p>
                   </div>
 
-                  <div className="mt-5 flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setHeroIndex((prev) => (prev - 1 + upcomingApprovedBookings.length) % upcomingApprovedBookings.length)}
-                      className="rounded-lg border border-white/40 bg-white/10 px-3 py-1.5 text-xs font-semibold transition hover:bg-white/20"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setHeroIndex((prev) => (prev + 1) % upcomingApprovedBookings.length)}
-                      className="rounded-lg border border-white/40 bg-white/10 px-3 py-1.5 text-xs font-semibold transition hover:bg-white/20"
-                    >
-                      Next
-                    </button>
-                    <span className="text-xs text-blue-100">
-                      {heroIndex + 1} / {upcomingApprovedBookings.length}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="w-full shrink-0 md:w-72">
-                  <div className="relative h-44 overflow-hidden rounded-xl border border-white/20 bg-white/10">
-                    {heroImageUrl ? (
-                      <>
-                        <div
-                          className="absolute inset-0 scale-110 bg-cover bg-center blur-lg"
-                          style={{ backgroundImage: `url(${heroImageUrl})` }}
-                        />
-                        <div className="absolute inset-0 bg-black/25" />
-                        <img
-                          src={heroImageUrl}
-                          alt={upcomingHeroBooking.resourceName}
-                          className="relative z-10 h-full w-full object-contain p-2"
-                        />
-                      </>
-                    ) : (
-                      <div className="relative z-10 flex h-full items-center justify-center px-4 text-center text-sm text-blue-100">
-                        Resource image unavailable
+                  <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                    {[
+                      ["Date", formatDate(upcomingHeroBooking.bookingDate)],
+                      [
+                        "Time",
+                        `${formatTime12(upcomingHeroBooking.startTime.slice(0, 5))} - ${formatTime12(upcomingHeroBooking.endTime.slice(0, 5))}`,
+                      ],
+                      ["Booked By", upcomingHeroBooking.requestedByName || "N/A"],
+                      ["Attendees", `${upcomingHeroBooking.expectedAttendees || 0}`],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-2xl border border-white/14 bg-white/[0.09] p-4 backdrop-blur-md shadow-[0_18px_40px_rgba(0,0,0,0.18)]">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-sky-200">{label}</p>
+                        <p className="mt-2 text-sm font-semibold text-white">{value}</p>
                       </div>
-                    )}
+                    ))}
                   </div>
+                </motion.div>
+
+                <div className="flex min-h-[280px] items-end justify-end">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`preview-${upcomingHeroBooking.bookingId}`}
+                      initial={{ opacity: 0, x: 36, rotate: 1.5 }}
+                      animate={{ opacity: 1, x: 0, rotate: 0 }}
+                      exit={{ opacity: 0, x: -24, rotate: -1.5 }}
+                      transition={{ duration: 0.65, ease: "easeOut" }}
+                      className="relative w-full max-w-xl"
+                    >
+                      <div className="absolute -inset-4 rounded-[2rem] bg-sky-300/15 blur-2xl" />
+                      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/20 bg-white/10 p-3 shadow-[0_30px_80px_rgba(0,0,0,0.38)] backdrop-blur">
+                        <div className="relative aspect-[16/10] overflow-hidden rounded-[1.25rem] bg-slate-950">
+                          {heroImageUrl ? (
+                            <img
+                              src={heroImageUrl}
+                              alt={upcomingHeroBooking.resourceName}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center px-5 text-center text-sm text-sky-100">
+                              Resource image unavailable
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_45%,rgba(0,0,0,0.62)_100%)]" />
+                          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-100">Approved</p>
+                              <p className="mt-1 text-lg font-bold text-white">{formatDate(upcomingHeroBooking.bookingDate)}</p>
+                            </div>
+                            <span className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-bold text-emerald-950 shadow-lg">
+                              BOOKED
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
               </div>
 
-              {upcomingApprovedBookings.length > 1 && (
-                <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="relative flex flex-col gap-4 border-t border-white/10 bg-black/18 px-6 py-5 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
+                <div className="flex flex-wrap items-center gap-2">
                   {upcomingApprovedBookings.map((booking, index) => (
                     <button
                       key={booking.bookingId}
                       type="button"
                       onClick={() => setHeroIndex(index)}
-                      className={`h-2.5 rounded-full transition ${
-                        index === heroIndex ? "w-8 bg-white" : "w-2.5 bg-white/50 hover:bg-white/80"
+                      className={`h-2.5 rounded-full transition-all duration-300 ${
+                        index === heroIndex ? "w-10 bg-white shadow-[0_0_18px_rgba(255,255,255,0.75)]" : "w-2.5 bg-white/45 hover:bg-white/80"
                       }`}
                       aria-label={`Go to booking ${index + 1}`}
                     />
                   ))}
                 </div>
-              )}
-            </>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setHeroIndex((prev) => (prev - 1 + upcomingApprovedBookings.length) % upcomingApprovedBookings.length)}
+                    className="rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:-translate-y-0.5 hover:bg-white/20"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHeroIndex((prev) => (prev + 1) % upcomingApprovedBookings.length)}
+                    className="rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#09203d] transition hover:-translate-y-0.5 hover:bg-sky-50"
+                  >
+                    Next
+                  </button>
+                  <span className="ml-1 text-xs font-semibold text-sky-100">
+                    {heroIndex + 1} / {upcomingApprovedBookings.length}
+                  </span>
+                </div>
+              </div>
+            </div>
           ) : (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100">Upcoming Booked Resource</p>
-              <h3 className="mt-2 text-2xl font-bold">No upcoming approved bookings</h3>
-              <p className="mt-1 text-sm text-blue-100">Approved future bookings will appear here as a slideshow.</p>
+            <div className="relative overflow-hidden p-8 sm:p-10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(125,211,252,0.3)_0%,rgba(7,20,38,0)_38%)]" />
+              <div className="relative">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100">Upcoming Booked Resource</p>
+                <h3 className="mt-2 text-3xl font-bold">No upcoming approved bookings</h3>
+                <p className="mt-2 text-sm text-blue-100">Approved future bookings will appear here as a cinematic resource preview.</p>
+              </div>
             </div>
           )}
         </section>
@@ -836,9 +917,29 @@ const BookingDashboard = () => {
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
                                 <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">Booking details</p>
-                                <p className="mt-2 text-sm text-slate-600">
-                                  Requested by <span className="font-semibold text-slate-800">{booking.requestedByName}</span> · {booking.requestedByRole}
-                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedRequesterBooking(booking)}
+                                  className="mt-2 inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-left transition hover:border-[#002147] hover:bg-[#002147]/5"
+                                >
+                                  <div className="h-10 w-10 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+                                    {resolveRequesterImageUrl(booking.requestedByProfileImageUrl) ? (
+                                      <img
+                                        src={resolveRequesterImageUrl(booking.requestedByProfileImageUrl)}
+                                        alt={booking.requestedByName}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="flex h-full w-full items-center justify-center text-sm font-bold text-slate-500">
+                                        {(booking.requestedByName || "U").charAt(0).toUpperCase()}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-900">{booking.requestedByName}</p>
+                                    <p className="text-xs text-slate-500">{booking.requestedByRole} · Requested {formatDateTime(booking.createdAt)}</p>
+                                  </div>
+                                </button>
                               </div>
                               <span
                                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
@@ -1222,6 +1323,87 @@ const BookingDashboard = () => {
                 </button>
               </div>
             </form>
+          </motion.div>
+        </motion.div>
+      )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+      {selectedRequesterBooking && (
+        <motion.div
+          className="fixed inset-0 z-[78] flex items-center justify-center bg-black/45 p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="w-full max-w-lg rounded-2xl bg-white shadow-2xl"
+            initial={{ y: 18, opacity: 0, scale: 0.97 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 10, opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+          >
+            <div className="border-b border-slate-200 px-6 py-4">
+              <h3 className="text-lg font-bold text-slate-900">Requester Details</h3>
+              <p className="mt-1 text-sm text-slate-500">Full information for the booking requester</p>
+            </div>
+
+            <div className="space-y-4 px-6 py-5">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+                  {resolveRequesterImageUrl(selectedRequesterBooking.requestedByProfileImageUrl) ? (
+                    <img
+                      src={resolveRequesterImageUrl(selectedRequesterBooking.requestedByProfileImageUrl)}
+                      alt={selectedRequesterBooking.requestedByName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-lg font-bold text-slate-500">
+                      {(selectedRequesterBooking.requestedByName || "U").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">{selectedRequesterBooking.requestedByName}</p>
+                  <p className="text-sm text-slate-500">{selectedRequesterBooking.requestedByRole}</p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">Requester ID</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">#{selectedRequesterBooking.requestedById}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">Email</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedRequesterBooking.requestedByEmail || "N/A"}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">Requested At</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{formatDateTime(selectedRequesterBooking.createdAt)}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">Booking Time</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedRequesterBooking.startTime} - {selectedRequesterBooking.endTime}</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">Purpose</p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{selectedRequesterBooking.purpose || "No purpose provided."}</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t border-slate-200 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setSelectedRequesterBooking(null)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
           </motion.div>
         </motion.div>
       )}

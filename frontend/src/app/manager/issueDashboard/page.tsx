@@ -13,6 +13,7 @@ import {
   getAssignableStaff,
   updateTicketStatus,
 } from "../../../services/ticketService";
+import { clearAuthSession, getAuthItem, setAuthItem } from "../../../services/authSession";
 
 type Ticket = {
   id: number;
@@ -101,9 +102,9 @@ const IssueDashboard = () => {
 
   const didInitialLoadRef = useRef(false);
 
-  const currentRole = (localStorage.getItem("role") || "").toUpperCase();
+  const currentRole = (getAuthItem("role") || "").toUpperCase();
   const isIssueManager = currentRole === "ISSUE_MANAGER";
-  const currentUserId = Number(localStorage.getItem("id") || "0");
+  const currentUserId = Number(getAuthItem("id") || "0");
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -139,8 +140,8 @@ const IssueDashboard = () => {
 
   useEffect(() => {
     const syncProfileFromStorage = () => {
-      const name = localStorage.getItem("name");
-      const email = localStorage.getItem("email");
+      const name = getAuthItem("name");
+      const email = getAuthItem("email");
 
       if (name) {
         setUserName(name);
@@ -148,8 +149,8 @@ const IssueDashboard = () => {
       setUserEmail(email || "");
     };
 
-    const name = localStorage.getItem("name");
-    const role = localStorage.getItem("role");
+    const name = getAuthItem("name");
+    const role = getAuthItem("role");
     if (!name || role !== "ISSUE_MANAGER") {
       navigate("/manager/login");
       return;
@@ -215,7 +216,7 @@ const IssueDashboard = () => {
   };
 
   const handleLogout = () => {
-    localStorage.clear();
+    clearAuthSession();
     navigate("/manager/login");
   };
 
@@ -223,7 +224,7 @@ const IssueDashboard = () => {
     setShowProfileModal(true);
     setProfileError("");
 
-    const idRaw = localStorage.getItem("id");
+    const idRaw = getAuthItem("id");
     const managerId = idRaw ? Number(idRaw) : 0;
     if (!managerId) return;
 
@@ -232,9 +233,9 @@ const IssueDashboard = () => {
       setUserName(latestProfile.name || "");
       setUserEmail(latestProfile.email || "");
       setProfileImageUrl(latestProfile.profileImageUrl || "");
-      localStorage.setItem("name", latestProfile.name || "");
-      localStorage.setItem("email", latestProfile.email || "");
-      localStorage.setItem("profileImageUrl", latestProfile.profileImageUrl || "");
+      setAuthItem("name", latestProfile.name || "");
+      setAuthItem("email", latestProfile.email || "");
+      setAuthItem("profileImageUrl", latestProfile.profileImageUrl || "");
     } catch (e: unknown) {
       setProfileError(toErrorMessage(e) || "Failed to load profile");
     }
@@ -251,7 +252,7 @@ const IssueDashboard = () => {
   };
 
   const saveProfileImage = async () => {
-    const idRaw = localStorage.getItem("id");
+    const idRaw = getAuthItem("id");
     const managerId = idRaw ? Number(idRaw) : 0;
     if (!managerId) {
       setProfileError("Manager session not found. Please login again.");
@@ -268,9 +269,9 @@ const IssueDashboard = () => {
       setUserName(updated.name || "");
       setUserEmail(updated.email || "");
       setProfileImageUrl(updated.profileImageUrl || "");
-      localStorage.setItem("name", updated.name || "");
-      localStorage.setItem("email", updated.email || "");
-      localStorage.setItem("profileImageUrl", updated.profileImageUrl || "");
+      setAuthItem("name", updated.name || "");
+      setAuthItem("email", updated.email || "");
+      setAuthItem("profileImageUrl", updated.profileImageUrl || "");
       setShowProfileModal(false);
     } catch (e: unknown) {
       setProfileError(toErrorMessage(e) || "Failed to update profile");

@@ -17,6 +17,8 @@ public class BookingResponseDTO {
     private Long requestedById;
     private String requestedByName;
     private String requestedByRole;
+    private String requestedByEmail;
+    private String requestedByProfileImageUrl;
 
     private LocalDate bookingDate;
     private LocalTime startTime;
@@ -95,6 +97,22 @@ public class BookingResponseDTO {
 
     public void setRequestedByRole(String requestedByRole) {
         this.requestedByRole = requestedByRole;
+    }
+
+    public String getRequestedByEmail() {
+        return requestedByEmail;
+    }
+
+    public void setRequestedByEmail(String requestedByEmail) {
+        this.requestedByEmail = requestedByEmail;
+    }
+
+    public String getRequestedByProfileImageUrl() {
+        return requestedByProfileImageUrl;
+    }
+
+    public void setRequestedByProfileImageUrl(String requestedByProfileImageUrl) {
+        this.requestedByProfileImageUrl = requestedByProfileImageUrl;
     }
 
     public LocalDate getBookingDate() {

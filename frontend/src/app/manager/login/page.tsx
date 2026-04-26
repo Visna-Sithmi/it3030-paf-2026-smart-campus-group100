@@ -7,8 +7,12 @@ import {
   loginResourceManager, 
   loginIssueManager 
 } from "../../../services/authService";
+import SpinnerMorph from "@/components/ui/spinner-morph";
+import { setAuthItem } from "../../../services/authSession";
 
 type ManagerType = "BOOKING" | "RESOURCE" | "ISSUE";
+
+const GOOGLE_AUTH_URL = "http://localhost:8081/oauth2/authorization/google";
 
 const ManagerLoginPage = () => {
   const navigate = useNavigate();
@@ -110,13 +114,13 @@ const ManagerLoginPage = () => {
 
       if (data.success) {
         // Store user data in localStorage
-        localStorage.setItem("user", JSON.stringify(data));
-        localStorage.setItem("role", data.role || "");
-        localStorage.setItem("name", data.name || "");
-        localStorage.setItem("email", data.email || "");
-        localStorage.setItem("id", data.id?.toString() || "");
-        localStorage.setItem("profileImageUrl", data.profileImageUrl || "");
-        localStorage.setItem("managerType", managerType);
+        setAuthItem("user", JSON.stringify(data));
+        setAuthItem("role", data.role || "");
+        setAuthItem("name", data.name || "");
+        setAuthItem("email", data.email || "");
+        setAuthItem("id", data.id?.toString() || "");
+        setAuthItem("profileImageUrl", data.profileImageUrl || "");
+        setAuthItem("managerType", managerType);
 
         setSuccessMessage(data.message || "Login successful");
 
@@ -136,6 +140,18 @@ const ManagerLoginPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    const expectedRole =
+      managerType === "BOOKING"
+        ? "BOOKING_MANAGER"
+        : managerType === "RESOURCE"
+          ? "RESOURCE_MANAGER"
+          : "ISSUE_MANAGER";
+
+    sessionStorage.setItem("oauthExpectedRole", expectedRole);
+    window.location.assign(GOOGLE_AUTH_URL);
   };
 
   return (
@@ -280,7 +296,23 @@ const ManagerLoginPage = () => {
                 disabled={loading}
                 className="w-full rounded-xl bg-gradient-to-r from-[#000a1e] to-[#002147] px-4 py-3 text-sm font-bold uppercase tracking-[0.25em] text-white shadow-[0_10px_24px_rgba(0,33,71,0.28)] transition duration-200 hover:-translate-y-[1px] hover:shadow-[0_14px_28px_rgba(0,33,71,0.32)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {loading ? "Authorizing..." : "Authorize Entry"}
+                {loading ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <SpinnerMorph size={20} fill="#ffffff" rotateDur="3s" morphDur="3s" />
+                    Authorizing...
+                  </span>
+                ) : (
+                  "Authorize Entry"
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#002147]/20 bg-white px-4 py-3 text-sm font-bold uppercase tracking-[0.18em] text-[#002147] shadow-sm transition duration-200 hover:bg-[#eef4fb]"
+              >
+                <span className="text-base font-black leading-none">G</span>
+                Continue with Google
               </button>
             </form>
 

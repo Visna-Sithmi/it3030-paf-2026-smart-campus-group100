@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./app/admin/Login/page";
+import DashboardPage from "./app/admin/dashboard/page";
 import ManagerPage from "./app/admin/manager/page";
 import LecturerPage from "./app/admin/lecturers/page";
 import HelperStaffPage from "./app/admin/helpers/page";
@@ -8,6 +9,7 @@ import ManagerLoginPage from "./app/manager/login/page";
 import BookingDashboard from "./app/manager/bookingDashboard/page";
 import BookingHistoryPage from "./app/manager/bookingHistory/page";
 import ResourceDashboard from "./app/manager/resourceDashboard/ResourceDashboard";
+import Analysis from "./app/manager/resourceDashboard/Analysis";
 import IssueDashboard from "./app/manager/issueDashboard/page";
 import IssueAnalyticsPage from "./app/manager/issueAnalytics/page";
 import ResourceCataloguePage from "./app/client/resources/page";
@@ -18,9 +20,14 @@ import StudentProfilePage from "./app/client/profile/page";
 import CreateTicket from "./app/client/tickets/CreateTicket";
 import MyTickets from "./app/client/tickets/MyTickets";
 import TicketDetails from "./app/client/tickets/TicketDetails";
+import ProtectedRoute from "./components/ProtectedRoute"; // IMPORT THE PROTECTED ROUTE
+import HomePage from "./app/home/page";
+import AboutPage from "./app/about/page";
+import OAuthCallbackPage from "./app/oauth/callback/page";
+import { getAuthItem } from "./services/authSession";
 
 const HomeRedirect = () => {
-  const role = localStorage.getItem("role");
+  const role = getAuthItem("role");
 
   if (role === "STUDENT" || role === "LECTURER" || role === "TECHNICIAN" || role === "CLEANER" || role === "SECURITY") {
     return <Navigate to="/client/resources" replace />;
@@ -39,28 +46,16 @@ const HomeRedirect = () => {
   }
 
   if (role === "ADMIN") {
-    return <Navigate to="/admin/manager" replace />;
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return <Navigate to="/admin/login" replace />;
 };
 
-// Protected Route Component - ensures only authenticated admins can access
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const user = localStorage.getItem("user");
-  const role = localStorage.getItem("role");
-
-  if (!user || role !== "ADMIN") {
-    return <Navigate to="/admin/login" replace />;
-  }
-
-  return <>{children}</>;
-};
-
 // Protected Route for Booking Manager
 const BookingManagerRoute = ({ children }: { children: React.ReactNode }) => {
-  const user = localStorage.getItem("user");
-  const role = localStorage.getItem("role");
+  const user = getAuthItem("user");
+  const role = getAuthItem("role");
 
   if (!user || role !== "BOOKING_MANAGER") {
     return <Navigate to="/manager/login" replace />;
@@ -71,8 +66,8 @@ const BookingManagerRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Protected Route for Resource Manager
 const ResourceManagerRoute = ({ children }: { children: React.ReactNode }) => {
-  const user = localStorage.getItem("user");
-  const role = localStorage.getItem("role");
+  const user = getAuthItem("user");
+  const role = getAuthItem("role");
 
   if (!user || role !== "RESOURCE_MANAGER") {
     return <Navigate to="/manager/login" replace />;
@@ -83,8 +78,8 @@ const ResourceManagerRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Protected Route for Issue Manager
 const IssueManagerRoute = ({ children }: { children: React.ReactNode }) => {
-  const user = localStorage.getItem("user");
-  const role = localStorage.getItem("role");
+  const user = getAuthItem("user");
+  const role = getAuthItem("role");
 
   if (!user || role !== "ISSUE_MANAGER") {
     return <Navigate to="/manager/login" replace />;
@@ -94,8 +89,8 @@ const IssueManagerRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const ClientUserRoute = ({ children }: { children: React.ReactNode }) => {
-  const role = (localStorage.getItem("role") || "").toUpperCase();
-  const userId = localStorage.getItem("id") || localStorage.getItem("studentId");
+  const role = (getAuthItem("role") || "").toUpperCase();
+  const userId = getAuthItem("id") || getAuthItem("studentId");
 
   if (!role || !userId || !["STUDENT", "LECTURER", "TECHNICIAN", "CLEANER", "SECURITY"].includes(role)) {
     return <Navigate to="/client/login" replace />;
@@ -109,15 +104,27 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Default route */}
-        <Route path="/" element={<HomeRedirect />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
         {/* Admin routes */}
         <Route path="/admin/login" element={<LoginPage />} />
 
+        {/* Admin Dashboard Route - USING IMPORTED PROTECTEDROUTE */}
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/admin/manager"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <ManagerPage />
             </ProtectedRoute>
           }
@@ -126,7 +133,7 @@ function App() {
         <Route
           path="/admin/student"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <StudentPage />
             </ProtectedRoute>
           }
@@ -135,7 +142,7 @@ function App() {
         <Route
           path="/admin/lecturers"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <LecturerPage />
             </ProtectedRoute>
           }
@@ -144,7 +151,7 @@ function App() {
         <Route
           path="/admin/helpers"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <HelperStaffPage />
             </ProtectedRoute>
           }
@@ -179,6 +186,16 @@ function App() {
             </ResourceManagerRoute>
           }
         />
+
+
+              <Route
+        path="/manager/resource/analysis"
+        element={
+          <ResourceManagerRoute>
+            <Analysis />
+          </ResourceManagerRoute>
+        }
+      />
 
         <Route
           path="/manager/issue/dashboard"
@@ -271,7 +288,6 @@ function App() {
             </ClientUserRoute>
           }
         />
-
       </Routes>
     </BrowserRouter>
   );

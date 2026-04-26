@@ -12,7 +12,7 @@ public interface BookingService {
 
     BookingResponseDTO createBooking(BookingRequestDTO requestDTO, Long requesterId, String requesterRole);
 
-    List<BookingResponseDTO> getMyBookings(Long requesterId);
+    List<BookingResponseDTO> getMyBookings(Long requesterId, String requesterRole);
 
     List<BookingResponseDTO> getAllBookings(String requesterRole);
 
@@ -23,6 +23,8 @@ public interface BookingService {
     BookingResponseDTO rejectBooking(Long bookingId, String reason, Long adminId, String adminRole);
 
     BookingResponseDTO cancelBooking(Long bookingId, Long requesterId, String requesterRole);
+
+    BookingResponseDTO deleteBooking(Long bookingId, Long managerId, String managerRole);
 
     List<BookingSlotDTO> getBookedSlotsForResourceDate(Long resourceId, LocalDate bookingDate, Long requesterId, String requesterRole);
 }

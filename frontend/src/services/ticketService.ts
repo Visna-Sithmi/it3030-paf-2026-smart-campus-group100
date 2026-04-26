@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { AxiosResponse } from "axios";
+import { getAuthItem } from "./authSession";
 
 
 const API = "http://localhost:8081/api/tickets";
@@ -67,8 +68,8 @@ export function normalizeTicketResponse(raw: unknown): Record<string, unknown> |
   };
 }
 export const createTicket = (data: FormData) => {
-  const userId = localStorage.getItem("id");
-  const role = localStorage.getItem("role");
+  const userId = getAuthItem("id");
+  const role = getAuthItem("role");
   if (userId) {
     data.append("userId", userId);
   }
@@ -81,8 +82,8 @@ export const createTicket = (data: FormData) => {
 };
 
 export const getMyTickets = () => {
-  const userId = localStorage.getItem("id");
-  const role = localStorage.getItem("role");
+  const userId = getAuthItem("id");
+  const role = getAuthItem("role");
   return axios.get(`${API}/my`, {
     params: {
       userId,
@@ -101,8 +102,8 @@ export const getTicketById = (id: number) => {
 };
 
 export const addComment = (id: number, text: string) => {
-  const userId = localStorage.getItem("id");
-  const role = localStorage.getItem("role");
+  const userId = getAuthItem("id");
+  const role = getAuthItem("role");
   return axios.post(`${API}/${id}/comments`, null, {
     params: {
       commentText: text,
@@ -113,8 +114,8 @@ export const addComment = (id: number, text: string) => {
 };
 
 export const updateComment = (commentId: number, text: string) => {
-  const userId = localStorage.getItem("id");
-  const role = localStorage.getItem("role");
+  const userId = getAuthItem("id");
+  const role = getAuthItem("role");
   return axios.put(`http://localhost:8081/api/comments/${commentId}`, null, {
     params: {
       userId,
@@ -125,8 +126,8 @@ export const updateComment = (commentId: number, text: string) => {
 };
 
 export const deleteComment = (commentId: number) => {
-  const userId = localStorage.getItem("id");
-  const role = localStorage.getItem("role");
+  const userId = getAuthItem("id");
+  const role = getAuthItem("role");
   return axios.delete(`http://localhost:8081/api/comments/${commentId}`, {
     params: {
       userId,
@@ -140,8 +141,8 @@ export const getAllTickets = () => axios.get(API);
 export const getAssignableStaff = () => axios.get(`${API}/staff`);
 
 export const updateTicketStatus = (ticketId: number, status: string, rejectReason?: string) => {
-  const userIdRaw = localStorage.getItem("id");
-  const roleRaw = localStorage.getItem("role");
+  const userIdRaw = getAuthItem("id");
+  const roleRaw = getAuthItem("role");
   const userId = userIdRaw ? Number(userIdRaw) : null;
   const role = String(roleRaw || "").toUpperCase();
   const roleToSend = status === "REJECTED" && role === "ISSUE_MANAGER" ? "ADMIN" : roleRaw;
@@ -208,7 +209,7 @@ function parseFilenameFromContentDisposition(headerValue: string | undefined): s
 }
 
 export async function downloadTicketReport(filters: TicketReportFilters) {
-  const role = (localStorage.getItem("role") || "").toUpperCase();
+  const role = (getAuthItem("role") || "").toUpperCase();
 
   const params: Record<string, string> = {};
   if (filters.fromDate) params.fromDate = filters.fromDate;

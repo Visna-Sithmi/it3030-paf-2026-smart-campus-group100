@@ -7,9 +7,11 @@ import com.northbridge.backend.exception.BookingConflictException;
 import com.northbridge.backend.model.Booking;
 import com.northbridge.backend.model.BookingStatus;
 import com.northbridge.backend.model.Resource;
+import com.northbridge.backend.model.Student;
 import com.northbridge.backend.model.User;
 import com.northbridge.backend.repository.BookingRepository;
 import com.northbridge.backend.repository.ResourceRepository;
+import com.northbridge.backend.repository.StudentRepository;
 import com.northbridge.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,17 +35,20 @@ public class BookingServiceImpl implements BookingService {
 
     private final BookingRepository bookingRepository;
     private final ResourceRepository resourceRepository;
+    private final StudentRepository studentRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
 
     public BookingServiceImpl(
             BookingRepository bookingRepository,
             ResourceRepository resourceRepository,
+            StudentRepository studentRepository,
             UserRepository userRepository,
             NotificationService notificationService
     ) {
         this.bookingRepository = bookingRepository;
         this.resourceRepository = resourceRepository;
+        this.studentRepository = studentRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
     }
@@ -84,9 +89,7 @@ public class BookingServiceImpl implements BookingService {
             throw new BookingConflictException("Booking time overlaps with an existing booking for this resource");
         }
 
-        Long safeRequesterId = Objects.requireNonNull(requesterId, "User ID is required");
-        User requester = userRepository.findById(safeRequesterId)
-                .orElseThrow(() -> new NoSuchElementException("User not found with ID: " + requesterId));
+        User requester = resolveRequesterUser(requesterId, normalizedRole);
 
         Booking booking = new Booking();
         booking.setResource(resource);
@@ -103,12 +106,14 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<BookingResponseDTO> getMyBookings(Long requesterId) {
-        if (requesterId == null) {
+    public List<BookingResponseDTO> getMyBookings(Long requesterId, String requesterRole) {
+        if (requesterId == null || requesterRole == null || requesterRole.isBlank()) {
             throw new IllegalArgumentException("User ID is required");
         }
 
-        return bookingRepository.findByRequestedByIdOrderByCreatedAtDesc(requesterId)
+        User requester = resolveRequesterUser(requesterId, normalizeRole(requesterRole));
+
+        return bookingRepository.findByRequestedByIdOrderByCreatedAtDesc(requester.getId())
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -134,7 +139,8 @@ public class BookingServiceImpl implements BookingService {
 
         Booking booking = findBookingOrThrow(bookingId);
         boolean isBookingManager = "BOOKING_MANAGER".equals(normalizeRole(requesterRole));
-        boolean isOwner = booking.getRequestedBy().getId().equals(requesterId);
+        Long effectiveRequesterId = resolveRequesterIdForOwnership(requesterId, requesterRole);
+        boolean isOwner = booking.getRequestedBy().getId().equals(effectiveRequesterId);
 
         if (!isBookingManager && !isOwner) {
             throw new SecurityException("Only booking owner or BOOKING_MANAGER can view this booking");
@@ -174,7 +180,7 @@ public class BookingServiceImpl implements BookingService {
 
         Booking savedBooking = bookingRepository.save(booking);
         notificationService.createNotification(
-                savedBooking.getRequestedBy().getId(),
+                resolveClientNotificationRecipientId(savedBooking),
                 "Your booking request for " + savedBooking.getResource().getName() + " on "
                         + savedBooking.getBookingDate() + " has been approved.",
                 "BOOKING",
@@ -205,7 +211,7 @@ public class BookingServiceImpl implements BookingService {
 
         Booking savedBooking = bookingRepository.save(booking);
         notificationService.createNotification(
-                savedBooking.getRequestedBy().getId(),
+                resolveClientNotificationRecipientId(savedBooking),
                 "Your booking request for " + savedBooking.getResource().getName() + " on "
                         + savedBooking.getBookingDate() + " was rejected. Reason: " + savedBooking.getAdminReason(),
                 "BOOKING",
@@ -219,7 +225,8 @@ public class BookingServiceImpl implements BookingService {
         validateRequester(requesterId, requesterRole);
 
         Booking booking = findBookingOrThrow(bookingId);
-        boolean isOwner = booking.getRequestedBy().getId().equals(requesterId);
+        Long effectiveRequesterId = resolveRequesterIdForOwnership(requesterId, requesterRole);
+        boolean isOwner = booking.getRequestedBy().getId().equals(effectiveRequesterId);
 
         // Current rule: only booking owner can cancel. Admin override can be added later.
         if (!isOwner) {
@@ -238,6 +245,18 @@ public class BookingServiceImpl implements BookingService {
         return toResponse(bookingRepository.save(booking));
     }
 
+    
+    public BookingResponseDTO deleteBooking(Long bookingId, Long managerId, String managerRole) {
+        validateBookingManager(managerId, managerRole);
+
+        Booking booking = findBookingOrThrow(bookingId);
+        BookingResponseDTO deletedBooking = toResponse(booking);
+        bookingRepository.delete(booking);
+
+        return deletedBooking;
+    }
+
+    
     @Override
     @Transactional(readOnly = true)
     public List<BookingSlotDTO> getBookedSlotsForResourceDate(Long resourceId, LocalDate bookingDate, Long requesterId, String requesterRole) {
@@ -310,6 +329,67 @@ public class BookingServiceImpl implements BookingService {
         return role == null ? "" : role.trim().toUpperCase();
     }
 
+    private Long resolveRequesterIdForOwnership(Long requesterId, String requesterRole) {
+        String normalizedRole = normalizeRole(requesterRole);
+        if ("STUDENT".equals(normalizedRole) || "LECTURER".equals(normalizedRole)) {
+            return resolveRequesterUser(requesterId, normalizedRole).getId();
+        }
+        return requesterId;
+    }
+
+    private User resolveRequesterUser(Long requesterId, String normalizedRole) {
+        Long safeRequesterId = Objects.requireNonNull(requesterId, "User ID is required");
+
+        if ("STUDENT".equals(normalizedRole)) {
+            Student student = studentRepository.findById(safeRequesterId)
+                    .orElseThrow(() -> new NoSuchElementException("Student not found with ID: " + requesterId));
+
+            User existing = userRepository.findByEmailCaseInsensitive(student.getEmail()).orElse(null);
+            if (existing != null) {
+                if (!"STUDENT".equalsIgnoreCase(existing.getRole())) {
+                    throw new SecurityException("Email is linked to a non-student account: " + student.getEmail());
+                }
+                return existing;
+            }
+
+            // Legacy-data compatibility: if a student exists without a linked users-table row,
+            // create the missing STUDENT user so booking ownership/joins work consistently.
+            User linkedStudentUser = new User();
+            linkedStudentUser.setName(student.getName());
+            linkedStudentUser.setEmail(student.getEmail());
+            linkedStudentUser.setPassword(student.getPassword());
+            linkedStudentUser.setRole("STUDENT");
+            linkedStudentUser.setProfileImageUrl(student.getProfileImageUrl());
+            linkedStudentUser.setActive(true);
+
+            return userRepository.save(linkedStudentUser);
+        }
+
+        User requester = userRepository.findById(safeRequesterId)
+                .orElseThrow(() -> new NoSuchElementException("User not found with ID: " + requesterId));
+
+        if (!normalizedRole.equals(normalizeRole(requester.getRole()))) {
+            throw new SecurityException("Session role does not match requester role");
+        }
+
+        return requester;
+    }
+
+    private Long resolveClientNotificationRecipientId(Booking booking) {
+        User requester = booking.getRequestedBy();
+        if (requester == null) {
+            throw new IllegalArgumentException("Booking requester is required for notification");
+        }
+
+        if ("STUDENT".equals(normalizeRole(requester.getRole()))) {
+            return studentRepository.findByEmail(requester.getEmail())
+                    .map(Student::getId)
+                    .orElse(requester.getId());
+        }
+
+        return requester.getId();
+    }
+
     private BookingResponseDTO toResponse(Booking booking) {
         BookingResponseDTO dto = new BookingResponseDTO();
         dto.setBookingId(booking.getBookingId());
@@ -325,6 +405,8 @@ public class BookingServiceImpl implements BookingService {
             dto.setRequestedById(booking.getRequestedBy().getId());
             dto.setRequestedByName(booking.getRequestedBy().getName());
             dto.setRequestedByRole(booking.getRequestedBy().getRole());
+            dto.setRequestedByEmail(booking.getRequestedBy().getEmail());
+            dto.setRequestedByProfileImageUrl(booking.getRequestedBy().getProfileImageUrl());
         }
 
         dto.setBookingDate(booking.getBookingDate());

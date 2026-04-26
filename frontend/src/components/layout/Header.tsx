@@ -26,6 +26,7 @@ import {
   markAsRead,
   type NotificationItem,
 } from '../../services/notificationService';
+import { clearAuthSession, getAuthItem } from '../../services/authSession';
 
 
 const Header: React.FC = () => {
@@ -39,20 +40,20 @@ const Header: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
 
-  const currentUserId = Number(localStorage.getItem("id") || localStorage.getItem("studentId") || "0");
+  const currentUserId = Number(getAuthItem("id") || getAuthItem("studentId") || "0");
   const canViewNotifications = Number.isFinite(currentUserId) && currentUserId > 0;
   
   const navigate = useNavigate();
   const location = useLocation();
 
   const syncUserFromStorage = () => {
-    const storedRole = localStorage.getItem("role");
-    const storedStudentId = localStorage.getItem("studentId");
-    const storedId = localStorage.getItem("id");
-    const storedName = localStorage.getItem("studentName") || localStorage.getItem("user");
-    const storedLecturerName = localStorage.getItem("name") || storedName;
-    const storedEmail = localStorage.getItem("email");
-    const storedProfileImage = localStorage.getItem("profileImageUrl");
+    const storedRole = getAuthItem("role");
+    const storedStudentId = getAuthItem("studentId");
+    const storedId = getAuthItem("id");
+    const storedName = getAuthItem("studentName") || getAuthItem("user");
+    const storedLecturerName = getAuthItem("name") || storedName;
+    const storedEmail = getAuthItem("email");
+    const storedProfileImage = getAuthItem("profileImageUrl");
     const resolvedProfileImage = storedProfileImage
       ? (storedProfileImage.startsWith("http")
           ? storedProfileImage
@@ -140,7 +141,7 @@ const Header: React.FC = () => {
             setNotificationsLoading(true);
             const data = await getNotifications(currentUserId);
             if (isMounted) {
-              setNotifications(data);
+              setNotifications(data.filter((item) => !item.read));
             }
           } catch (error) {
             console.error("Failed to fetch notifications:", error);
@@ -164,27 +165,31 @@ const Header: React.FC = () => {
     try {
       await markAsRead(notificationId);
       setNotifications((prev) =>
-        prev.map((item) =>
-          item.id === notificationId ? { ...item, read: true } : item
-        )
+        prev.filter((item) => item.id !== notificationId)
       );
     } catch (error) {
       console.error("Failed to mark as read:", error);
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const handleMarkAllNotificationsRead = async () => {
+    const unreadNotifications = notifications.filter((item) => !item.read);
+    if (unreadNotifications.length === 0) {
+      return;
+    }
+
+    try {
+      await Promise.all(unreadNotifications.map((item) => markAsRead(item.id)));
+      setNotifications([]);
+    } catch (error) {
+      console.error("Failed to mark all notifications as read:", error);
+    }
+  };
+
+  const unreadCount = notifications.length;
 
   const handleLogout = () => {
-    // Clear all student-related localStorage items
-    localStorage.removeItem("user");
-    localStorage.removeItem("role");
-    localStorage.removeItem("studentId");
-    localStorage.removeItem("studentName");
-    localStorage.removeItem("name");
-    localStorage.removeItem("email");
-    localStorage.removeItem("id");
-    localStorage.removeItem("profileImageUrl");
+    clearAuthSession();
     
     setUser(null);
     setIsLoggedIn(false);
@@ -287,6 +292,7 @@ const Header: React.FC = () => {
                         notifications={notifications}
                         loading={notificationsLoading}
                         onMarkAsRead={handleMarkNotificationRead}
+                        onMarkAllAsRead={handleMarkAllNotificationsRead}
                         onClose={() => setIsNotificationsOpen(false)}
                       />
                     )}

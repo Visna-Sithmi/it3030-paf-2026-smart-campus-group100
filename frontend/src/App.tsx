@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./app/admin/Login/page";
+import DashboardPage from "./app/admin/dashboard/page";
 import ManagerPage from "./app/admin/manager/page";
 import LecturerPage from "./app/admin/lecturers/page";
 import HelperStaffPage from "./app/admin/helpers/page";
@@ -17,6 +18,7 @@ import StudentProfilePage from "./app/client/profile/page";
 import CreateTicket from "./app/client/tickets/CreateTicket";
 import MyTickets from "./app/client/tickets/MyTickets";
 import TicketDetails from "./app/client/tickets/TicketDetails";
+import ProtectedRoute from "./components/ProtectedRoute"; // IMPORT THE PROTECTED ROUTE
 
 const HomeRedirect = () => {
   const role = localStorage.getItem("role");
@@ -38,22 +40,10 @@ const HomeRedirect = () => {
   }
 
   if (role === "ADMIN") {
-    return <Navigate to="/admin/manager" replace />;
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return <Navigate to="/admin/login" replace />;
-};
-
-// Protected Route Component - ensures only authenticated admins can access
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const user = localStorage.getItem("user");
-  const role = localStorage.getItem("role");
-
-  if (!user || role !== "ADMIN") {
-    return <Navigate to="/admin/login" replace />;
-  }
-
-  return <>{children}</>;
 };
 
 // Protected Route for Booking Manager
@@ -113,10 +103,20 @@ function App() {
         {/* Admin routes */}
         <Route path="/admin/login" element={<LoginPage />} />
 
+        {/* Admin Dashboard Route - USING IMPORTED PROTECTEDROUTE */}
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/admin/manager"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <ManagerPage />
             </ProtectedRoute>
           }
@@ -125,7 +125,7 @@ function App() {
         <Route
           path="/admin/student"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <StudentPage />
             </ProtectedRoute>
           }
@@ -134,7 +134,7 @@ function App() {
         <Route
           path="/admin/lecturers"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <LecturerPage />
             </ProtectedRoute>
           }
@@ -143,7 +143,7 @@ function App() {
         <Route
           path="/admin/helpers"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['ADMIN']}>
               <HelperStaffPage />
             </ProtectedRoute>
           }
@@ -252,7 +252,6 @@ function App() {
             </ClientUserRoute>
           }
         />
-
       </Routes>
     </BrowserRouter>
   );

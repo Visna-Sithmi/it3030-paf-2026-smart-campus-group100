@@ -1,11 +1,16 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { loginAdmin } from "../../../services/authService";
 import type { LoginResponse } from "../../../types/auth";
 import logo from "../../../assets/logo.jpeg";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get the attempted path from location state
+  // If no state exists (direct login), default to /admin/dashboard
+  const from = (location.state as any)?.from || "/admin/dashboard";
 
   const [formData, setFormData] = useState({
     email: "",
@@ -15,6 +20,17 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Check if already logged in
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem("isAdminLoggedIn") === "true";
+    const role = localStorage.getItem("role");
+    
+    if (isLoggedIn && role === "ADMIN") {
+      // Redirect to dashboard if already logged in
+      navigate("/admin/dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -45,11 +61,14 @@ const LoginPage = () => {
           localStorage.setItem("adminName", data.name || "Admin User");
           localStorage.setItem("adminEmail", data.email || "");
           localStorage.setItem("adminRole", "Chancellor Administrator");
+          
+          // Store admin authentication (without token since backend doesn't send it)
+          localStorage.setItem("isAdminLoggedIn", "true");
 
           setSuccessMessage(data.message || "Login successful");
           
-          // Redirect directly to manager page
-          navigate("/admin/manager");
+          // Always redirect to dashboard after successful login
+          navigate("/admin/dashboard", { replace: true });
         } else {
           setError("Access denied. Admin only.");
         }
@@ -170,6 +189,14 @@ const LoginPage = () => {
             </div>
           </div>
 
+          {/* Show attempted path info if they were redirected from a specific page */}
+          {from !== "/admin/dashboard" && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-xs text-yellow-800 text-center">
+                <strong>Note:</strong> You were trying to access: {from}
+              </p>
+            </div>
+          )}
         </div>
       </main>
 

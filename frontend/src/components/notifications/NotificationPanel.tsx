@@ -2,6 +2,7 @@ import React from "react";
 import { Bell, CheckCheck, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { NotificationItem } from "../../services/notificationService";
+import SpinnerMorph from "@/components/ui/spinner-morph";
 
 interface NotificationPanelProps {
   notifications: NotificationItem[];
@@ -86,7 +87,10 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
 
       <div className="max-h-[420px] overflow-y-auto">
         {loading ? (
-          <div className="p-4 text-sm text-slate-500">Loading notifications...</div>
+          <div className="flex items-center gap-3 p-4 text-sm text-slate-500">
+            <SpinnerMorph size={24} fill="#002147" rotateDur="3s" morphDur="3s" />
+            Loading notifications...
+          </div>
         ) : notifications.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-sm">
             <Bell className="w-8 h-8 mx-auto mb-2 text-slate-300" />

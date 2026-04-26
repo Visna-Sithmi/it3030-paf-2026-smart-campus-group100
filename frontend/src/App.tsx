@@ -19,6 +19,8 @@ import CreateTicket from "./app/client/tickets/CreateTicket";
 import MyTickets from "./app/client/tickets/MyTickets";
 import TicketDetails from "./app/client/tickets/TicketDetails";
 import ProtectedRoute from "./components/ProtectedRoute"; // IMPORT THE PROTECTED ROUTE
+import HomePage from "./app/home/page";
+import AboutPage from "./app/about/page";
 
 const HomeRedirect = () => {
   const role = localStorage.getItem("role");
@@ -98,7 +100,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Default route */}
-        <Route path="/" element={<HomeRedirect />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/about" element={<AboutPage />} />
 
         {/* Admin routes */}
         <Route path="/admin/login" element={<LoginPage />} />

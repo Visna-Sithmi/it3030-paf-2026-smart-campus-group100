@@ -1,6 +1,7 @@
 // frontend/src/components/ProtectedRoute.tsx
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import SpinnerMorph from '@/components/ui/spinner-morph';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -52,7 +53,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <SpinnerMorph size={72} fill="#002147" rotateDur="4s" morphDur="4s" className="mx-auto" />
           <p className="mt-4 text-gray-600">Verifying access...</p>
         </div>
       </div>

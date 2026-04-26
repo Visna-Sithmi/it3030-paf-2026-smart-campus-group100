@@ -7,6 +7,7 @@ import {
   loginResourceManager, 
   loginIssueManager 
 } from "../../../services/authService";
+import SpinnerMorph from "@/components/ui/spinner-morph";
 
 type ManagerType = "BOOKING" | "RESOURCE" | "ISSUE";
 
@@ -280,7 +281,14 @@ const ManagerLoginPage = () => {
                 disabled={loading}
                 className="w-full rounded-xl bg-gradient-to-r from-[#000a1e] to-[#002147] px-4 py-3 text-sm font-bold uppercase tracking-[0.25em] text-white shadow-[0_10px_24px_rgba(0,33,71,0.28)] transition duration-200 hover:-translate-y-[1px] hover:shadow-[0_14px_28px_rgba(0,33,71,0.32)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {loading ? "Authorizing..." : "Authorize Entry"}
+                {loading ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <SpinnerMorph size={20} fill="#ffffff" rotateDur="3s" morphDur="3s" />
+                    Authorizing...
+                  </span>
+                ) : (
+                  "Authorize Entry"
+                )}
               </button>
             </form>
 

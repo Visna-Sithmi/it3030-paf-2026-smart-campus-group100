@@ -142,6 +142,14 @@ const ManagerLoginPage = () => {
   };
 
   const handleGoogleLogin = () => {
+    const expectedRole =
+      managerType === "BOOKING"
+        ? "BOOKING_MANAGER"
+        : managerType === "RESOURCE"
+          ? "RESOURCE_MANAGER"
+          : "ISSUE_MANAGER";
+
+    sessionStorage.setItem("oauthExpectedRole", expectedRole);
     window.location.assign(GOOGLE_AUTH_URL);
   };
 

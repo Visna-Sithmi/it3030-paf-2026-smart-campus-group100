@@ -87,6 +87,7 @@ const LoginPage = () => {
   };
 
   const handleGoogleLogin = () => {
+    sessionStorage.setItem("oauthExpectedRole", "ADMIN");
     window.location.assign(GOOGLE_AUTH_URL);
   };
 

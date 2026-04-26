@@ -21,11 +21,18 @@ export default function OAuthCallbackPage() {
   const success = searchParams.get("success") === "true";
   const role = (searchParams.get("role") || "").toUpperCase();
   const message = searchParams.get("message") || "Google login failed.";
+  const expectedRole = (sessionStorage.getItem("oauthExpectedRole") || "").toUpperCase();
+  const roleMismatch = success && !!expectedRole && !!role && expectedRole !== role;
+  const effectiveSuccess = success && !roleMismatch;
+  const effectiveMessage = roleMismatch
+    ? `Wrong role selected. You chose ${expectedRole.replaceAll("_", " ")}, but this email is assigned as ${role.replaceAll("_", " ")}.`
+    : message;
 
   const destination = useMemo(() => roleDestinations[role] || "/", [role]);
 
   useEffect(() => {
-    if (!success || !role) {
+    if (!effectiveSuccess || !role) {
+      sessionStorage.removeItem("oauthExpectedRole");
       return;
     }
 
@@ -62,17 +69,19 @@ export default function OAuthCallbackPage() {
       localStorage.setItem("managerType", "ISSUE");
     }
 
+    sessionStorage.removeItem("oauthExpectedRole");
+
     const redirectTimer = window.setTimeout(() => {
       navigate(destination, { replace: true });
     }, 700);
 
     return () => window.clearTimeout(redirectTimer);
-  }, [destination, navigate, role, searchParams, success]);
+  }, [destination, effectiveSuccess, navigate, role, searchParams]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#eef2f6] px-4 text-slate-900">
       <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-[0_24px_48px_rgba(0,33,71,0.1)]">
-        {success ? (
+        {effectiveSuccess ? (
           <>
             <div className="mx-auto mb-5 flex justify-center">
               <SpinnerMorph size={74} fill="#002147" rotateDur="3s" morphDur="3s" />
@@ -86,7 +95,7 @@ export default function OAuthCallbackPage() {
           <>
             <h1 className="text-2xl font-semibold text-[#002147]">Google login blocked</h1>
             <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {message}
+              {effectiveMessage}
             </p>
             <div className="mt-5 flex justify-center gap-4 text-sm font-semibold text-[#002147]">
               <Link to="/client/login">Client Login</Link>

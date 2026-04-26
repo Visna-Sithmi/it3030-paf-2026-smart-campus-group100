@@ -216,6 +216,14 @@ export default function ClientLoginPage() {
   };
 
   const handleGoogleLogin = () => {
+    const expectedRole =
+      activePortal === "STUDENT"
+        ? "STUDENT"
+        : activePortal === "LECTURER"
+          ? "LECTURER"
+          : helperRole;
+
+    sessionStorage.setItem("oauthExpectedRole", expectedRole);
     window.location.assign(GOOGLE_AUTH_URL);
   };
 

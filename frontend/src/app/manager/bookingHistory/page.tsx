@@ -11,13 +11,14 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import logo from "../../../assets/logo.jpeg";
 import { bookingService } from "../../../services/bookingService";
 import { resourceService } from "../../../services/resource.service";
 import type { BookingResponseDTO } from "../../../types/booking";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { getAuthItem } from "../../../services/authSession";
+import { generateReport } from "../../../utils/reportGenerator";
 
 export default function BookingHistoryPage() {
   const navigate = useNavigate();
@@ -311,6 +312,77 @@ export default function BookingHistoryPage() {
     }
   };
 
+  const formatReportDate = (value?: string | null) => {
+    if (!value) return "-";
+    try {
+      return format(new Date(value), "MMM d, yyyy");
+    } catch {
+      return value;
+    }
+  };
+
+  const formatReportTime = (value?: string | null) => {
+    if (!value) return "-";
+    return String(value).slice(0, 5);
+  };
+
+  const handleDownloadReport = () => {
+    const reportBookings = analyticsFilteredBookings.length > 0 ? analyticsFilteredBookings : actionedBookings;
+    const statusOrder = ["APPROVED", "REJECTED", "CANCELLED"];
+
+    const sections = statusOrder
+      .map((status) => {
+        const statusBookings = reportBookings.filter((booking) => booking.status === status);
+        if (statusBookings.length === 0) return null;
+
+        return {
+          title: `${status.charAt(0)}${status.slice(1).toLowerCase()} Bookings (${statusBookings.length})`,
+          subtitle: `Resource Types: ${
+            Array.from(new Set(statusBookings.map((booking) => booking.resourceType || "N/A")))
+              .map((type) => type.replaceAll("_", " "))
+              .join(", ") || "N/A"
+          }`,
+          headers: ["Booking ID", "Resource", "Requester", "Date", "Time", "Purpose", "Action Note"],
+          rows: statusBookings.map((booking) => [
+            booking.bookingId || "-",
+            `${booking.resourceName || "-"} (${booking.resourceCode || "-"})`,
+            booking.requestedByName || "-",
+            formatReportDate(booking.bookingDate),
+            `${formatReportTime(booking.startTime)} - ${formatReportTime(booking.endTime)}`,
+            booking.purpose || "-",
+            booking.adminReason || (booking.status === "CANCELLED" ? "Cancelled by requester" : "-"),
+          ]),
+          summary: `${statusBookings.length} ${status.toLowerCase()} booking record(s) in this section`,
+        };
+      })
+      .filter(Boolean) as Array<{
+        title: string;
+        subtitle?: string;
+        headers: string[];
+        rows: Array<Array<string | number>>;
+        summary?: string;
+      }>;
+
+    if (sections.length === 0) {
+      setError("No booking history records available for report generation.");
+      return;
+    }
+
+    generateReport({
+      title: "Booking History Report",
+      subtitle: "Approved, Rejected, and Cancelled Booking Records",
+      reportType: "Booking Management Report",
+      sections,
+      totalRecords: reportBookings.length,
+      additionalInfo: {
+        totalStudents: reportBookings.length,
+        academicYear: new Date().getFullYear().toString(),
+        generatedBy: getAuthItem("name") || "Booking Manager",
+      },
+      logoUrl: undefined,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#eef2f6]">
       <header className="bg-[#002147] text-white shadow-lg">
@@ -348,9 +420,20 @@ export default function BookingHistoryPage() {
         )}
 
         <section className="mb-6 rounded-xl bg-white p-6 shadow-md">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-[#002147]">History Analytics</h3>
-            <p className="text-sm text-slate-600">Analyze booking outcomes by resource type, month, and year.</p>
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-[#002147]">History Analytics</h3>
+              <p className="text-sm text-slate-600">Analyze booking outcomes by resource type, month, and year.</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleDownloadReport}
+              disabled={loading || actionedBookings.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#002147] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,33,71,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0f3460] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Download className="h-4 w-4" />
+              Download Report
+            </button>
           </div>
 
           <div className="mb-5 grid gap-3 md:grid-cols-3 lg:grid-cols-6">

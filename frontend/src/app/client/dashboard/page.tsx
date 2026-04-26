@@ -4,6 +4,7 @@ import Header from "../../../components/layout/Header";
 import Footer from "../../../components/layout/Footer";
 import { resourceService } from "../../../services/resource.service";
 import type { Resource } from "../../../types/resource.types";
+import SpinnerMorph from "@/components/ui/spinner-morph";
 
 export default function StudentDashboardPage() {
   const navigate = useNavigate();
@@ -127,7 +128,10 @@ export default function StudentDashboardPage() {
           </div>
 
           {loading ? (
-            <div className="p-6 text-sm text-slate-500">Loading resources...</div>
+            <div className="flex items-center gap-3 p-6 text-sm text-slate-500">
+              <SpinnerMorph size={32} fill="#002147" rotateDur="3s" morphDur="3s" />
+              Loading resources...
+            </div>
           ) : resources.length === 0 ? (
             <div className="p-6 text-sm text-slate-500">No resources available right now.</div>
           ) : (

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import SpinnerMorph from "@/components/ui/spinner-morph";
 
 type PortalType = "STUDENT" | "LECTURER" | "HELPER";
 type HelperRole = "TECHNICIAN" | "CLEANER" | "SECURITY";
@@ -28,6 +29,8 @@ const emptyHelperForm = {
   email: "",
   password: "",
 };
+
+const GOOGLE_AUTH_URL = "http://localhost:8081/oauth2/authorization/google";
 
 export default function ClientLoginPage() {
   const navigate = useNavigate();
@@ -212,6 +215,18 @@ export default function ClientLoginPage() {
     }
   };
 
+  const handleGoogleLogin = () => {
+    const expectedRole =
+      activePortal === "STUDENT"
+        ? "STUDENT"
+        : activePortal === "LECTURER"
+          ? "LECTURER"
+          : helperRole;
+
+    sessionStorage.setItem("oauthExpectedRole", expectedRole);
+    window.location.assign(GOOGLE_AUTH_URL);
+  };
+
   return (
     <AnimatedCharactersLoginPage
       brandName="Northbridge University"
@@ -291,6 +306,15 @@ export default function ClientLoginPage() {
         </button>
       </div>
 
+      <Button
+        type="button"
+        onClick={handleGoogleLogin}
+        className="mb-5 w-full rounded-xl border border-[#002147]/20 bg-white py-3 text-sm font-bold uppercase tracking-[0.16em] text-[#002147] shadow-sm transition hover:bg-[#eef4fb]"
+      >
+        <span className="mr-2 text-base font-black leading-none">G</span>
+        Continue with Google
+      </Button>
+
       {activePortal === "STUDENT" ? (
         <form onSubmit={handleStudentLogin} className="space-y-4">
           <div>
@@ -368,7 +392,14 @@ export default function ClientLoginPage() {
             disabled={loading}
             className="w-full rounded-xl bg-[#002147] py-3 text-sm font-bold uppercase tracking-[0.2em] text-white shadow-md transition hover:bg-[#001733] disabled:opacity-70"
           >
-            {loading ? "Authorizing..." : "Authorize Entry"}
+            {loading ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <SpinnerMorph size={20} fill="#ffffff" rotateDur="3s" morphDur="3s" />
+                Authorizing...
+              </span>
+            ) : (
+              "Authorize Entry"
+            )}
           </Button>
 
           <div className="border-t border-slate-100 pt-4 text-center">
@@ -457,7 +488,14 @@ export default function ClientLoginPage() {
             disabled={loading}
             className="w-full rounded-xl bg-[#002147] py-3 text-sm font-bold uppercase tracking-[0.2em] text-white shadow-md transition hover:bg-[#001733] disabled:opacity-70"
           >
-            {loading ? "Authorizing..." : "Authorize Entry"}
+            {loading ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <SpinnerMorph size={20} fill="#ffffff" rotateDur="3s" morphDur="3s" />
+                Authorizing...
+              </span>
+            ) : (
+              "Authorize Entry"
+            )}
           </Button>
 
           <div className="border-t border-slate-100 pt-4 text-center">
@@ -556,7 +594,14 @@ export default function ClientLoginPage() {
             disabled={loading}
             className="w-full rounded-xl bg-[#002147] py-2.5 text-sm font-semibold text-white transition hover:bg-[#00152d] disabled:opacity-70"
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <SpinnerMorph size={20} fill="#ffffff" rotateDur="3s" morphDur="3s" />
+                Signing in...
+              </span>
+            ) : (
+              "Sign in"
+            )}
           </Button>
         </form>
       )}
@@ -564,6 +609,7 @@ export default function ClientLoginPage() {
       <div className="text-center mt-4">
         <button
           type="button"
+          onClick={() => navigate("/")}
           className="text-sm font-semibold text-[#385071] transition hover:text-[#002147]"
         >
           ← HOME PORTAL

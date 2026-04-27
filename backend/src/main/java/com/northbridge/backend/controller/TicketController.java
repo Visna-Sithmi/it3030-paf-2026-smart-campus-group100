@@ -164,6 +164,29 @@ public class TicketController {
         }
     }
 
+    @PostMapping(value = "/report/html", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> generateHtmlReport(@RequestBody String html) {
+        try {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+            com.openhtmltopdf.pdfboxout.PdfRendererBuilder builder =
+                    new com.openhtmltopdf.pdfboxout.PdfRendererBuilder();
+
+            builder.withHtmlContent(html, null);
+            builder.toStream(outputStream);
+            builder.run();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", "report.pdf");
+
+            return new ResponseEntity<>(outputStream.toByteArray(), headers, HttpStatus.OK);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<?> createTicket(
             @RequestParam Long resourceId,

@@ -21,3 +21,6 @@ frontend/dist/
 .env
 .env.local
 "@ | Set-Content .gitignore
+
+#Ticket Attachment
+backend/uploads/

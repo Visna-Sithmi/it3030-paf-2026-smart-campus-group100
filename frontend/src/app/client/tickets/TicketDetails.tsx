@@ -452,10 +452,10 @@ export default function TicketDetails() {
         </button>
 
         {/* 🔥 HEADER CARD (PREMIUM) */}
-        <div className="relative rounded-3xl bg-gradient-to-br from-[#002147]/10 via-white/70 to-blue-100/40 backdrop-blur-xl border border-white/40 shadow-xl p-8 mb-8 overflow-hidden">
+        <div className="relative rounded-3xl bg-gradient-to-br from-[#001833] via-[#002147] to-[#003366] text-white shadow-xl p-8 mb-8 overflow-hidden">
 
           {/* Glow layers */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#002147]/20 via-transparent to-blue-300/20 pointer-events-none" />
+          <div className="absolute -top-20 -right-20 w-72 h-72 bg-blue-400/20 blur-3xl rounded-full" />
           <div className="absolute -top-20 -right-20 w-72 h-72 bg-blue-400/20 blur-3xl rounded-full pointer-events-none" />
 
           <div className="relative flex flex-col md:flex-row justify-between gap-6">
@@ -464,7 +464,7 @@ export default function TicketDetails() {
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-3">
 
-                <span className="text-xs px-3 py-1 bg-slate-200 rounded-full font-mono">
+                <span className="text-xs px-3 py-1 bg-white/10 text-white rounded-full font-mono border border-white/20 backdrop-blur">
                   #{ticket.id}
                 </span>
 
@@ -482,8 +482,8 @@ export default function TicketDetails() {
               </div>
 
               {/* Gradient Title */}
-              <h1 className="text-3xl font-extrabold bg-gradient-to-r from-[#002147] to-blue-700 bg-clip-text text-transparent">
-                {ticket.category}
+              <h1 className="text-3xl font-extrabold text-white">
+                  {ticket.category}
               </h1>
             </div>
 
@@ -507,116 +507,277 @@ export default function TicketDetails() {
           </div>
 
           {/* INFO GRID */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8 pt-6 border-t border-slate-200">
-            <div>
-              <p className="text-xs text-slate-400">Resource</p>
-              <p className="font-semibold text-slate-800">{ticket.resourceId || "N/A"}</p>
+          {/* INFO GRID (UPDATED PREMIUM STYLE) */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8 pt-6 border-t border-white/20 text-white">
+
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-white/10 rounded-xl backdrop-blur">
+                <span className="text-lg">🖥️</span>
+              </div>
+              <div>
+                <p className="text-xs text-white/60">Resource</p>
+                <p className="font-semibold">{ticket.resourceId || "N/A"}</p>
+              </div>
             </div>
 
-            <div>
-              <p className="text-xs text-slate-400">Category</p>
-              <p className="font-semibold text-slate-800">{ticket.category}</p>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/10 rounded-lg">
+                <span className="text-lg">📂</span>
+              </div>
+              <div>
+                <p className="text-xs text-white/60">Category</p>
+                <p className="font-semibold">{ticket.category}</p>
+              </div>
             </div>
 
-            <div>
-              <p className="text-xs text-slate-400">Created</p>
-              <p className="font-semibold text-slate-800">{formatDateTime(ticket.createdAt)}</p>
-              <p className="text-xs text-blue-500">
-                {elapsedMs ? `⏱ ${formatDurationShort(elapsedMs)}` : ""}
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/10 rounded-lg">
+                <span className="text-lg">📅</span>
+              </div>
+              <div>
+                <p className="text-xs text-white/60">Created</p>
+                <p className="font-semibold">{formatDateTime(ticket.createdAt)}</p>
+                <p className="text-xs text-blue-300">
+                  {elapsedMs ? `⏱ ${formatDurationShort(elapsedMs)}` : ""}
+                </p>
+              </div>
             </div>
 
-            <div>
-              <p className="text-xs text-slate-400">Contact</p>
-              <p className="font-semibold text-slate-800">{ticket.preferredContact || "N/A"}</p>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/10 rounded-lg">
+                <span className="text-lg">📞</span>
+              </div>
+              <div>
+                <p className="text-xs text-white/60">Contact</p>
+                <p className="font-semibold">{ticket.preferredContact || "N/A"}</p>
+              </div>
             </div>
+
           </div>
         </div>
 
         {/* DESCRIPTION */}
-        <div className="rounded-3xl bg-white/80 backdrop-blur border shadow-md p-8 mb-8 hover:shadow-lg transition">
-          <h2 className="text-xl font-bold text-slate-800 mb-3">Description</h2>
-          <p className="text-slate-600 leading-relaxed">{ticket.description}</p>
+        <div className="rounded-2xl bg-white shadow-sm border p-6 mb-6 flex gap-4 items-start">
+
+          <div className="p-3 bg-blue-100 text-blue-600 rounded-xl">
+            📄
+          </div>
+
+          <div>
+            <h2 className="font-semibold text-slate-800 mb-1">Description</h2>
+            <p className="text-slate-600 text-sm leading-relaxed">
+              {ticket.description}
+            </p>
+          </div>
+
         </div>
 
         {/* RESOLUTION */}
         {ticket.resolutionNotes && (
-          <div className="rounded-3xl bg-gradient-to-r from-green-50 to-green-100 border border-green-200 p-8 mb-8 shadow-sm">
-            <h2 className="font-bold text-green-800 mb-2">Resolution</h2>
-            <p className="text-green-900">{ticket.resolutionNotes}</p>
+          <div className="rounded-2xl bg-green-50 border border-green-200 p-6 mb-6 flex gap-4 items-start">
+
+            <div className="p-3 bg-green-100 text-green-600 rounded-xl">
+              ✔
+            </div>
+
+            <div>
+              <h2 className="font-semibold text-green-800 mb-1">Resolution</h2>
+              <p className="text-green-700 text-sm">
+                {ticket.resolutionNotes}
+              </p>
+            </div>
+
+          </div>
+        )}
+        
+        {ticket.status === "REJECTED" && ticket.rejectionReason && (
+          <div className="mt-6 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-red-100 p-5 shadow-sm mb-6">
+            
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-100 border border-red-200">
+                <span className="text-red-600 text-sm">✖</span>
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold text-red-600">
+                  Ticket Rejected
+                </p>
+                <p className="text-xs text-gray-500">
+                  This request was not approved
+                </p>
+              </div>
+            </div>
+
+            {/* Reason */}
+            <div className="bg-white/70 border border-red-100 rounded-xl p-3">
+              <p className="text-xs text-gray-500 mb-1">Reason</p>
+              <p className="text-sm text-gray-800 font-medium leading-relaxed">
+                {ticket.rejectionReason}
+              </p>
+            </div>
+
           </div>
         )}
 
         {/* ATTACHMENTS */}
-        console.log("TICKET FULL:", ticket);
-        console.log("ATTACHMENTS:", ticket?.attachmentUrls);
-        {(ticket.attachmentUrls ?? []).map((url, i) => {
-          
-          console.log("IMAGE URL:", url); 
+        {(ticket.attachmentUrls ?? []).length > 0 && (
+          <div className="rounded-2xl bg-white shadow-sm border p-6 mb-6">
 
-          return (
-            <div key={i} className="relative group rounded-xl overflow-hidden border">
+            <h2 className="font-semibold mb-4">Attachments ({ticket.attachmentUrls?.length})</h2>
 
-              <img
-                src={
-                  url.startsWith("http")
-                    ? url
-                    : `http://localhost:8081${url}`
-                }
-                className="w-full h-40 object-cover rounded"
-              />
+            <div className="space-y-4">
+              {ticket.attachmentUrls?.map((url, i) => (
+                <div key={i} className="flex items-center gap-4 p-3 border rounded-xl hover:bg-slate-50 transition">
 
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition" />
+                  <img
+                    src={url.startsWith("http") ? url : `http://localhost:8081${url}`}
+                    className="w-28 h-16 object-cover rounded-lg border"
+                  />
+
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">Attachment {i + 1}</p>
+                    <p className="text-xs text-slate-500">Click to preview</p>
+                  </div>
+
+                  <a
+                    href={url.startsWith("http") ? url : `http://localhost:8081${url}`}
+                    download
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm"
+                  >
+                    ⬇
+                  </a>
+
+                </div>
+              ))}
             </div>
-          );
-        })}
+
+          </div>
+        )}
 
         {/* COMMENTS */}
-        <div className="rounded-3xl bg-white p-8 shadow-md">
+<div className="rounded-2xl bg-white shadow-sm border p-6">
 
-          <h2 className="text-xl font-bold mb-6">
-            Comments ({ticket.comments?.length || 0})
-          </h2>
+  <h2 className="font-semibold mb-4">
+    Comments ({ticket.comments?.length || 0})
+  </h2>
 
-          <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-            {ticket.comments?.map((c) => (
-              <div key={c.id} className="flex gap-3">
+  <div className="space-y-4 mb-4 max-h-80 overflow-y-auto">
+    {ticket.comments?.map((c) => {
+      const isOwner =
+        Number(c.userId) === currentUserId &&
+        (c.userRole || "").toUpperCase() === currentRole;
 
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white flex items-center justify-center font-bold">
-                  {c.userName?.charAt(0)}
-                </div>
+      return (
+        <div key={c.id} className="flex gap-3">
 
-                <div className="bg-slate-100 rounded-2xl px-4 py-3 shadow-sm w-full">
-                  <div className="flex justify-between text-xs text-slate-500 mb-1">
-                    <span className="font-semibold text-slate-700">{c.userName}</span>
-                    <span>{formatDateTime(c.createdAt)}</span>
-                  </div>
-                  <p className="text-slate-700 text-sm">{c.commentText}</p>
+          {/* Avatar */}
+          <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+            {c.userName?.charAt(0)}
+          </div>
+
+          {/* Comment box */}
+          <div className="flex-1 bg-slate-100 rounded-xl px-4 py-3">
+
+            {/* Header */}
+            <div className="flex justify-between text-xs text-slate-500 mb-1">
+
+              <span className="font-semibold text-slate-700">
+                {c.userName}
+              </span>
+
+              <div className="flex items-center gap-2">
+
+                <span>{formatDateTime(c.createdAt)}</span>
+
+                {/* 🔥 Edit/Delete buttons (only owner) */}
+                {isOwner && editingCommentId !== c.id && (
+                  <>
+                    <button
+                      onClick={() => startEditComment(c.id, c.commentText)}
+                      className="text-blue-600 hover:underline text-xs"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteComment(c.id)}
+                      disabled={commentActionLoading === c.id}
+                      className="text-red-500 hover:underline text-xs"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* 🔥 Edit Mode */}
+            {editingCommentId === c.id ? (
+              <div className="space-y-2">
+
+                <input
+                  value={editingText}
+                  onChange={(e) => setEditingText(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleUpdateComment(c.id)}
+                    disabled={commentActionLoading === c.id}
+                    className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs"
+                  >
+                    Save
+                  </button>
+
+                  <button
+                    onClick={cancelEditComment}
+                    className="px-3 py-1 bg-gray-300 rounded-lg text-xs"
+                  >
+                    Cancel
+                  </button>
                 </div>
 
               </div>
-            ))}
+            ) : (
+              <p className="text-sm text-slate-700">
+                {c.commentText}
+              </p>
+            )}
+
           </div>
-
-          {!isIssueManager && (
-            <div className="mt-6 border-t pt-6">
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Write your comment..."
-                className="w-full p-3 rounded-xl border focus:ring-2 focus:ring-blue-400 outline-none"
-              />
-
-              <button
-                onClick={handleAddComment}
-                disabled={commentLoading}
-                className="mt-3 w-full bg-gradient-to-r from-[#002147] to-blue-900 text-white py-2 rounded-xl font-semibold shadow hover:scale-[1.02] transition"
-              >
-                {commentLoading ? "Posting..." : "Post Comment"}
-              </button>
-            </div>
-          )}
         </div>
+      );
+    })}
+  </div>
+
+  {/* ADD COMMENT */}
+  {!isIssueManager && (
+    <div className="flex gap-3">
+
+      <input
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.preventDefault(); // 🔥 prevent duplicate issue
+        }}
+        placeholder="Type your comment..."
+        className="flex-1 border rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-400 outline-none"
+      />
+
+      <button
+        onClick={handleAddComment}
+        disabled={commentLoading || editingCommentId !== null} // 🔥 block when editing
+        className="bg-[#002147] text-white px-5 rounded-xl font-medium hover:bg-[#001733]"
+      >
+        {commentLoading ? "..." : "Send"}
+      </button>
+
+    </div>
+  )}
+
+</div>
 
       </main>
 

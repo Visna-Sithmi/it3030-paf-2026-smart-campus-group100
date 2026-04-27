@@ -658,46 +658,67 @@ const ResourceDashboard: React.FC = () => {
     }
   };
 
-  const addHoliday = async (e: React.FormEvent) => {
-    e.preventDefault();
+const addHoliday = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (!validateHolidayForm()) {
-      const firstError = document.querySelector('.holiday-error');
-      if (firstError) {
-        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      return;
+  if (!validateHolidayForm()) {
+    const firstError = document.querySelector('.holiday-error');
+    if (firstError) {
+      firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+    return;
+  }
 
-    setHolidaySubmitting(true);
+  setHolidaySubmitting(true);
 
-    try {
-      const formattedDate = newHoliday.holidayDate;
-      
-      const holidayData = {
-        holidayName: newHoliday.holidayName.trim(),
-        holidayDate: formattedDate,
-        description: newHoliday.description.trim(),
-      };
+  try {
+    const formattedDate = newHoliday.holidayDate;
+    
+    console.log('Sending holiday data:', {  // Debug log
+      holidayName: newHoliday.holidayName.trim(),
+      holidayDate: formattedDate,
+      description: newHoliday.description.trim(),
+    });
 
-      console.log('Sending holiday data:', holidayData);
+    const holidayData = {
+      holidayName: newHoliday.holidayName.trim(),
+      holidayDate: formattedDate,
+      description: newHoliday.description.trim(),
+    };
 
-      const response = await api.post<ApiResponse<any>>('/holidays/add', holidayData);
+    const response = await api.post<ApiResponse<any>>('/holidays/add', holidayData);
 
-      if (response.data.success) {
-        alert(response.data.message || 'Holiday added successfully');
-        resetHolidayForm();
-        await Promise.all([fetchHolidays(), fetchResources(), checkSystemStatus()]);
-      } else {
-        alert(response.data.message || 'Failed to add holiday');
-      }
-    } catch (error) {
-      console.error('Error adding holiday:', error);
-      alert(getErrorMessage(error, 'Failed to add holiday'));
-    } finally {
-      setHolidaySubmitting(false);
+    if (response.data.success) {
+      alert(response.data.message || 'Holiday added successfully');
+      resetHolidayForm();
+      await Promise.all([fetchHolidays(), fetchResources(), checkSystemStatus()]);
+    } else {
+      alert(response.data.message || 'Failed to add holiday');
     }
-  };
+  } catch (error: unknown) {  // Explicitly type as unknown
+    console.error('Error adding holiday:', error);
+    
+    // Type-safe error handling
+    if (axios.isAxiosError(error)) {
+      // Axios error with response
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to add holiday';
+      console.error('API Error Details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      alert(errorMessage);
+    } else if (error instanceof Error) {
+      // Standard JavaScript error
+      alert(error.message);
+    } else {
+      // Unknown error type
+      alert('An unexpected error occurred while adding the holiday');
+    }
+  } finally {
+    setHolidaySubmitting(false);
+  }
+};
 
   const deleteHoliday = async (id: number) => {
     if (!window.confirm('Delete this holiday?')) return;

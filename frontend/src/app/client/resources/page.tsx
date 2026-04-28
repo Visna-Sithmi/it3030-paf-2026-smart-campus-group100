@@ -630,16 +630,16 @@ const ResourceCataloguePage: React.FC = () => {
             </div>
             
             {/* Holidays Button */}
-            <button
-              onClick={() => {
-                setShowHolidayModal(true);
-                fetchHolidays();
-              }}
-              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all duration-200 shadow-md hover:shadow-lg font-semibold"
-            >
-              <CalendarIcon size={18} />
-              <span>Holidays</span>
-            </button>
+<button
+  onClick={() => {
+    setShowHolidayModal(true);
+    fetchHolidays();
+  }}
+  className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-[#002147] to-[#003366] text-white rounded-xl hover:from-[#001a3a] hover:to-[#002147] transition-all duration-200 shadow-md hover:shadow-lg font-semibold"
+>
+  <CalendarIcon size={18} />
+  <span>Holidays</span>
+</button>
           </div>
         </div>
 

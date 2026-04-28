@@ -1460,16 +1460,22 @@ const addHoliday = async (e: React.FormEvent) => {
               <span className="btn-text-hide-sm">{globalLock ? 'Enable All' : 'Disable All'}</span>
             </button>
 
-            <button
-              onClick={() => {
-                setShowHolidayModal(true);
-                fetchHolidays();
-              }}
-              className="btn btn-holiday"
-            >
-              <CalendarIcon size={18} />
-              <span className="btn-text-hide-sm">Holidays</span>
-            </button>
+<button
+  onClick={() => {
+    setShowHolidayModal(true);
+    fetchHolidays();
+  }}
+  className="btn btn-holiday"
+  style={{
+    backgroundColor: '#002147',
+    color: '#ffffff',
+    border: 'none',
+    boxShadow: '0 4px 12px rgba(0, 33, 71, 0.2)'
+  }}
+>
+  <CalendarIcon size={18} />
+  <span className="btn-text-hide-sm">Holidays</span>
+</button>
 
                   <button 
         className="btn btn-analysis"

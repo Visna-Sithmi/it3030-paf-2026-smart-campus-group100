@@ -1142,7 +1142,19 @@
   font-weight: 600;
   cursor: pointer;
 }
+.btn-holiday {
+  height: 48px;
+  padding: 0 20px;
+  background: #002147;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 33, 71, 0.2);
+}
 
+.btn-holiday:hover:not(:disabled) {
+  background: #003366;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 33, 71, 0.25);
+}
 .change-image-link:hover {
   text-decoration: underline;
 }
@@ -1490,7 +1502,7 @@
   background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%) !important;
   color: #1e40af !important;
   font-weight: 700 !important;
-  border: 2px solid #818cf8 !important;
+  border: 2px solid rgb(30, 34, 65) !important;
 }
 
 .react-calendar__tile--active {

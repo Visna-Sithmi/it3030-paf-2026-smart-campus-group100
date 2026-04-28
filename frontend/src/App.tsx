@@ -169,6 +169,8 @@ function App() {
           }
         />
 
+        <Route path="/manager/ticket/:id" element={<TicketDetails />} />
+
         <Route
           path="/manager/booking/history"
           element={
@@ -286,6 +288,15 @@ function App() {
             <ClientUserRoute>
               <TicketDetails />
             </ClientUserRoute>
+          }
+        />
+
+        <Route
+          path="/manager/ticket/:id"
+          element={
+            <IssueManagerRoute>
+              <TicketDetails />
+            </IssueManagerRoute>
           }
         />
       </Routes>

@@ -367,8 +367,8 @@ const Header: React.FC = () => {
                         <Link to="/my-bookings" className="flex items-center gap-3 px-5 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                           <Calendar size={16} /> My Bookings
                         </Link>
-                        <Link to="/my-issues" className="flex items-center gap-3 px-5 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                          <MessageSquare size={16} /> My Reports
+                        <Link to="/my-tickets" className="flex items-center gap-3 px-5 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                          <MessageSquare size={16} /> My Tickets
                         </Link>
                         <Link to="/settings" className="flex items-center gap-3 px-5 py-3 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                           <Settings size={16} /> Settings

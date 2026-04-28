@@ -61,7 +61,7 @@ function AnalyticsNavButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-sky-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition will-change-transform hover:scale-[1.02] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-400/60 focus:ring-offset-2 md:w-auto"
+      className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#002147] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#001733] hover:scale-[1.02] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#002147]/60 focus:ring-offset-2 md:w-auto"
       aria-label="View Analytics"
     >
       <FiBarChart2 className="h-4 w-4 opacity-95 transition group-hover:opacity-100" />
@@ -175,6 +175,14 @@ const IssueDashboard = () => {
     };
   }, [navigate]);
 
+  useEffect(() => {
+    if (!isIssueManager) return;
+    const interval = window.setInterval(() => {
+      void loadData();
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, [isIssueManager]);
+
   const stats = useMemo(() => {
     return {
       total: tickets.length,
@@ -202,6 +210,9 @@ const IssueDashboard = () => {
       return searchOk && statusOk && priorityOk && assignedOk && fromOk && toOk;
     });
   }, [tickets, query, statusFilter, priorityFilter, assignedToFilter, fromDate, toDate]);
+
+  const completedTickets = useMemo(() => filteredTickets.filter((ticket) => ticket.status === "COMPLETED_BY_STAFF"), [filteredTickets]);
+  const activeTickets = useMemo(() => filteredTickets.filter((ticket) => ticket.status !== "COMPLETED_BY_STAFF"), [filteredTickets]);
 
   const closeCompletedTicket = async (ticketId: number) => {
     if (!isIssueManager) return;
@@ -454,42 +465,51 @@ const IssueDashboard = () => {
           </div>
         )}
 
-        <div className="mb-8 grid gap-3 sm:grid-cols-1 md:grid-cols-3 lg:grid-cols-7" >
-          <div className="rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 px-3 py-3 text-white shadow" >
-            <p className="text-[15px] opacity-80">Total</p>
-            <h3 className="text-1xl font-bold">{stats.total}</h3>
-          </div>
+<div className="mb-8 grid gap-3 sm:grid-cols-1 md:grid-cols-3 lg:grid-cols-7">
 
-          <div className="rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 px-3 py-3 text-white shadow">
-            <p className="text-[15px] opacity-80">Open</p>
-            <h3 className="text-1xl font-bold">{stats.open}</h3>
-          </div>
+  {/* Total */}
+  <div className="rounded-xl bg-gradient-to-r from-[#0B1F3A] to-[#112E57] px-3 py-3 text-white shadow">
+    <p className="text-[15px] opacity-80">Total</p>
+    <h3 className="text-1xl font-bold">{stats.total}</h3>
+  </div>
 
-          <div className="rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 px-3 py-3 text-white shadow">
-            <p className="text-[15px] opacity-80">In Progress</p>
-            <h3 className="text-1xl font-bold">{stats.inProgress}</h3>
-          </div>
+  {/* Open */}
+  <div className="rounded-xl bg-gradient-to-r from-[#1E3A8A] to-[#2563EB] px-3 py-3 text-white shadow">
+    <p className="text-[15px] opacity-80">Open</p>
+    <h3 className="text-1xl font-bold">{stats.open}</h3>
+  </div>
 
-          <div className="rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-3 py-3 text-white shadow">
-            <p className="text-[15px] opacity-80">Completed</p>
-            <h3 className="text-1xl font-bold">{stats.completedByStaff}</h3>
-          </div>
+  {/* In Progress */}
+  <div className="rounded-xl bg-gradient-to-r from-[#1e40af] to-[#3B82F6] px-3 py-3 text-white shadow">
+    <p className="text-[15px] opacity-80">In Progress</p>
+    <h3 className="text-1xl font-bold">{stats.inProgress}</h3>
+  </div>
 
-          <div className="rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 px-3 py-3 text-white shadow">
-            <p className="text-[15px] opacity-80">Resolved</p>
-            <h3 className="text-1xl font-bold">{stats.resolved}</h3>
-          </div>
+  {/* Completed */}
+  <div className="rounded-xl bg-gradient-to-r from-[#0E7490] to-[#0284C7] px-3 py-3 text-white shadow">
+    <p className="text-[15px] opacity-80">Completed</p>
+    <h3 className="text-1xl font-bold">{stats.completedByStaff}</h3>
+  </div>
 
-          <div className="rounded-xl bg-gradient-to-r from-red-500 to-pink-600 px-3 py-3 text-white shadow">
-            <p className="text-[15px] opacity-80">Rejected</p>
-            <h3 className="text-1xl font-bold">{stats.rejected}</h3>
-          </div>
+  {/* Resolved */}
+  <div className="rounded-xl bg-gradient-to-r from-[#065F46] to-[#059669] px-3 py-3 text-white shadow">
+    <p className="text-[15px] opacity-80">Resolved</p>
+    <h3 className="text-1xl font-bold">{stats.resolved}</h3>
+  </div>
 
-          <div className="rounded-xl bg-gradient-to-r from-gray-500 to-gray-700 px-3 py-3 text-white shadow">
-            <p className="text-[15px] opacity-80">Closed</p>
-            <h3 className="text-1xl font-bold">{stats.closed}</h3>
-          </div>
-        </div>
+  {/* Rejected */}
+  <div className="rounded-xl bg-gradient-to-r from-[#7F1D1D] to-[#DC2626] px-3 py-3 text-white shadow">
+    <p className="text-[15px] opacity-80">Rejected</p>
+    <h3 className="text-1xl font-bold">{stats.rejected}</h3>
+  </div>
+
+  {/* Closed */}
+  <div className="rounded-xl bg-gradient-to-r from-[#1F2937] to-[#374151] px-3 py-3 text-white shadow">
+    <p className="text-[15px] opacity-80">Closed</p>
+    <h3 className="text-1xl font-bold">{stats.closed}</h3>
+  </div>
+
+</div>
 
         <div className="mb-6 grid gap-4 md:grid-cols-3">
           <input
@@ -518,7 +538,7 @@ const IssueDashboard = () => {
             onClick={loadData}
             className="rounded-xl bg-[#002147] px-4 py-2 text-white shadow-md transition hover:bg-[#001733] hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-[#002147]/50"
           >
-             Refresh
+            Refresh
           </button>
         </div>
 
@@ -595,154 +615,214 @@ const IssueDashboard = () => {
         {loading ? (
           <div className="rounded-xl bg-white p-6 shadow">Loading tickets...</div>
         ) : (
-          <div className="space-y-4">
-            {filteredTickets.map((ticket) => (
-              <div key={ticket.id} className="rounded-2xl bg-white/90 backdrop-blur p-6 shadow-md hover:shadow-xl transition">
-                {ticket.status === "REJECTED" && (
-                  <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                    This ticket has been rejected. Further actions are disabled.
-                  </div>
-                )}
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-semibold text-[#002147]">
-                      Ticket #{ticket.id} - {ticket.category}
-                    </p>
-                    <p className="text-sm text-slate-600">
-                      Reported by: {ticket.createdByName} | Priority: {ticket.priority}
-                    </p>
-                  </div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold text-white
-                      ${
-                        ticket.status === "OPEN" ? "bg-blue-500" :
-                        ticket.status === "IN_PROGRESS" ? "bg-yellow-500" :
-                        ticket.status === "RESOLVED" ? "bg-green-500" :
-                        ticket.status === "COMPLETED_BY_STAFF" ? "bg-cyan-500" :
-                        ticket.status === "CLOSED" ? "bg-gray-600" :
-                        ticket.status === "REJECTED" ? "bg-red-500" :
-                        "bg-slate-400"
-                      }
-                    `}
-                  >
-                    {ticket.status}
-                  </span>
+          <div className="space-y-6">
+            <section className="rounded-2xl bg-white/90 p-6 shadow-md">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Completed Tasks</p>
+                  <h3 className="text-xl font-bold text-slate-900">Awaiting manager review</h3>
                 </div>
-
-                <p className="mb-3 text-sm text-slate-700">{ticket.description}</p>
-                <p className="mb-3 text-xs text-slate-500">Created: {new Date(ticket.createdAt).toLocaleString()}</p>
-
-                <div className="mb-3">
-                  {(() => {
-                    if (ticket.status === "REJECTED" || ticket.status === "CLOSED") {
-                      return (
-                        <div className="rounded border bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                          No further status action available.
-                        </div>
-                      );
-                    }
-                    if (ticket.status === "COMPLETED_BY_STAFF") {
-                      return (
-                        <button
-                          onClick={() => {
-                            const ok = window.confirm("Close this ticket? This action cannot be undone.");
-                            if (!ok) return;
-                            void closeCompletedTicket(ticket.id);
-                          }}
-                          className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
-                        >
-                          Review & Close
-                        </button>
-                      );
-                    }
-                    const next = getNextManagerStatus(ticket.status);
-                    if (!next) {
-                      return <div className="rounded border bg-slate-50 px-3 py-2 text-sm text-slate-600">No further status action available.</div>;
-                    }
-                    const label =
-                      next === "IN_PROGRESS" ? "Set In Progress" : next === "RESOLVED" ? "Set Resolved" : "Set Closed";
-                    return (
-                      <button
-                        onClick={() => updateStatusForTicket(ticket.id, next)}
-                        className="w-full rounded-xl bg-indigo-50 text-indigo-700 font-semibold px-3 py-2 hover:bg-indigo-100 transition"
-                        disabled={ticket.status === "REJECTED"}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })()}
-                </div>
-
-                {/* Reject action (Issue Manager only) */}
-                {isIssueManager && ticket.status !== "REJECTED" && ticket.status !== "CLOSED" && (
-                  <div className="mb-3">
-                    <button
-                      onClick={() => openRejectModal(ticket.id)}
-                      className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
-                    >
-                      Reject Ticket
-                    </button>
-                  </div>
-                )}
-
-                <div className="mb-3 grid gap-2 md:grid-cols-2">
-                  <textarea
-                    placeholder="Resolution notes"
-                    value={notes[ticket.id] || ticket.resolutionNotes || ""}
-                    onChange={(e) => setNotes((prev) => ({ ...prev, [ticket.id]: e.target.value }))}
-                    className="min-h-[80px] rounded border px-3 py-2"
-                    disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
-                  />
-                  <button
-                    onClick={() => saveResolutionNotes(ticket.id)}
-                    className="rounded bg-green-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
-                  >
-                    Save Resolution Notes
-                  </button>
-                </div>
-
-                <div className="grid gap-2 md:grid-cols-3">
-                  <select
-                    value={assignments[ticket.id] || ""}
-                    onChange={(e) => setAssignments((prev) => ({ ...prev, [ticket.id]: e.target.value }))}
-                    className="rounded-xl border border-slate-200 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
-                    disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
-                  >
-                    <option value="">Assign staff member</option>
-                    {staff.map((member) => (
-                      <option key={member.id} value={member.id}>
-                        {member.name} ({member.role})
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => assignStaffForTicket(ticket.id)}
-                    className="rounded bg-[#002147] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
-                  >
-                    Assign
-                  </button>
-                  <div className="rounded border px-3 py-2 text-sm">
-                    Current: {ticket.assignedToName ? `${ticket.assignedToName} (${ticket.assignedToRole})` : "Unassigned"}
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <button
-                    onClick={() => navigate(`/ticket/${ticket.id}`)}
-                    className="rounded border border-[#002147] px-3 py-2 text-sm font-semibold text-[#002147]"
-                  >
-                    View comments
-                  </button>
-                </div>
-
-                {ticket.rejectionReason && (
-                  <p className="mt-3 rounded bg-yellow-100 p-2 text-sm text-yellow-800">Rejection reason: {ticket.rejectionReason}</p>
-                )}
+                <span className="rounded-full bg-cyan-100 px-3 py-1 text-sm font-semibold text-cyan-800">
+                  {completedTickets.length} completed
+                </span>
               </div>
-            ))}
-            {filteredTickets.length === 0 && <div className="rounded-xl bg-white p-6 shadow">No tickets found.</div>}
+
+              {completedTickets.length === 0 ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
+                  No helper-completed tasks have arrived yet.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {completedTickets.map((ticket) => (
+                    <div key={ticket.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-900">Ticket #{ticket.id} — {ticket.category}</p>
+                          <p className="text-sm text-slate-600">{ticket.description}</p>
+                        </div>
+                        <div className="flex flex-col gap-2 md:items-end">
+                          <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-800">
+                            Completed
+                          </span>
+                          <button
+                            onClick={() => closeCompletedTicket(ticket.id)}
+                            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                          >
+                            Close Ticket
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl bg-white/90 p-6 shadow-md">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Current Tickets</p>
+                  <h3 className="text-xl font-bold text-slate-900">Active ticket queue</h3>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+                  {filteredTickets.filter((ticket) => ticket.status !== "COMPLETED_BY_STAFF").length} active
+                </span>
+              </div>
+
+              {filteredTickets.filter((ticket) => ticket.status !== "COMPLETED_BY_STAFF").length === 0 ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
+                  {filteredTickets.length === 0 ? "No tickets found." : "No active tickets match the current filters."}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredTickets.filter((ticket) => ticket.status !== "COMPLETED_BY_STAFF").map((ticket) => (
+                    <div key={ticket.id} className="rounded-2xl bg-white/90 backdrop-blur p-6 shadow-md hover:shadow-xl transition">
+                      {ticket.status === "REJECTED" && (
+                        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                          This ticket has been rejected. Further actions are disabled.
+                        </div>
+                      )}
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-[#002147]">
+                            Ticket #{ticket.id} - {ticket.category}
+                          </p>
+                          <p className="text-sm text-slate-600">
+                            Reported by: {ticket.createdByName} | Priority: {ticket.priority}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold text-white
+                            ${
+                              ticket.status === "OPEN" ? "bg-blue-500" :
+                              ticket.status === "IN_PROGRESS" ? "bg-yellow-500" :
+                              ticket.status === "RESOLVED" ? "bg-green-500" :
+                              ticket.status === "COMPLETED_BY_STAFF" ? "bg-cyan-500" :
+                              ticket.status === "CLOSED" ? "bg-gray-600" :
+                              ticket.status === "REJECTED" ? "bg-red-500" :
+                              "bg-slate-400"
+                            }
+                          `}
+                        >
+                          {ticket.status}
+                        </span>
+                      </div>
+
+                      <p className="mb-3 text-sm text-slate-700">{ticket.description}</p>
+                      <p className="mb-3 text-xs text-slate-500">Created: {new Date(ticket.createdAt).toLocaleString()}</p>
+
+                      <div className="mb-3">
+                        {(() => {
+                          if (ticket.status === "REJECTED" || ticket.status === "CLOSED") {
+                            return (
+                              <div className="rounded border bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                                No further status action available.
+                              </div>
+                            );
+                          }
+                          if (ticket.status === "COMPLETED_BY_STAFF") {
+                            return (
+                              <button
+                                onClick={() => {
+                                  const ok = window.confirm("Close this ticket? This action cannot be undone.");
+                                  if (!ok) return;
+                                  void closeCompletedTicket(ticket.id);
+                                }}
+                                className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white"
+                              >
+                                Review & Close
+                              </button>
+                            );
+                          }
+                          const next = getNextManagerStatus(ticket.status);
+                          if (!next) {
+                            return <div className="rounded border bg-slate-50 px-3 py-2 text-sm text-slate-600">No further status action available.</div>;
+                          }
+                          const label =
+                            next === "IN_PROGRESS" ? "Set In Progress" : next === "RESOLVED" ? "Set Resolved" : "Set Closed";
+                          return (
+                            <button
+                              onClick={() => updateStatusForTicket(ticket.id, next)}
+                              className="w-full rounded-xl bg-indigo-50 text-indigo-700 font-semibold px-3 py-2 hover:bg-indigo-100 transition"
+                              disabled={ticket.status === "REJECTED"}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })()}
+                      </div>
+
+                      {isIssueManager && ticket.status !== "REJECTED" && ticket.status !== "CLOSED" && (
+                        <div className="mb-3">
+                          <button
+                            onClick={() => openRejectModal(ticket.id)}
+                            className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+                          >
+                            Reject Ticket
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="mb-3 grid gap-2 md:grid-cols-2">
+                        <textarea
+                          placeholder="Resolution notes"
+                          value={notes[ticket.id] || ticket.resolutionNotes || ""}
+                          onChange={(e) => setNotes((prev) => ({ ...prev, [ticket.id]: e.target.value }))}
+                          className="min-h-[80px] rounded border px-3 py-2"
+                          disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
+                        />
+                        <button
+                          onClick={() => saveResolutionNotes(ticket.id)}
+                          className="rounded bg-green-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
+                        >
+                          Save Resolution Notes
+                        </button>
+                      </div>
+
+                      <div className="grid gap-2 md:grid-cols-3">
+                        <select
+                          value={assignments[ticket.id] || ""}
+                          onChange={(e) => setAssignments((prev) => ({ ...prev, [ticket.id]: e.target.value }))}
+                          className="rounded-xl border border-slate-200 px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                          disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
+                        >
+                          <option value="">Assign staff member</option>
+                          {staff.map((member) => (
+                            <option key={member.id} value={member.id}>
+                              {member.name} ({member.role})
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => assignStaffForTicket(ticket.id)}
+                          className="rounded bg-[#002147] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={ticket.status === "REJECTED" || ticket.status === "CLOSED"}
+                        >
+                          Assign
+                        </button>
+                        <div className="rounded border px-3 py-2 text-sm">
+                          Current: {ticket.assignedToName ? `${ticket.assignedToName} (${ticket.assignedToRole})` : "Unassigned"}
+                        </div>
+                      </div>
+
+                      <div className="mt-3">
+                        <button
+                          onClick={() => navigate(`/ticket/${ticket.id}`)}
+                          className="rounded border border-[#002147] px-3 py-2 text-sm font-semibold text-[#002147]"
+                        >
+                          View comments
+                        </button>
+                      </div>
+
+                      {ticket.rejectionReason && (
+                        <p className="mt-3 rounded bg-yellow-100 p-2 text-sm text-yellow-800">Rejection reason: {ticket.rejectionReason}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         )}
       </main>

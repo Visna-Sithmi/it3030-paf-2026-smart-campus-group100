@@ -112,6 +112,7 @@ export default function TicketDetails() {
   const [commentActionLoading, setCommentActionLoading] = useState<number | null>(null);
   const [commentError, setCommentError] = useState("");
   const [commentSuccess, setCommentSuccess] = useState("");
+  const [imageLoadError, setImageLoadError] = useState<Record<number, boolean>>({});
   const [now, setNow] = useState(() => Date.now());
 
   const currentRole = (localStorage.getItem("role") || "").toUpperCase();
@@ -127,6 +128,11 @@ export default function TicketDetails() {
   const loadTicket = useCallback(async () => {
     const res = await getTicketById(Number(id));
     const ticketData = (res.data || {}) as any;
+    console.log("[TicketDetails] Loaded ticket data:", {
+      id: ticketData.id,
+      attachmentUrlsCount: (ticketData.attachmentUrls || []).length,
+      attachmentUrls: ticketData.attachmentUrls,
+    });
     setTicket({
       ...ticketData,
       resourceId:
@@ -251,6 +257,15 @@ export default function TicketDetails() {
       currentUserId === Number(commentUserId || 0) &&
       currentRole === String(commentUserRole || "").toUpperCase()
     );
+  };
+
+  const buildAttachmentUrl = (url: string) => {
+    return url.startsWith("http") ? url : `http://localhost:8081${url}`;
+  };
+
+  const handleAttachmentImageError = (index: number) => {
+    console.log(`[TicketDetails] Image load failed for attachment ${index}`);
+    setImageLoadError((prev) => ({ ...prev, [index]: true }));
   };
 
   const startEditComment = (commentId: number, text: string) => {
@@ -384,7 +399,7 @@ export default function TicketDetails() {
     if (!Number.isFinite(currentUserId) || currentUserId <= 0) return false;
     if (t.assignedToId == null) return false;
     if (Number(t.assignedToId) !== currentUserId) return false;
-    return t.status === "IN_PROGRESS" || t.status === "RESOLVED";
+    return ["OPEN", "IN_PROGRESS", "RESOLVED"].includes(t.status);
   };
 
   const handleComplete = async (ticketId: number) => {
@@ -627,29 +642,48 @@ export default function TicketDetails() {
             <h2 className="font-semibold mb-4">Attachments ({ticket.attachmentUrls?.length})</h2>
 
             <div className="space-y-4">
-              {ticket.attachmentUrls?.map((url, i) => (
-                <div key={i} className="flex items-center gap-4 p-3 border rounded-xl hover:bg-slate-50 transition">
+              {ticket.attachmentUrls?.map((url, i) => {
+                const attachmentUrl = buildAttachmentUrl(String(url || ""));
+                const showImage = !imageLoadError[i];
+                
+                console.log(`[TicketDetails] Attachment ${i}:`, { url, attachmentUrl, showImage });
 
-                  <img
-                    src={url.startsWith("http") ? url : `http://localhost:8081${url}`}
-                    className="w-28 h-16 object-cover rounded-lg border"
-                  />
+                return (
+                  <div key={i} className="flex items-center gap-4 p-3 border rounded-xl hover:bg-slate-50 transition">
+                    <div className="w-28 h-16 flex items-center justify-center rounded-lg border bg-slate-50 overflow-hidden">
+                      {showImage ? (
+                        <img
+                          src={`${attachmentUrl}?t=${Date.now()}`}
+                          alt={`Attachment ${i + 1}`}
+                          className="w-full h-full object-cover"
+                          onLoad={() => console.log(`[TicketDetails] Image ${i} loaded successfully:`, attachmentUrl)}
+                          onError={() => {
+                            console.error(`[TicketDetails] Image ${i} failed to load:`, attachmentUrl);
+                            handleAttachmentImageError(i);
+                          }}
+                        />
+                      ) : (
+                        <span className="text-slate-400 text-sm">Preview unavailable</span>
+                      )}
+                    </div>
 
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">Attachment {i + 1}</p>
-                    <p className="text-xs text-slate-500">Click to preview</p>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">Attachment {i + 1}</p>
+                      <p className="text-xs text-slate-500">{showImage ? "Click to preview" : "Download to view"}</p>
+                    </div>
+
+                    <a
+                      href={attachmentUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      download
+                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm"
+                    >
+                      ⬇
+                    </a>
                   </div>
-
-                  <a
-                    href={url.startsWith("http") ? url : `http://localhost:8081${url}`}
-                    download
-                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm"
-                  >
-                    ⬇
-                  </a>
-
-                </div>
-              ))}
+                );
+              })}
             </div>
 
           </div>

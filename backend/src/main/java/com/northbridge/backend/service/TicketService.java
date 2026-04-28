@@ -315,13 +315,13 @@ public class TicketService {
 
     @Transactional
     public TicketResponseDTO completeTicket(Long ticketId, Long staffId, String staffRole) {
-        log.info("Completing ticket {} by staffId={} role={}", ticketId, staffId, staffRole);
         IncidentTicket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found"));
 
         if (staffId == null || staffId <= 0) {
             throw new SecurityException("Invalid user session.");
         }
+        
         String normalizedRole = normalizeRole(staffRole);
         if (!STAFF_ROLES.contains(normalizedRole) && !"STAFF".equals(normalizedRole)) {
             throw new SecurityException("Only STAFF can complete a ticket.");
@@ -342,9 +342,9 @@ public class TicketService {
             return convertToDTO(ticket);
         }
 
-        // Allow completion from IN_PROGRESS (new flow) or RESOLVED (legacy already-resolved).
-        if (current != TicketStatus.IN_PROGRESS && current != TicketStatus.RESOLVED) {
-            throw new IllegalArgumentException("Ticket must be IN_PROGRESS before it can be completed by staff.");
+        // Allow completion from OPEN, IN_PROGRESS, or RESOLVED
+        if (current != TicketStatus.OPEN && current != TicketStatus.IN_PROGRESS && current != TicketStatus.RESOLVED) {
+            throw new IllegalArgumentException("Ticket must be OPEN, IN_PROGRESS, or RESOLVED before it can be completed by staff.");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -352,13 +352,14 @@ public class TicketService {
         ticket.setCompletedAt(now);
         ticket.setResolvedBy(staffId);
 
-        // Keep legacy resolvedAt updated for existing SLA/ticket details UI.
+        // Keep legacy resolvedAt updated for existing UI
         if (ticket.getResolvedAt() == null) {
             ticket.setResolvedAt(now);
         }
 
         IncidentTicket saved = ticketRepository.save(ticket);
 
+        // Send notification to ticket owner
         Long ticketOwnerId = saved.getCreatedByUserId();
         if (ticketOwnerId != null && !Objects.equals(ticketOwnerId, staffId)) {
             notificationService.createNotification(
@@ -467,20 +468,28 @@ public class TicketService {
         for (MultipartFile file : files) {
             if (file.isEmpty()) continue;
 
-            String name = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            Path path = Paths.get(UPLOAD_DIR + name);
-            Files.write(path, file.getBytes());
+String name = System.currentTimeMillis() + "_" + file.getOriginalFilename();
 
-            TicketAttachment att = new TicketAttachment();
-            att.setTicket(ticket);
-            att.setFileName(file.getOriginalFilename());
-            att.setFilePath(path.toString());
-            att.setFileSize(file.getSize());
-            att.setUploadedAt(LocalDateTime.now());
+Path uploadPath = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
+Files.createDirectories(uploadPath);
 
-            attachmentRepository.save(att);
+Path filePath = uploadPath.resolve(name);
 
-            ticket.getAttachments().add(att);
+Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+// 🔥 CREATE object first
+TicketAttachment att = new TicketAttachment();
+
+// 🔥 SET values
+att.setTicket(ticket);
+att.setFileName(file.getOriginalFilename());
+att.setFilePath(name); // ✅ HERE (THIS LINE)
+att.setFileSize(file.getSize());
+att.setUploadedAt(LocalDateTime.now());
+
+attachmentRepository.save(att);
+
+ticket.getAttachments().add(att);
         }
     }
 

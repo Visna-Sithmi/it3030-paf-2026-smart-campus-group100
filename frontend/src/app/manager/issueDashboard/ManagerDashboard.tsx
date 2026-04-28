@@ -16,9 +16,29 @@ import {
   YAxis,
 } from "recharts";
 import { AlertTriangle, Clock, Flame, Layers, TrendingDown, TrendingUp, Users } from "lucide-react";
+
+const THEME_COLORS = {
+  primary: "#1E3A8A",
+  secondary: "#2563EB",
+  accent: "#3B82F6",
+  teal: "#0EA5E9",
+  green: "#059669",
+  emerald: "#10B981",
+  red: "#DC2626",
+  muted: "#64748B"
+};
+
 import { getManagerAnalytics, type ManagerAnalytics } from "../../../services/ticketService";
 
-const PIE_COLORS = ["#2563eb", "#4f46e5", "#10b981", "#06b6d4", "#f59e0b", "#ef4444", "#8b5cf6", "#64748b"];
+const PIE_COLORS = [
+  THEME_COLORS.primary,
+  THEME_COLORS.secondary,
+  THEME_COLORS.accent,
+  THEME_COLORS.teal,
+  THEME_COLORS.emerald,
+  THEME_COLORS.green,
+  THEME_COLORS.muted
+];
 
 function clampPct(n: number) {
   if (!Number.isFinite(n)) return 0;
@@ -157,7 +177,7 @@ export default function ManagerDashboard() {
         <div className="rounded-3xl border border-slate-200/60 bg-white/70 p-6 backdrop-blur">
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-indigo-700">Manager Analytics</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-indigo-900">Manager Analytics</p>
               <h2 className="mt-1 text-2xl font-bold text-slate-900">Ticket Performance Dashboard</h2>
             </div>
           </div>
@@ -179,14 +199,14 @@ export default function ManagerDashboard() {
       <div className="rounded-3xl border border-slate-200/60 bg-white/70 p-6 backdrop-blur">
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-indigo-700">Manager Analytics</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-indigo-900">Manager Analytics</p>
             <h2 className="mt-1 text-2xl font-bold text-slate-900">Ticket Performance Dashboard</h2>
             <p className="mt-1 text-sm text-slate-600">
               Workload, trends, resolution performance, and SLA health for Issue Managers.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+            <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-900">
               Clean insights
             </span>
             <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
@@ -208,18 +228,18 @@ export default function ManagerDashboard() {
         )}
 
         {/* KPIs */}
-        <div className="mt-6 grid gap-4 md:grid-cols-4">
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
           <motion.div whileHover={{ scale: 1.02 }} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Total Tickets</p>
                 <p className="mt-2 text-3xl font-bold text-slate-900">{totalTickets}</p>
                 <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600">
-                  <Layers className="h-4 w-4 text-indigo-600" />
+                  <Layers className="h-4 w-4 text-indigo-900" />
                   Overall workload snapshot
                 </p>
               </div>
-              <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-700">
+              <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-900">
                 <Layers className="h-6 w-6" />
               </div>
             </div>
@@ -241,21 +261,7 @@ export default function ManagerDashboard() {
             </div>
           </motion.div>
 
-          <motion.div whileHover={{ scale: 1.02 }} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">SLA Breach %</p>
-                <p className="mt-2 text-3xl font-bold text-slate-900">{slaBreachPct.toFixed(2)}%</p>
-                <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600">
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  Resolution SLA breaches
-                </p>
-              </div>
-              <div className="rounded-2xl bg-amber-50 p-3 text-amber-700">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-            </div>
-          </motion.div>
+
 
           <motion.div whileHover={{ scale: 1.02 }} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3">
@@ -279,15 +285,23 @@ export default function ManagerDashboard() {
           <motion.div whileHover={{ scale: 1.01 }} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-800">Category distribution</p>
-              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-900">
                 {categoryData.filter(c => c.name !== "No Data").length} categories
               </span>
             </div>
             <div className="mt-4 min-h-[260px]">
               <ResponsiveContainer width="100%" height="100%" minHeight={260}>
                 <PieChart>
-                  <Tooltip />
-                  <Legend verticalAlign="bottom" height={44} />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: "#0F172A",
+                      border: "none",
+                      borderRadius: "10px",
+                      color: "#fff"
+                    }}
+                    labelStyle={{ color: "#93C5FD" }}
+                  />
+                  <Legend verticalAlign="bottom" height={70} />
                   <Pie
                     data={categoryData}
                     dataKey="value"
@@ -325,8 +339,22 @@ export default function ManagerDashboard() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} minTickGap={18} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="count" stroke="#2563eb" strokeWidth={2.5} dot={false} />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: "#0F172A",
+                      border: "none",
+                      borderRadius: "10px",
+                      color: "#fff"
+                    }}
+                    labelStyle={{ color: "#93C5FD" }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="count" 
+                    stroke={THEME_COLORS.secondary} 
+                    strokeWidth={3} 
+                    dot={{ r: 3 }} 
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -343,8 +371,20 @@ export default function ManagerDashboard() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-18} textAnchor="end" height={60} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#10b981" radius={[10, 10, 0, 0]} />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: "#0F172A",
+                      border: "none",
+                      borderRadius: "10px",
+                      color: "#fff"
+                    }}
+                    labelStyle={{ color: "#93C5FD" }}
+                  />
+                  <Bar 
+                    dataKey="count" 
+                    fill={THEME_COLORS.green} 
+                    radius={[10, 10, 0, 0]} 
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -377,7 +417,7 @@ export default function ManagerDashboard() {
           <motion.div whileHover={{ scale: 1.01 }} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-slate-800">Manager notes</p>
-              <div className="rounded-2xl bg-indigo-50 p-2 text-indigo-700">
+              <div className="rounded-2xl bg-indigo-50 p-2 text-indigo-900">
                 <Flame className="h-5 w-5" />
               </div>
             </div>

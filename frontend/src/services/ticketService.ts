@@ -84,12 +84,19 @@ export const createTicket = (data: FormData) => {
 export const getMyTickets = () => {
   const userId = getAuthItem("id");
   const role = getAuthItem("role");
-  return axios.get(`${API}/my`, {
-    params: {
-      userId,
-      role,
-    },
-  });
+  return axios
+    .get(`${API}/my`, {
+      params: {
+        userId,
+        role,
+      },
+    })
+    .then((res) => {
+      const data = Array.isArray(res.data)
+        ? res.data.map((item) => normalizeTicketResponse(item) ?? item)
+        : res.data;
+      return { ...res, data } as typeof res;
+    });
 };
 
 export const getTicketById = (id: number) => {
@@ -168,6 +175,7 @@ export const assignStaff = (ticketId: number, staffId: number) =>
 export const completeTicket = (ticketId: number) => {
   const userId = localStorage.getItem("id");
   const role = localStorage.getItem("role");
+  
   return axios.patch(`${API}/${ticketId}/complete`, null, {
     params: {
       userId,
